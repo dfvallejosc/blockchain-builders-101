@@ -21,7 +21,7 @@
 
 ## 1. Priorización de historias
 
-**Criterio de priorización:** método MoSCoW simplificado (imprescindible / debería / podría). Dentro de cada nivel, las historias van ordenadas por su aporte al recorrido principal del producto y a la propuesta de valor. Las 18 historias del equipo pasan al backlog.
+**Criterio de priorización:** método MoSCoW simplificado (imprescindible / debería / podría). Dentro de cada nivel, las historias van ordenadas por su aporte al recorrido principal del producto y a la propuesta de valor. Las 20 historias del equipo pasan al backlog.
 
 | Prioridad | Historia | Propuesta por | Por qué entra al backlog |
 | :---: | --- | :---: | --- |
@@ -34,15 +34,17 @@
 | 7 | Como emisor, quiero revisar los datos del certificado antes de confirmar su emisión, para no tener que anularlo por un error de digitación. | Equipo | Imprescindible. Es el paso 5 del flujo y evita trabajo posterior. |
 | 8 | Como emisor, quiero entrar a HabilitApp con la cuenta de mi entidad, para emitir certificados a nombre de mi centro y que nadie más pueda hacerlo por mí. | Equipo | Imprescindible. Sin cuenta propia no se sabe quién emitió cada certificado. |
 | 9 | Como administrador de HabilitApp, quiero registrar a una entidad emisora que cumpla las condiciones, para que solo emisores autorizados puedan emitir certificados. | Equipo | Imprescindible. Sin emisores autorizados no hay qué verificar. Puede hacerse con un script si el tiempo aprieta. |
-| 10 | Como emisor, quiero ver el historial de los certificados que he emitido con su estado, para saber cuáles siguen vigentes, cuáles vencieron y cuáles anulé. | Equipo | Debería. Es la base del panel del emisor y un requisito para anular. |
-| 11 | Como emisor, quiero anular un certificado que emití con datos erróneos, para que nadie lo use por error. | Equipo | Debería. Responde a un error probable en la vida real. |
-| 12 | Como coordinador de SST, quiero ver el motivo por el que un certificado no es válido (vencido, anulado o de un emisor revocado), para saber qué pedirle al trabajador. | Equipo | Debería. Cubre los casos de fallo que quedan fuera del recorrido principal. |
-| 13 | Como administrador de HabilitApp, quiero revocar a un emisor del registro, para que sus certificados dejen de verse como válidos en todas las obras a la vez. | Equipo | Debería. Es una ventaja que destaca el Problem Brief y, con el panel hecho, es un botón más. |
-| 14 | Como administrador de HabilitApp, quiero ver la lista de emisores registrados con su estado, para saber cuáles están activos y cuáles fueron revocados. | Equipo | Debería. Es la base del panel de administración. |
-| 15 | Como emisor, quiero ver la lista de los trabajadores que he registrado, para encontrar rápido a quien voy a emitirle un certificado. | Equipo | Debería. Es comodidad al volver a emitir. |
-| 16 | Como emisor, quiero ver los certificados de un trabajador registrado, para saber cuáles tiene vigentes y cuáles debo renovarle. | Equipo | Debería. Ayuda a ofrecer la renovación antes de que venza. |
-| 17 | Como trabajador de una cuadrilla, quiero ver todos mis certificados en un solo lugar, para presentarlos en la obra sin pedir copias a cada emisor. | Equipo | Debería. Resuelve el volumen de escaneos. Es la primera que entra si sobra tiempo. |
-| 18 | Como trabajador, quiero recibir mi certificado por mensaje o correo apenas el emisor lo emite, para llevarlo a la obra sin volver al consultorio. | Equipo | Podría. Es deseable, pero el MVP funciona sin esto. |
+| 10 | Como administrador de HabilitApp, quiero entrar con mi cuenta de administrador, para gestionar emisores sin que nadie más pueda hacerlo. | Equipo | Imprescindible. Sin sesión no se puede cumplir que solo el administrador registre emisores. Se recorta junto con el panel de administración. |
+| 11 | Como emisor, quiero ver el historial de los certificados que he emitido con su estado, para saber cuáles siguen vigentes, cuáles vencieron y cuáles anulé. | Equipo | Debería. Es la base del panel del emisor y un requisito para anular. |
+| 12 | Como emisor, quiero anular un certificado que emití con datos erróneos, para que nadie lo use por error. | Equipo | Debería. Responde a un error probable en la vida real. |
+| 13 | Como coordinador de SST, quiero ver el motivo por el que un certificado no es válido (vencido, anulado o de un emisor revocado), para saber qué pedirle al trabajador. | Equipo | Debería. Cubre los casos de fallo que quedan fuera del recorrido principal. |
+| 14 | Como administrador de HabilitApp, quiero revocar a un emisor del registro, para que sus certificados dejen de verse como válidos en todas las obras a la vez. | Equipo | Debería. Es una ventaja que destaca el Problem Brief y, con el panel hecho, es un botón más. |
+| 15 | Como administrador de HabilitApp, quiero ver la lista de emisores registrados con su estado, para saber cuáles están activos y cuáles fueron revocados. | Equipo | Debería. Es la base del panel de administración. |
+| 16 | Como administrador de HabilitApp, quiero ver cuántos certificados emitió cada entidad por mes, para facturarle y saber cuáles están activas. | Equipo | Debería. Se factura por certificado cada mes y esto sirve para contarlos. Muestra conteos, no datos de los trabajadores. |
+| 17 | Como emisor, quiero ver la lista de los trabajadores que he registrado, para encontrar rápido a quien voy a emitirle un certificado. | Equipo | Debería. Es comodidad al volver a emitir. |
+| 18 | Como emisor, quiero ver los certificados de un trabajador registrado, para saber cuáles tiene vigentes y cuáles debo renovarle. | Equipo | Debería. Ayuda a ofrecer la renovación antes de que venza. |
+| 19 | Como trabajador de una cuadrilla, quiero ver todos mis certificados en un solo lugar, para presentarlos en la obra sin pedir copias a cada emisor. | Equipo | Debería. Resuelve el volumen de escaneos. Es la primera que entra si sobra tiempo. |
+| 20 | Como trabajador, quiero recibir mi certificado por mensaje o correo apenas el emisor lo emite, para llevarlo a la obra sin volver al consultorio. | Equipo | Podría. Es deseable, pero el MVP funciona sin esto. |
 
 ---
 
@@ -87,10 +89,10 @@ Para **consultorios de salud ocupacional y centros de entrenamiento pequeños** 
 | Dentro del MVP (funcionalidad central) | Fuera del MVP (deseable, para después) |
 | --- | --- |
 | Emitir un certificado con QR, con una pantalla de resumen para confirmar. | Historial, anulación y lista de trabajadores del emisor. |
-| Registrar al trabajador al emitir, con su autorización. | Revocar emisores y ver la lista de emisores. |
+| Registrar al trabajador al emitir, con su autorización. | Revocar emisores, ver la lista de emisores y cuántos certificados emitió cada una. |
 | Consultar por QR: auténtico, vigente, entidad autorizada, y nombre y documento. | Motivo cuando un certificado no es válido. |
 | Inicio de sesión del emisor. | Perfil del trabajador y entrega digital del certificado. |
-| Panel de administración para registrar emisores. | Panel para constructoras, alertas de vencimiento e integraciones. |
+| Panel de administración, con su inicio de sesión, para registrar emisores. | Panel para constructoras, alertas de vencimiento e integraciones. |
 
 **Por qué el recorte sigue entregando valor:** un consultorio puede emitir un certificado y un coordinador puede comprobarlo en el celular en menos de 10 segundos, que es el resultado que promete la propuesta de valor. Lo que queda fuera mejora la experiencia, pero no cambia ese recorrido. Lo deseable entra en orden si sobra tiempo, empezando por el perfil del trabajador. Si el tiempo aprieta, lo primero que se recorta es el panel de administración: registrar emisores se haría con un script y el recorrido del emisor y del coordinador queda completo. HabilitApp no mueve dinero, así que no hace falta ninguna función de pagos.
 
@@ -110,7 +112,7 @@ El lienzo cubre: problema, segmento de usuarios, propuesta de valor única, solu
 
 **Enlace al tablero (obligatorio):** PENDIENTE: reemplazar por `[Tablero Kanban en GitHub Projects](https://github.com/users/usuario/projects/1)` cuando esté creado.
 
-El tablero se construye con las 18 historias de la sección 1, en el orden de prioridad indicado, con sus criterios de aceptación en cada tarjeta.
+El tablero se construye con las 20 historias de la sección 1, en el orden de prioridad indicado, con sus criterios de aceptación en cada tarjeta.
 
 ---
 
