@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" role="img" aria-labelledby="t d" font-family="Helvetica, Arial, sans-serif">
+  <title id="t">Arquitectura inicial de HabilitApp</title>
+  <desc id="d">La interfaz habla con el servidor de HabilitApp, y el servidor registra y consulta los certificados en un contrato de Stellar.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#14202B"/>
+    </marker>
+  </defs>
+  <rect width="900" height="440" fill="#FFFFFF"/>
+
+  <!-- Interfaz -->
+  <rect x="20" y="40" width="240" height="320" rx="8" fill="#F4F6F8" stroke="#586573"/>
+  <text x="140" y="68" text-anchor="middle" font-size="15" font-weight="700" fill="#14202B">Interfaz</text>
+  <text x="140" y="86" text-anchor="middle" font-size="12" fill="#586573">React y Vite</text>
+  <rect x="40" y="110" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="140" y="138" text-anchor="middle" font-size="13" fill="#14202B">Panel del emisor</text>
+  <text x="140" y="156" text-anchor="middle" font-size="11" fill="#586573">Trabajadores y certificados</text>
+  <rect x="40" y="190" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="140" y="218" text-anchor="middle" font-size="13" fill="#14202B">Panel de administración</text>
+  <text x="140" y="236" text-anchor="middle" font-size="11" fill="#586573">Alta y revocación de emisores</text>
+  <rect x="40" y="270" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="140" y="298" text-anchor="middle" font-size="13" fill="#14202B">Consulta por QR</text>
+  <text x="140" y="316" text-anchor="middle" font-size="11" fill="#586573">Pública, sin cuenta</text>
+
+  <!-- Lógica -->
+  <rect x="330" y="40" width="240" height="320" rx="8" fill="#F4F6F8" stroke="#586573"/>
+  <text x="450" y="68" text-anchor="middle" font-size="15" font-weight="700" fill="#14202B">Lógica</text>
+  <text x="450" y="86" text-anchor="middle" font-size="12" fill="#586573">Servidor de HabilitApp (NestJS)</text>
+  <rect x="350" y="110" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="450" y="138" text-anchor="middle" font-size="13" fill="#14202B">API</text>
+  <text x="450" y="156" text-anchor="middle" font-size="11" fill="#586573">Valida, firma y envía</text>
+  <rect x="350" y="190" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="450" y="218" text-anchor="middle" font-size="13" fill="#14202B">PostgreSQL</text>
+  <text x="450" y="236" text-anchor="middle" font-size="11" fill="#586573">Trabajadores, certificados y sal</text>
+  <rect x="350" y="270" width="200" height="64" rx="6" fill="#FFFFFF" stroke="#586573"/>
+  <text x="450" y="298" text-anchor="middle" font-size="13" fill="#14202B">Gestor de secretos</text>
+  <text x="450" y="316" text-anchor="middle" font-size="11" fill="#586573">Llaves de los emisores</text>
+
+  <!-- Stellar -->
+  <rect x="640" y="40" width="240" height="320" rx="8" fill="#DCEFEB" stroke="#0B6B5F" stroke-width="1.5"/>
+  <text x="760" y="68" text-anchor="middle" font-size="15" font-weight="700" fill="#14202B">Stellar</text>
+  <text x="760" y="86" text-anchor="middle" font-size="12" fill="#586573">Red de pruebas (testnet)</text>
+  <rect x="660" y="110" width="200" height="130" rx="6" fill="#FFFFFF" stroke="#0B6B5F"/>
+  <text x="760" y="138" text-anchor="middle" font-size="13" font-weight="700" fill="#14202B">Contrato de registro</text>
+  <text x="760" y="160" text-anchor="middle" font-size="11" fill="#586573">Huella de cada certificado</text>
+  <text x="760" y="178" text-anchor="middle" font-size="11" fill="#586573">Estado: vigente o anulado</text>
+  <text x="760" y="196" text-anchor="middle" font-size="11" fill="#586573">Emisor: autorizado o revocado</text>
+  <text x="760" y="224" text-anchor="middle" font-size="11" fill="#586573">Sin datos personales</text>
+  <text x="760" y="290" text-anchor="middle" font-size="11" fill="#586573">Acceso mediante SDK y Stellar RPC</text>
+
+  <!-- Flechas -->
+  <line x1="260" y1="200" x2="330" y2="200" stroke="#14202B" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="295" y="190" text-anchor="middle" font-size="11" fill="#14202B">pide</text>
+  <line x1="570" y1="150" x2="640" y2="150" stroke="#14202B" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="605" y="140" text-anchor="middle" font-size="11" fill="#14202B">registra</text>
+  <line x1="640" y1="190" x2="570" y2="190" stroke="#14202B" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text x="605" y="208" text-anchor="middle" font-size="11" fill="#14202B">consulta</text>
+
+  <!-- Pie -->
+  <text x="450" y="395" text-anchor="middle" font-size="12" fill="#14202B">La red entra cuando el emisor confirma, cuando anula un certificado, cuando se revoca a un emisor</text>
+  <text x="450" y="413" text-anchor="middle" font-size="12" fill="#14202B">y cuando el coordinador consulta el estado de un certificado.</text>
+</svg>

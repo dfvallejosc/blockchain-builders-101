@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 830" role="img" aria-labelledby="t d" font-family="Helvetica, Arial, sans-serif">
+  <title id="t">Lean Canvas de HabilitApp</title>
+  <desc id="d">Lienzo de una página con las nueve casillas del Lean Canvas: problema, solución, métricas clave, propuesta de valor única, ventaja especial, canales, segmento de clientes, estructura de costos y flujo de ingresos.</desc>
+  <rect width="1240" height="830" fill="#FFFFFF"/>
+  <text x="20" y="38" font-size="22" font-weight="700" fill="#14202B">HabilitApp · Lean Canvas</text>
+  <rect x="20" y="60" width="240" height="500" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="34" y="86" font-size="12" font-weight="700" fill="#0B6B5F">1  PROBLEMA</text>
+  <text x="34" y="110" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="110" font-size="12" font-weight="400" fill="#14202B">El documento se puede</text>
+  <text x="46" y="126" font-size="12" font-weight="400" fill="#14202B">falsificar o alterar sin que se</text>
+  <text x="46" y="142" font-size="12" font-weight="400" fill="#14202B">note.</text>
+  <text x="34" y="164" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="164" font-size="12" font-weight="400" fill="#14202B">Confirmar un certificado es</text>
+  <text x="46" y="180" font-size="12" font-weight="400" fill="#14202B">manual y no siempre posible.</text>
+  <text x="34" y="202" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="202" font-size="12" font-weight="400" fill="#14202B">El emisor pequeño no puede</text>
+  <text x="46" y="218" font-size="12" font-weight="400" fill="#14202B">demostrar que sus certificados</text>
+  <text x="46" y="234" font-size="12" font-weight="400" fill="#14202B">son reales.</text>
+  <text x="34" y="260" font-size="12" font-weight="700" fill="#14202B">Alternativas hoy</text>
+  <text x="34" y="276" font-size="12" font-weight="400" fill="#14202B">PDF o papel revisado a mano,</text>
+  <text x="34" y="292" font-size="12" font-weight="400" fill="#14202B">llamar al emisor, software como</text>
+  <text x="34" y="308" font-size="12" font-weight="400" fill="#14202B">Verifty.</text>
+  <rect x="260" y="60" width="240" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="274" y="86" font-size="12" font-weight="700" fill="#0B6B5F">2  SOLUCIÓN</text>
+  <text x="274" y="110" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="110" font-size="12" font-weight="400" fill="#14202B">Certificado a nombre del</text>
+  <text x="286" y="126" font-size="12" font-weight="400" fill="#14202B">emisor, con QR, registrado de</text>
+  <text x="286" y="142" font-size="12" font-weight="400" fill="#14202B">forma que no se puede alterar.</text>
+  <text x="274" y="164" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="164" font-size="12" font-weight="400" fill="#14202B">Consulta inmediata: auténtico,</text>
+  <text x="286" y="180" font-size="12" font-weight="400" fill="#14202B">vigente, emisor autorizado y</text>
+  <text x="286" y="196" font-size="12" font-weight="400" fill="#14202B">datos del trabajador.</text>
+  <text x="274" y="218" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="218" font-size="12" font-weight="400" fill="#14202B">Panel del emisor: trabajadores,</text>
+  <text x="286" y="234" font-size="12" font-weight="400" fill="#14202B">historial y anulación.</text>
+  <text x="274" y="256" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="256" font-size="12" font-weight="400" fill="#14202B">Registro curado de emisores,</text>
+  <text x="286" y="272" font-size="12" font-weight="400" fill="#14202B">con revocación.</text>
+  <rect x="260" y="310" width="240" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="274" y="336" font-size="12" font-weight="700" fill="#0B6B5F">3  MÉTRICAS CLAVE</text>
+  <text x="274" y="360" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="360" font-size="12" font-weight="400" fill="#14202B">Tiempo de verificación: menos</text>
+  <text x="286" y="376" font-size="12" font-weight="400" fill="#14202B">de 10 segundos.</text>
+  <text x="274" y="398" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="398" font-size="12" font-weight="400" fill="#14202B">Emisores activos: al menos un</text>
+  <text x="286" y="414" font-size="12" font-weight="400" fill="#14202B">certificado emitido al mes.</text>
+  <text x="274" y="436" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="436" font-size="12" font-weight="400" fill="#14202B">Verificaciones por certificado</text>
+  <text x="286" y="452" font-size="12" font-weight="400" fill="#14202B">emitido.</text>
+  <text x="274" y="474" font-size="12" fill="#14202B">•</text>
+  <text x="286" y="474" font-size="12" font-weight="400" fill="#14202B">Coordinadores que exigirían</text>
+  <text x="286" y="490" font-size="12" font-weight="400" fill="#14202B">verificar (encuestas).</text>
+  <text x="274" y="512" font-size="12" font-weight="400" fill="#586573" font-style="italic">Hoy solo se mide la primera, en</text>
+  <text x="274" y="528" font-size="12" font-weight="400" fill="#586573" font-style="italic">testnet.</text>
+  <rect x="500" y="60" width="240" height="500" fill="#DCEFEB" stroke="#0B6B5F" stroke-width="1.2"/>
+  <text x="514" y="86" font-size="12" font-weight="700" fill="#0B6B5F">4  PROPUESTA DE VALOR ÚNICA</text>
+  <text x="514" y="110" font-size="15" font-weight="700" fill="#14202B">Cada certificado se</text>
+  <text x="514" y="131" font-size="15" font-weight="700" fill="#14202B">comprueba solo, escaneando</text>
+  <text x="514" y="152" font-size="15" font-weight="700" fill="#14202B">un QR.</text>
+  <text x="514" y="179" font-size="15" font-weight="700" fill="#14202B">El emisor deja de atender</text>
+  <text x="514" y="200" font-size="15" font-weight="700" fill="#14202B">verificaciones.</text>
+  <text x="514" y="227" font-size="15" font-weight="400" fill="#586573" font-style="italic">Para consultorios y</text>
+  <text x="514" y="248" font-size="15" font-weight="400" fill="#586573" font-style="italic">centros de entrenamiento</text>
+  <text x="514" y="269" font-size="15" font-weight="400" fill="#586573" font-style="italic">pequeños.</text>
+  <rect x="740" y="60" width="240" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="754" y="86" font-size="12" font-weight="700" fill="#0B6B5F">5  VENTAJA ESPECIAL</text>
+  <text x="754" y="110" font-size="12" font-weight="400" fill="#14202B">Un registro curado de emisores</text>
+  <text x="754" y="126" font-size="12" font-weight="400" fill="#14202B">pequeños, que vale más con cada</text>
+  <text x="754" y="142" font-size="12" font-weight="400" fill="#14202B">emisor y constructora que se</text>
+  <text x="754" y="158" font-size="12" font-weight="400" fill="#14202B">suma.</text>
+  <text x="754" y="180" font-size="12" font-weight="400" fill="#586573" font-style="italic">Hipótesis, no comprobada.</text>
+  <rect x="740" y="310" width="240" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="754" y="336" font-size="12" font-weight="700" fill="#0B6B5F">6  CANALES</text>
+  <text x="754" y="360" font-size="12" fill="#14202B">•</text>
+  <text x="766" y="360" font-size="12" font-weight="400" fill="#14202B">Emisores: lista de centros</text>
+  <text x="766" y="376" font-size="12" font-weight="400" fill="#14202B">autorizados del Ministerio del</text>
+  <text x="766" y="392" font-size="12" font-weight="400" fill="#14202B">Trabajo, visitas en Medellín y</text>
+  <text x="766" y="408" font-size="12" font-weight="400" fill="#14202B">constructoras que lo exijan.</text>
+  <text x="754" y="430" font-size="12" fill="#14202B">•</text>
+  <text x="766" y="430" font-size="12" font-weight="400" fill="#14202B">Coordinadores: su constructora</text>
+  <text x="766" y="446" font-size="12" font-weight="400" fill="#14202B">y el propio QR, que muestra</text>
+  <text x="766" y="462" font-size="12" font-weight="400" fill="#14202B">HabilitApp en cada escaneo.</text>
+  <text x="754" y="484" font-size="12" font-weight="400" fill="#586573" font-style="italic">Por explorar: ARL y Camacol.</text>
+  <rect x="980" y="60" width="240" height="500" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="994" y="86" font-size="12" font-weight="700" fill="#0B6B5F">7  SEGMENTO DE CLIENTES</text>
+  <text x="994" y="110" font-size="12" fill="#14202B">•</text>
+  <text x="1006" y="110" font-size="12" font-weight="400" fill="#14202B">Principal: consultorios y</text>
+  <text x="1006" y="126" font-size="12" font-weight="400" fill="#14202B">centros de entrenamiento</text>
+  <text x="1006" y="142" font-size="12" font-weight="400" fill="#14202B">pequeños.</text>
+  <text x="994" y="164" font-size="12" fill="#14202B">•</text>
+  <text x="1006" y="164" font-size="12" font-weight="400" fill="#14202B">Secundario: coordinadores de</text>
+  <text x="1006" y="180" font-size="12" font-weight="400" fill="#14202B">SST de constructoras formales.</text>
+  <text x="994" y="202" font-size="12" font-weight="400" fill="#586573" font-style="italic">Se valida primero en Medellín.</text>
+  <rect x="20" y="560" width="600" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="34" y="586" font-size="12" font-weight="700" fill="#0B6B5F">8  ESTRUCTURA DE COSTOS</text>
+  <text x="34" y="610" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="610" font-size="12" font-weight="400" fill="#14202B">Red, por certificado: de menos de 1 peso a unos 20, según cómo se registre la huella.</text>
+  <text x="34" y="632" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="632" font-size="12" font-weight="400" fill="#14202B">Reserva de cada cuenta de emisor: 1 Lumen, una sola vez, pagado por HabilitApp. Es un</text>
+  <text x="46" y="648" font-size="12" font-weight="400" fill="#14202B">depósito.</text>
+  <text x="34" y="670" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="670" font-size="12" font-weight="400" fill="#14202B">Acceso a la red (RPC): gratis en testnet, de pago en mainnet.</text>
+  <text x="34" y="692" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="692" font-size="12" font-weight="400" fill="#14202B">Servidor, base de datos y gestor de secretos.</text>
+  <text x="34" y="714" font-size="12" fill="#14202B">•</text>
+  <text x="46" y="714" font-size="12" font-weight="400" fill="#14202B">Sin calcular todavía: pasarela de pagos, facturación, equipo y parte legal.</text>
+  <rect x="620" y="560" width="600" height="250" fill="#FFFFFF" stroke="#586573" stroke-width="1.2"/>
+  <text x="634" y="586" font-size="12" font-weight="700" fill="#0B6B5F">9  FLUJO DE INGRESOS</text>
+  <text x="634" y="610" font-size="12" fill="#14202B">•</text>
+  <text x="646" y="610" font-size="12" font-weight="400" fill="#14202B">Hoy: el emisor paga 5.000 pesos por certificado, facturados una vez al mes, y puede</text>
+  <text x="646" y="626" font-size="12" font-weight="400" fill="#14202B">trasladarlo a su cliente. Verificar es gratis para el coordinador.</text>
+  <text x="634" y="648" font-size="12" fill="#14202B">•</text>
+  <text x="646" y="648" font-size="12" font-weight="400" fill="#14202B">Después: la constructora paga por un panel con alertas de vencimiento, y se amplía a</text>
+  <text x="646" y="664" font-size="12" font-weight="400" fill="#14202B">otros sectores.</text>
+  <text x="634" y="686" font-size="12" font-weight="400" fill="#586573" font-style="italic">Hipótesis por validar en las encuestas.</text>
+  <text x="20" y="818" font-size="11" fill="#586573">Proyecto del programa Blockchain Builders 101. Las casillas con hipótesis se validan en las semanas 3 y 4.</text>
+</svg>
