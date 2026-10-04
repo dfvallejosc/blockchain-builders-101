@@ -110,9 +110,9 @@ El lienzo cubre: problema, segmento de usuarios, propuesta de valor única, solu
 
 ## 6. Backlog priorizado (Kanban)
 
-**Enlace al tablero (obligatorio):** PENDIENTE: reemplazar por `[Tablero Kanban en GitHub Projects](https://github.com/users/usuario/projects/1)` cuando esté creado.
+**Enlace al tablero (obligatorio):** [Tablero Kanban en GitHub Projects](https://github.com/users/dfvallejosc/projects/2)
 
-El tablero se construye con las 20 historias de la sección 1, en el orden de prioridad indicado, con sus criterios de aceptación en cada tarjeta.
+El tablero se construye con las 20 historias de la sección 1, en el orden de prioridad indicado (HU-01 a HU-20), con sus criterios de aceptación en cada tarjeta. Los estados son ToDo, In Progress, Review y Done.
 
 ---
 
