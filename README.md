@@ -4,6 +4,18 @@ Certificados verificables de seguridad laboral sobre Stellar. Proyecto del equip
 
 Los entregables de documentación están en [`docs/`](docs/). El diseño del producto está en [`docs/semana2/ProductBlueprint.md`](docs/semana2/ProductBlueprint.md) y el backlog en el [tablero de GitHub Projects](https://github.com/users/dfvallejosc/projects/2).
 
+## Qué es
+
+En las obras de construcción, las tareas de alto riesgo (trabajo en alturas, espacios confinados, operación de grúa) exigen certificados que emiten consultorios de salud ocupacional y centros de entrenamiento pequeños. Hoy esos certificados llegan como PDF o papel, y quien los revisa no tiene cómo comprobar que sean reales.
+
+HabilitApp permite que esas entidades emitan certificados con un código QR, y que el coordinador de seguridad y salud en el trabajo los compruebe escaneándolo, sin llamar al emisor.
+
+El plan es guardar los datos de los trabajadores en PostgreSQL y registrar en Stellar solo una huella de cada certificado, nunca datos personales. El problema, los usuarios y las decisiones de diseño están en el [Problem Brief](docs/semana1/ProblemBrief.md) y en el [Product Blueprint](docs/semana2/ProductBlueprint.md).
+
+## Estado
+
+En construcción. Hoy existe la estructura base: la API, la interfaz, la base de datos local y la integración continua. Las historias de usuario por construir están en el [tablero de GitHub Projects](https://github.com/users/dfvallejosc/projects/2).
+
 ## Integrantes
 
 - Diego Vallejos
@@ -76,4 +88,4 @@ Los colores, la tipografía y los radios están en [`apps/web/src/styles/tokens.
 
 ## Licencia
 
-Pendiente de definir. El programa pide una licencia de código abierto.
+[MIT](LICENSE).
