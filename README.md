@@ -50,10 +50,15 @@ La ruta `GET /health` responde `200` cuando la API alcanza la base de datos y `5
 
 | Comando | Qué hace |
 |---|---|
-| `pnpm check` | Corre el lint y las pruebas de todo el proyecto |
+| `pnpm check` | Lo mismo que corre la integración continua: lint, pruebas y compilación |
 | `pnpm lint` | Lint de la API y de la interfaz |
-| `pnpm test` | Pruebas de la API |
+| `pnpm test` | Pruebas unitarias de la API y de la interfaz |
+| `pnpm test:e2e` | Pruebas de la API contra PostgreSQL (necesita la base de datos local arriba) |
 | `pnpm build` | Compila la API y la interfaz |
+
+## Integración continua
+
+En cada pull request y en cada cambio a `main`, GitHub Actions corre `lint`, `test` y `build`, y las pruebas e2e de la API contra una base de datos temporal. El flujo está en [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Para que bloquee los merges, hay que activar la regla de la rama en la configuración del repositorio (Settings > Branches > Require status checks).
 
 ## Variables de entorno
 
