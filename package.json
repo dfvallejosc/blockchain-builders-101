@@ -5,7 +5,7 @@
   "description": "HabilitApp: certificados verificables de seguridad laboral sobre Stellar",
   "packageManager": "pnpm@10.33.2",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
   "scripts": {
     "dev:api": "pnpm --filter api start:dev",

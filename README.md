@@ -21,7 +21,7 @@ docs/      Documentación por semana
 
 ## Requisitos
 
-- Node.js 22 o superior (`nvm use` lee la versión de `.nvmrc`)
+- Node.js 24 o superior (`nvm use` lee la versión de `.nvmrc`)
 - pnpm 10
 - Docker, para la base de datos local
 
