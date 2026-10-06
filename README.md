@@ -1,6 +1,8 @@
-# Blockchain Builders 101
+# HabilitApp
 
-Repositorio del equipo para el curso Blockchain Builders 101 de la Blockchain Acceleration Foundation.
+Certificados verificables de seguridad laboral sobre Stellar. Proyecto del equipo para Blockchain Builders 101 (Blockchain Acceleration Foundation).
+
+Los entregables de documentación están en [`docs/`](docs/). El diseño del producto está en [`docs/semana2/ProductBlueprint.md`](docs/semana2/ProductBlueprint.md) y el backlog en el [tablero de GitHub Projects](https://github.com/users/dfvallejosc/projects/2).
 
 ## Integrantes
 
@@ -11,18 +13,62 @@ Repositorio del equipo para el curso Blockchain Builders 101 de la Blockchain Ac
 ## Estructura
 
 ```
-docs/
-└── semana1/
-    ├── DiegoVallejos.md   # propuesta individual
-    ├── AndresAguirre.md   # propuesta individual
-    ├── LuisPatino.md      # propuesta individual
-    └── ProblemBrief.md    # entregable de la semana 1
+apps/
+├── api/   API en NestJS con TypeORM y PostgreSQL
+└── web/   Interfaz en React con Vite, Tailwind y shadcn/ui
+docs/      Documentación por semana
 ```
 
-## Entregable 1 — Problem Brief
+## Requisitos
 
-1. Cada integrante escribe su propuesta en su propio archivo y hace commit de forma independiente.
-2. El equipo debate, elige una propuesta y documenta la decisión en `ProblemBrief.md`.
-3. Se completa el resto del brief (150–300 palabras por sección).
+- Node.js 22 o superior (`nvm use` lee la versión de `.nvmrc`)
+- pnpm 10
+- Docker, para la base de datos local
 
-**Fecha límite:** domingo 27 de septiembre, 10:00 a.m. (hora Colombia), en la plataforma Apex.
+## Cómo correrlo en local
+
+```bash
+pnpm install
+
+# 1. Base de datos
+cp .env.example .env            # elige tu usuario, contraseña y nombre de base de datos
+docker compose up -d
+
+# 2. API
+cp apps/api/.env.example apps/api/.env
+# completa DATABASE_URL con los mismos valores del .env de la raíz
+pnpm dev:api                    # http://localhost:3001/health
+
+# 3. Interfaz
+cp apps/web/.env.example apps/web/.env
+pnpm dev:web                    # http://localhost:5173
+```
+
+La ruta `GET /health` responde `200` cuando la API alcanza la base de datos y `503` si no.
+
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `pnpm check` | Corre el lint y las pruebas de todo el proyecto |
+| `pnpm lint` | Lint de la API y de la interfaz |
+| `pnpm test` | Pruebas de la API |
+| `pnpm build` | Compila la API y la interfaz |
+
+## Variables de entorno
+
+Los archivos `.env` no se versionan. Cada aplicación tiene su `.env.example` con las variables que necesita y sin valores secretos. La API valida las variables al arrancar y se detiene con un mensaje claro si falta alguna.
+
+## Sistema de diseño
+
+Los colores, la tipografía y los radios están en [`apps/web/src/styles/tokens.css`](apps/web/src/styles/tokens.css). Para cambiar la marca se editan esos valores, no los componentes.
+
+## Convenciones
+
+- TypeScript en modo estricto, sin `any`.
+- Commits convencionales (`feat:`, `fix:`, `chore:`, `docs:`, `test:`).
+- Ramas `feature/`, `fix/` y `chore/`, y cambios a `main` solo por pull request con revisión de otro integrante.
+
+## Licencia
+
+Pendiente de definir. El programa pide una licencia de código abierto.
