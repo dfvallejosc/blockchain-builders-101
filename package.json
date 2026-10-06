@@ -1,0 +1,18 @@
+{
+  "name": "habilitapp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HabilitApp: certificados verificables de seguridad laboral sobre Stellar",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "check": "pnpm lint && pnpm test"
+  }
+}

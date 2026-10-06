@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: habilitapp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Define POSTGRES_USER en el archivo .env de la raíz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en el archivo .env de la raíz}
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB en el archivo .env de la raíz}
+    ports:
+      - "5432:5432"
+    volumes:
+      - habilitapp-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  habilitapp-pgdata:
