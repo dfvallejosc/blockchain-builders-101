@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService, type ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller.js';
 import { appConfig } from './config/app.config.js';
 import { databaseConfig } from './config/database.config.js';
 import { validateEnv } from './config/env.validation.js';
@@ -29,5 +30,6 @@ import { HealthModule } from './health/health.module.js';
     }),
     HealthModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
