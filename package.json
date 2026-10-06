@@ -15,5 +15,6 @@
     "test": "pnpm -r test",
     "check": "pnpm lint && pnpm test && pnpm build",
     "test:e2e": "pnpm --filter api test:e2e"
-  }
+  },
+  "license": "MIT"
 }
