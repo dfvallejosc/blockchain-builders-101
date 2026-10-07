@@ -18,6 +18,28 @@ El producto está definido en estos dos documentos, que son la fuente de verdad:
 - Tablero de historias y tareas: <https://github.com/users/dfvallejosc/projects/2>
 - Las notas de clase y `docs/Syllabus.md` no están versionados. Si existen en local, léelos para plazos y criterios de evaluación.
 
+### Notas de clase: cuál leer según la tarea
+
+No las cargues todas. Lee solo la que corresponda, y solo la sección que necesites (cada archivo se divide en secciones `##`). Si una nota no existe en local, dilo en vez de suponer su contenido.
+
+Índice de lo que cubre cada clase:
+
+- **Clase 3, Diseñar** (`docs/semana2/NotasClase3Disenar.md`, módulo 2): Lean Canvas, Círculo de Oro y propuesta de valor, usuario y flujo de usuario, historias de usuario, MVP y priorización, backlog y Kanban en GitHub Projects, y una sesión práctica de wallets en Stellar. Base del entregable 2, el Product Blueprint.
+- **Clase 4, Stellar** (`docs/semana2/NotasClase4Stellar.md`): qué es la red y la Stellar Development Foundation, comparación con Bitcoin y Ethereum (tiempos, costos, capacidad), consenso SCP, usos y anchors, las 5 capas técnicas, el Lumen, y cuentas (creación, reservas, firmantes). Cierra con entregables y opciones de custodia.
+- **Clase 5, Soroban** (`docs/semana2/NotasClase5Soroban.md`, módulo 3): cómo guarda datos la red (ledger entries), cuentas y reserva mínima, activos y trustlines, tarifas y renta de almacenamiento (TTL), operaciones y ciclo de vida de una transacción, contratos Soroban y ambiente de desarrollo (Rust, Stellar CLI, testnet).
+
+| Si la tarea trata de… | Lee |
+| --- | --- |
+| Lean Canvas, propuesta de valor, flujo de usuario, historias, MVP, backlog o tablero Kanban | `docs/semana2/NotasClase3Disenar.md` |
+| Wallets en Stellar (sesión práctica) | `docs/semana2/NotasClase3Disenar.md`, sección "Wallets en Stellar" |
+| Qué es Stellar, consenso (SCP), comparación con Bitcoin y Ethereum, anchors, capas técnicas, Lumen | `docs/semana2/NotasClase4Stellar.md` |
+| Cuentas, firmantes, opciones de custodia de llaves, quién paga el primer Lumen, paso de testnet a mainnet | `docs/semana2/NotasClase4Stellar.md`, secciones "Cuentas en Stellar" y "Entregables, Mentorías y Próximos Pasos" |
+| Qué se guarda en la red, ledger entries, trustlines, costos, renta y TTL de almacenamiento | `docs/semana2/NotasClase5Soroban.md` |
+| Contratos Soroban, tipos de almacenamiento (persistente, temporal, instancia), ciclo de vida de una transacción, ambiente de desarrollo con Rust y Stellar CLI | `docs/semana2/NotasClase5Soroban.md` |
+| Plazos y criterios de evaluación | `docs/Syllabus.md` |
+
+Las notas son apuntes de clase, no decisiones del equipo. Si chocan con el Problem Brief o el Product Blueprint, mandan estos dos y las decisiones abiertas se siguen preguntando.
+
 ## Stack y comandos
 
 Monorepo con pnpm y Node 24 (`.nvmrc`). Dos aplicaciones en `apps/`:
