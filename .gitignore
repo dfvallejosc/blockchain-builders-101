@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Variables de entorno: solo se versionan los .env.example
+.env
+.env.*
+!.env.example
+
+# Herramientas locales (los skills y la configuración de .claude/ sí se versionan)
+.claude/worktrees/
+.claude/settings.local.json
+.idea/
+.vscode/
+
+# Cachés de compilación
+*.tsbuildinfo

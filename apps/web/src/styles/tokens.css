@@ -1,0 +1,138 @@
+/* Tokens del sistema de diseño de HabilitApp.
+   Fuente: components.html del paquete de diseño (bloques claro, oscuro y alias de shadcn/ui).
+   Para cambiar la marca se editan estos valores, no los componentes. */
+
+/* ── Modo claro (por defecto) ────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Superficies y bordes */
+  --ha-bg: #f4f6f8;
+  --ha-surface: #ffffff;
+  --ha-surface-2: #ebeff3;
+  --ha-hover: #f4f6f8;              /* fila / ítem en hover */
+  --ha-border: #c9d1da;             /* divisores y bordes de tarjeta (decorativo) */
+  --ha-border-strong: #7a8794;      /* borde de controles: 3:1 mínimo (WCAG 1.4.11) */
+  --ha-scrim: rgb(20 32 43 / 0.5);
+
+  /* Texto */
+  --ha-text: #14202b;
+  --ha-text-muted: #586573;
+  --ha-disabled-fg: #7c8895;        /* deshabilitado: exento de contraste */
+
+  /* Primario (azul petróleo) */
+  --ha-primary: #0f4c5c;
+  --ha-primary-hover: #0b3d4b;
+  --ha-primary-active: #082f3a;
+  --ha-primary-soft: #e1eef2;       /* fila seleccionada, ítem activo */
+  --ha-primary-soft-active: #d3e7ed;
+  --ha-on-primary: #ffffff;
+  --ha-focus: #0f4c5c;
+
+  /* Estados — solo para estados. Cada uno: texto/sólido, fondo suave, texto sobre sólido */
+  --ha-success: #197a47;            /* ajustado desde #1B7F4B (4,40:1 → 4,70:1 sobre su fondo suave) */
+  --ha-success-bg: #e3f4ea;
+  --ha-on-success: #ffffff;
+  --ha-warning: #8a5200;
+  --ha-warning-bg: #fbebcb;
+  --ha-on-warning: #ffffff;
+  --ha-danger: #b3261e;
+  --ha-danger-hover: #9a1f18;
+  --ha-danger-active: #82190f;
+  --ha-danger-bg: #fbe4e2;
+  --ha-on-danger: #ffffff;
+  --ha-neutral: #586573;
+  --ha-neutral-bg: #ebeff3;
+
+  /* Marca — solo gráficos de marca (logotipo, ilustración). Nunca en la interfaz. */
+  --ha-brand-yellow: #f5b700;
+
+  /* Elevación mínima: bordes primero, sombra solo en diálogos y menús */
+  --shadow-overlay: 0 1px 2px rgb(20 32 43 / 0.08), 0 8px 24px rgb(20 32 43 / 0.16);
+}
+
+/* ── Modo oscuro ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ha-bg: #0d1419;
+  --ha-surface: #141d25;
+  --ha-surface-2: #1c2833;
+  --ha-hover: #19232d;
+  --ha-border: #2b3a47;
+  --ha-border-strong: #7b8b99;
+  --ha-scrim: rgb(0 0 0 / 0.64);
+
+  --ha-text: #e6edf3;
+  --ha-text-muted: #a3b2bf;
+  --ha-disabled-fg: #6b7b89;
+
+  --ha-primary: #5bb4c9;            /* petróleo claro */
+  --ha-primary-hover: #7cc6d8;      /* en oscuro, hover aclara */
+  --ha-primary-active: #479fb4;
+  --ha-primary-soft: #12343d;
+  --ha-primary-soft-active: #174049;
+  --ha-on-primary: #06222a;
+  --ha-focus: #5bb4c9;
+
+  --ha-success: #6fd4a0;
+  --ha-success-bg: #123624;
+  --ha-on-success: #06210f;
+  --ha-warning: #f2c26b;
+  --ha-warning-bg: #3a2a0a;
+  --ha-on-warning: #2a1a00;
+  --ha-danger: #ff9c94;
+  --ha-danger-hover: #ffb3ad;
+  --ha-danger-active: #ff8379;
+  --ha-danger-bg: #3f1614;
+  --ha-on-danger: #3a0905;
+  --ha-neutral: #a3b2bf;
+  --ha-neutral-bg: #1c2833;
+
+  --ha-brand-yellow: #f5b700;
+
+  --shadow-overlay: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.55);
+}
+
+/* ── Alias shadcn/ui (Tailwind v4: usar con @theme inline) ───────────────────
+   Se resuelven en tiempo de ejecución, por lo que cambian con [data-theme].
+   Mapa completo y comentado en DESIGN.md §11. */
+:root {
+  --radius: 0.5rem;
+
+  --background: var(--ha-bg);
+  --foreground: var(--ha-text);
+  --card: var(--ha-surface);
+  --card-foreground: var(--ha-text);
+  --popover: var(--ha-surface);
+  --popover-foreground: var(--ha-text);
+  --primary: var(--ha-primary);
+  --primary-foreground: var(--ha-on-primary);
+  --secondary: var(--ha-surface-2);
+  --secondary-foreground: var(--ha-text);
+  --muted: var(--ha-surface-2);
+  --muted-foreground: var(--ha-text-muted);
+  --accent: var(--ha-primary-soft);
+  --accent-foreground: var(--ha-text);
+  --destructive: var(--ha-danger);
+  --destructive-foreground: var(--ha-on-danger);
+  --border: var(--ha-border);
+  --input: var(--ha-border-strong);
+  --ring: var(--ha-focus);
+
+  --sidebar: var(--ha-surface);
+  --sidebar-foreground: var(--ha-text);
+  --sidebar-primary: var(--ha-primary);
+  --sidebar-primary-foreground: var(--ha-on-primary);
+  --sidebar-accent: var(--ha-primary-soft);
+  --sidebar-accent-foreground: var(--ha-text);
+  --sidebar-border: var(--ha-border);
+  --sidebar-ring: var(--ha-focus);
+
+  /* Extensiones propias (shadcn no las define) */
+  --success: var(--ha-success);
+  --success-foreground: var(--ha-on-success);
+  --warning: var(--ha-warning);
+  --warning-foreground: var(--ha-on-warning);
+}

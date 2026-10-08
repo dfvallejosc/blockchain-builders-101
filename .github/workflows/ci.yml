@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e:
+    name: API end-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start a throwaway PostgreSQL
+        run: |
+          PASSWORD=$(openssl rand -hex 16)
+          echo "::add-mask::$PASSWORD"
+          docker run -d --name ci-postgres \
+            -e POSTGRES_USER=ci -e POSTGRES_PASSWORD="$PASSWORD" -e POSTGRES_DB=ci \
+            -p 5432:5432 postgres:16
+          echo "DATABASE_URL=postgres://ci:${PASSWORD}@localhost:5432/ci" >> "$GITHUB_ENV"
+          until docker exec ci-postgres pg_isready -U ci -d ci; do sleep 1; done
+      - run: pnpm test:e2e
+        env:
+          NODE_ENV: test
