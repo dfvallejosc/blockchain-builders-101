@@ -1,0 +1,66 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-render
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.service }} to Render
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            service_id: ${{ vars.RENDER_API_SERVICE_ID }}
+          - service: web
+            service_id: ${{ vars.RENDER_WEB_SERVICE_ID }}
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      SERVICE_ID: ${{ matrix.service_id }}
+      COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Check the deploy settings
+        run: |
+          set -euo pipefail
+          test -n "${RENDER_API_KEY}" || { echo "RENDER_API_KEY is not set"; exit 1; }
+          test -n "${SERVICE_ID}" || { echo "The Render service ID variable is not set"; exit 1; }
+
+      - name: Trigger the Render deploy for the commit that passed CI
+        run: |
+          set -euo pipefail
+          deploy_id=$(curl --fail-with-body --silent --show-error --max-time 30 --request POST \
+            "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            --header "Authorization: Bearer ${RENDER_API_KEY}" \
+            --header "Content-Type: application/json" \
+            --data "{\"commitId\": \"${COMMIT_SHA}\"}" | jq -r '.id')
+          test -n "${deploy_id}" && test "${deploy_id}" != "null" || { echo "Render did not return a deploy ID"; exit 1; }
+          echo "DEPLOY_ID=${deploy_id}" >> "$GITHUB_ENV"
+
+      - name: Wait for the deploy to go live
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 90); do
+            status=$(curl --fail-with-body --silent --show-error --max-time 30 \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${DEPLOY_ID}" \
+              --header "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.status')
+            echo "Deploy status: ${status}"
+            case "${status}" in
+              live) exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated) exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for the deploy"
+          exit 1
