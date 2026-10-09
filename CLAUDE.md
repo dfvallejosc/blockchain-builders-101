@@ -98,6 +98,7 @@ Del estándar global, Redux Toolkit, React Hook Form, Zod y Axios todavía no es
 - **No tomes decisiones de producto ni de arquitectura sin confirmar.** Pregunta, de a una cosa por vez, y no te adelantes.
 - Haz solo lo que se pidió. Si ves algo más, menciónalo sin arreglarlo.
 - Di qué verificaste y qué no. No afirmes que algo funciona si no lo ejecutaste.
+- **Usa el flujo de superpowers** en toda tarea de código: `superpowers:brainstorming` antes de construir algo nuevo, `superpowers:writing-plans` para tareas de varios pasos, `superpowers:test-driven-development` al implementar, `superpowers:systematic-debugging` ante un fallo y `superpowers:verification-before-completion` antes de dar algo por terminado o abrir un PR. **Nunca se commitean** los specs, planes ni otros artefactos de superpowers (`docs/superpowers/`): se quedan en local.
 
 ## Decisiones abiertas
 
