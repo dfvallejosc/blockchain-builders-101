@@ -153,4 +153,37 @@ describe('ConfirmDialog', () => {
     expect(screen.queryByLabelText(/Escribe/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Salir' })).toBeEnabled()
   })
+
+  it('gives each dialog its own accessible name when two are mounted', () => {
+    render(
+      <>
+        <ConfirmDialog open title="Anular certificado" confirmLabel="Anular" onConfirm={() => undefined} onCancel={() => undefined}>
+          Primero
+        </ConfirmDialog>
+        <ConfirmDialog open title="Revocar emisor" confirmLabel="Revocar" onConfirm={() => undefined} onCancel={() => undefined}>
+          Segundo
+        </ConfirmDialog>
+      </>,
+    )
+
+    const first = screen.getByRole('dialog', { name: 'Anular certificado' })
+    const second = screen.getByRole('dialog', { name: 'Revocar emisor' })
+    expect(first).not.toBe(second)
+    expect(screen.getByRole('heading', { name: 'Anular certificado' }).id).not.toBe(
+      screen.getByRole('heading', { name: 'Revocar emisor' }).id,
+    )
+  })
+
+  it('cancels when the backdrop is clicked and no text is required', () => {
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog open title="Salir" confirmLabel="Salir" onConfirm={() => undefined} onCancel={onCancel}>
+        ¿Seguro?
+      </ConfirmDialog>,
+    )
+
+    fireEvent.click(screen.getByRole('dialog', { name: 'Salir' }))
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
 })
