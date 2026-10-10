@@ -1,0 +1,2 @@
+export const fieldControlClass =
+  'block w-full min-h-(--control-md) rounded-md border border-ha-border-strong bg-ha-surface px-3 text-base text-ha-text transition-colors duration-(--duration-fast) placeholder:text-ha-text-muted focus:border-ha-focus enabled:not-aria-invalid:hover:border-ha-text aria-invalid:border-ha-danger aria-invalid:shadow-[inset_0_0_0_1px_var(--ha-danger)] disabled:cursor-not-allowed disabled:border-ha-border disabled:bg-ha-surface-2 disabled:text-ha-disabled-fg'
