@@ -22,6 +22,16 @@ describe('Field', () => {
     expect(input).toHaveAttribute('aria-required', 'true')
   })
 
+  it('separates the required marker from the label text in the accessible name', () => {
+    render(
+      <Field label="Correo" required>
+        {(control) => <Input {...control} />}
+      </Field>,
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Correo (obligatorio)' })).toBeInTheDocument()
+  })
+
   it('does not mark optional fields', () => {
     render(<Field label="Teléfono">{(control) => <Input {...control} />}</Field>)
 

@@ -107,7 +107,7 @@ describe('MultiSelect', () => {
       </Field>,
     )
 
-    const button = screen.getByRole('button', { name: 'Certificados que emite(obligatorio)' })
+    const button = screen.getByRole('button', { name: 'Certificados que emite (obligatorio)' })
     expect(button).toHaveAttribute('aria-invalid', 'true')
     expect(button).toHaveAccessibleDescription('Elige al menos uno. Elegir certificados')
   })

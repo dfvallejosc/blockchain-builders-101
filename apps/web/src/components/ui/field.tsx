@@ -32,6 +32,7 @@ export const Field = ({ label, help, error, required, children }: FieldProps) =>
     <div className="grid gap-2">
       <label htmlFor={id} className="text-base font-semibold">
         {label}
+        {required && ' '}
         {required && <span className="ml-1 text-sm font-normal text-ha-text-muted">(obligatorio)</span>}
       </label>
       {help && (
