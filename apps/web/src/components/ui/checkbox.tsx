@@ -7,14 +7,16 @@ interface CheckboxProps extends Omit<ComponentProps<'input'>, 'type'> {
 }
 
 export const Checkbox = ({ label, className, ...props }: CheckboxProps) => (
-  <label className="inline-flex min-h-(--touch-min) cursor-pointer items-center gap-3 text-base has-disabled:cursor-not-allowed has-disabled:text-ha-disabled-fg">
+  <label
+    className={cn(
+      'inline-flex min-h-(--touch-min) cursor-pointer items-center gap-3 text-base has-disabled:cursor-not-allowed has-disabled:text-ha-disabled-fg',
+      className,
+    )}
+  >
     <span className="relative inline-grid shrink-0">
       <input
         type="checkbox"
-        className={cn(
-          'peer size-5 cursor-pointer appearance-none rounded-sm border-2 border-ha-border-strong bg-ha-surface transition-colors duration-(--duration-fast) checked:border-ha-primary checked:bg-ha-primary enabled:hover:border-ha-text enabled:checked:hover:border-ha-primary-hover enabled:checked:hover:bg-ha-primary-hover aria-invalid:border-ha-danger disabled:cursor-not-allowed disabled:border-ha-border disabled:bg-ha-surface-2',
-          className,
-        )}
+        className="peer size-5 cursor-pointer appearance-none rounded-sm border-2 border-ha-border-strong bg-ha-surface transition-colors duration-(--duration-fast) checked:border-ha-primary checked:bg-ha-primary enabled:hover:border-ha-text enabled:checked:hover:border-ha-primary-hover enabled:checked:hover:bg-ha-primary-hover aria-invalid:border-ha-danger disabled:cursor-not-allowed disabled:border-ha-border disabled:bg-ha-surface-2 checked:disabled:border-ha-border checked:disabled:bg-ha-border checked:aria-invalid:border-ha-danger checked:aria-invalid:bg-ha-danger"
         {...props}
       />
       <Check

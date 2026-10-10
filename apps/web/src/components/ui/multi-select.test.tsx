@@ -109,6 +109,33 @@ describe('MultiSelect', () => {
 
     const button = screen.getByRole('button', { name: 'Certificados que emite(obligatorio)' })
     expect(button).toHaveAttribute('aria-invalid', 'true')
-    expect(button).toHaveAccessibleDescription('Elige al menos uno.')
+    expect(button).toHaveAccessibleDescription('Elige al menos uno. Elegir certificados')
+  })
+
+  it('describes the button with the summary outside a Field', () => {
+    render(<Harness initial={['height-work', 'confined-spaces']} />)
+
+    expect(screen.getByRole('button', { name: '2 tipos seleccionados' })).toHaveAccessibleDescription('2 tipos seleccionados')
+  })
+
+  it('includes the summary and the help text in the description inside a Field', () => {
+    render(
+      <Field label="Certificados que emite" help="Elige los que aplican.">
+        {(control) => (
+          <MultiSelect
+            {...control}
+            options={OPTIONS}
+            value={['height-work']}
+            onChange={() => undefined}
+            placeholder="Elegir certificados"
+            summary={summary}
+          />
+        )}
+      </Field>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Certificados que emite' })).toHaveAccessibleDescription(
+      'Elige los que aplican. 1 tipo seleccionado',
+    )
   })
 })

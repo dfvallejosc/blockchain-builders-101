@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { fieldControlClass } from '@/components/ui/field-control'
@@ -20,6 +20,7 @@ interface MultiSelectProps extends Partial<FieldControlProps> {
 
 export const MultiSelect = ({ options, value, onChange, placeholder, summary, ...control }: MultiSelectProps) => {
   const [open, setOpen] = useState(false)
+  const summaryId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -52,8 +53,9 @@ export const MultiSelect = ({ options, value, onChange, placeholder, summary, ..
         onClick={() => setOpen((current) => !current)}
         className={cn(fieldControlClass, 'flex cursor-pointer items-center justify-between gap-2 text-left', open && 'border-ha-focus')}
         {...control}
+        aria-describedby={[control['aria-describedby'], summaryId].filter(Boolean).join(' ')}
       >
-        <span className={cn(value.length === 0 && 'text-ha-text-muted')}>
+        <span id={summaryId} className={cn(value.length === 0 && 'text-ha-text-muted')}>
           {value.length === 0 ? placeholder : summary(value.length)}
         </span>
         <ChevronDown aria-hidden="true" className="size-5 shrink-0 text-ha-text-muted" />
@@ -66,7 +68,7 @@ export const MultiSelect = ({ options, value, onChange, placeholder, summary, ..
               label={option.label}
               checked={value.includes(option.value)}
               onChange={() => toggle(option.value)}
-              className="w-full"
+              className="flex w-full"
             />
           ))}
         </div>

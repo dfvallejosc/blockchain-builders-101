@@ -30,4 +30,25 @@ describe('Checkbox', () => {
 
     expect(screen.getByRole('checkbox')).toBeInvalid()
   })
+
+  it('puts className on the row, not on the input', () => {
+    render(<Checkbox label="X" className="custom-row" />)
+
+    expect(screen.getByText('X').closest('label')).toHaveClass('custom-row')
+    expect(screen.getByRole('checkbox')).not.toHaveClass('custom-row')
+  })
+
+  it('keeps combined states: checked and disabled, checked and invalid', () => {
+    render(
+      <>
+        <Checkbox label="Off" checked disabled readOnly />
+        <Checkbox label="Bad" checked aria-invalid readOnly />
+      </>,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'Off' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Off' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Bad' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Bad' })).toBeInvalid()
+  })
 })
