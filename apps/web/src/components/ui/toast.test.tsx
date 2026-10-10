@@ -13,6 +13,19 @@ const Trigger = ({ tone }: { tone: AlertTone }) => {
   )
 }
 
+const DoubleTrigger = () => {
+  const { show } = useToast()
+  const showTwice = () => {
+    show({ tone: 'danger', title: 'Primer aviso' })
+    show({ tone: 'danger', title: 'Segundo aviso' })
+  }
+  return (
+    <button type="button" onClick={showTwice}>
+      Mostrar dos
+    </button>
+  )
+}
+
 const renderToast = (tone: AlertTone) =>
   render(
     <ToastProvider>
@@ -111,6 +124,25 @@ describe('Toast', () => {
     open()
 
     expect(screen.getAllByText('Emisor registrado')).toHaveLength(2)
+  })
+
+  it('gives each toast its own id when shown twice in one batch', () => {
+    render(
+      <ToastProvider>
+        <DoubleTrigger />
+      </ToastProvider>,
+    )
+
+    act(() => {
+      screen.getByRole('button', { name: 'Mostrar dos' }).click()
+    })
+    expect(screen.getByText('Primer aviso')).toBeInTheDocument()
+    expect(screen.getByText('Segundo aviso')).toBeInTheDocument()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar aviso' })[0])
+
+    expect(screen.queryByText('Primer aviso')).not.toBeInTheDocument()
+    expect(screen.getByText('Segundo aviso')).toBeInTheDocument()
   })
 
   it('clears its timers when the provider unmounts', () => {

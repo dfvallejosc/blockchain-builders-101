@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CircleCheck, CircleX, Info, TriangleAlert, X, type LucideIcon } from 'lucide-react'
 import type { AlertTone } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -62,15 +62,12 @@ interface ToastProviderProps {
 
 export const ToastProvider = ({ children }: ToastProviderProps) => {
   const [toasts, setToasts] = useState<ToastEntry[]>([])
-  const [nextId, setNextId] = useState(1)
+  const nextId = useRef(1)
 
-  const show = useCallback(
-    (toast: ToastInput) => {
-      setToasts((current) => [...current, { ...toast, id: nextId }])
-      setNextId((current) => current + 1)
-    },
-    [nextId],
-  )
+  const show = useCallback((toast: ToastInput) => {
+    const id = nextId.current++
+    setToasts((current) => [...current, { ...toast, id }])
+  }, [])
 
   const close = useCallback((id: number) => {
     setToasts((current) => current.filter((toast) => toast.id !== id))
