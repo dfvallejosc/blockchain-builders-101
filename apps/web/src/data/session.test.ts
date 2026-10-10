@@ -9,6 +9,12 @@ describe('session', () => {
     resetState()
   })
 
+  it('reports no session when the saved sessions have missing keys', async () => {
+    window.localStorage.setItem('habilitapp-demo', JSON.stringify({ sessions: { issuer: null } }))
+
+    expect(await getSession('admin')).toBeNull()
+  })
+
   it('signs an issuer in with the email of a registered entity', async () => {
     const session = await signIn('issuer', 'coordinacion@cumbrefirme.co', 'anything')
 
