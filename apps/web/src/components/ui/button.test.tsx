@@ -57,6 +57,20 @@ describe('Button', () => {
       expect(screen.queryByRole('button', { name: /Emitir certificado/ })).not.toBeInTheDocument()
     })
 
+    it('keeps the label as the accessible name when loading without loadingText', () => {
+      const onClick = vi.fn()
+      render(
+        <Button loading onClick={onClick}>
+          Guardar
+        </Button>,
+      )
+
+      const button = screen.getByRole('button', { name: 'Guardar' })
+      expect(button).toHaveAttribute('aria-busy', 'true')
+      fireEvent.click(button)
+      expect(onClick).not.toHaveBeenCalled()
+    })
+
     it('does not call onClick while loading', () => {
       const onClick = vi.fn()
       render(

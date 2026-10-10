@@ -67,6 +67,10 @@ export const Button = ({
     onClick?.(event)
   }
 
+  const hasLoadingText = loadingText !== undefined
+  const hideLabel = loading && hasLoadingText
+  const spinner = <LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
+
   return (
     <button
       type={type}
@@ -77,14 +81,15 @@ export const Button = ({
     >
       <span className="inline-grid place-items-center">
         <span
-          aria-hidden={loading || undefined}
-          className={cn('col-start-1 row-start-1 inline-flex items-center justify-center gap-2', loading && 'invisible')}
+          aria-hidden={hideLabel || undefined}
+          className={cn('col-start-1 row-start-1 inline-flex items-center justify-center gap-2', hideLabel && 'invisible')}
         >
+          {loading && !hasLoadingText && spinner}
           {children}
         </span>
-        {loading && (
+        {hideLabel && (
           <span className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2">
-            <LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
+            {spinner}
             {loadingText}
           </span>
         )}
