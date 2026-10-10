@@ -15,6 +15,7 @@ El producto está definido en estos dos documentos, que son la fuente de verdad:
 
 - `docs/semana2/EnunciadoEntregable2.md`: enunciado del entregable de la semana 2.
 - `docs/semana1/` y `docs/semana2/`: además, un archivo por integrante con sus entregables individuales.
+- `docs/DESIGN.md`: sistema de diseño de HabilitApp (colores, tipografía, componentes, accesibilidad y voz). Es la guía de todo el front; ver "Frontend" más abajo.
 - Tablero de historias y tareas: <https://github.com/users/dfvallejosc/projects/2>
 - Las notas de clase y `docs/Syllabus.md` no están versionados. Si existen en local, léelos para plazos y criterios de evaluación.
 
@@ -88,6 +89,17 @@ Los componentes compartidos están en `apps/web/src/components/ui/` (Button, Fie
 - La interfaz va en español de Colombia, sin jerga de blockchain, y usa estas palabras para el estado de un certificado: Habilitado, Vencido, No válido y Anulado.
 - Los colores, la tipografía y los radios salen de `apps/web/src/styles/tokens.css`. No introduzcas colores nuevos.
 - El repositorio es público: ningún secreto, llave ni credencial, ni siquiera de pruebas.
+
+## Frontend
+
+Todo desarrollo del front sigue `docs/DESIGN.md`. Léelo (al menos las secciones que toquen tu pantalla) antes de construir una pantalla o un componente.
+
+- **Usa los componentes de `apps/web/src/components/ui/`** y mira `/dev/components` antes de crear uno nuevo. Si falta uno, agrégalo ahí con el mismo estilo (Tailwind, `cva` y utilidades `ha-*`) y súmalo a la galería, no lo improvises dentro de una pantalla.
+- **Sin valores sueltos:** colores, tamaños y radios salen de `tokens.css`. Si falta un valor, se agrega primero a `tokens.css` y a `docs/DESIGN.md`. Nada de hex en componentes ni el amarillo de marca en la interfaz.
+- **Un estado nunca se dice solo con color:** siempre ícono y palabra (Habilitado, Vencido, No válido, Anulado; Revocado y En revisión donde aplique).
+- **Accesibilidad:** etiqueta visible en cada campo, errores con ícono y mensaje enlazados (`aria-invalid` y `aria-describedby`), objetivos táctiles de 44 px, foco visible y respeto a `prefers-reduced-motion`.
+- **Voz:** español de Colombia, tuteo, sin jerga ni términos de cadena de bloques; botones con verbo en infinitivo y el objeto ("Emitir certificado").
+- **Cada componente o pantalla nueva lleva pruebas** con Testing Library y, para lo visual, se revisa a ojo en el navegador (escritorio y 390 px) antes de abrir el PR. Di en el PR qué viste y qué no.
 
 ## Flujo de trabajo
 
