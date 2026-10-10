@@ -63,6 +63,8 @@ Del estándar global, Redux Toolkit y Axios todavía no están instalados. Se ag
 
 El front vive en `apps/web/src/`: cada superficie tiene su carpeta en `features/` (`emisor`, `admin`, `verificar`) con su `routes.tsx`, y `src/routes.tsx` solo las junta. Los datos son de ejemplo y salen de `src/data/` (se importan desde `@/data`); guardan en `localStorage` y se cambian por la API más adelante.
 
+Los componentes compartidos están en `apps/web/src/components/ui/` (Button, Field/Input, StatusChip, Alert, Toast, Skeleton, Checkbox, Select, MultiSelect, EmptyState, DataTable, ConfirmDialog, Steps). Úsalos en vez de crear otros; los colores salen de `tokens.css` por las utilidades `ha-*` (por ejemplo `bg-ha-primary`). En desarrollo, `/dev/components` los muestra con sus estados.
+
 ## En qué se aparta de las reglas globales
 
 - GitHub y GitHub Actions, no Bitbucket. La rama base es `main`.
