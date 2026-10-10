@@ -17,3 +17,9 @@ coverage/
 
 # Cachés de compilación
 *.tsbuildinfo
+
+# superpowers specs and plans (local only)
+docs/superpowers/
+
+# superpowers workflow files (local only)
+.superpowers/
