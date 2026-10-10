@@ -23,10 +23,18 @@ let memoryState: StoredState = emptyState()
 const isPlainObject = (value: unknown): value is Partial<StoredState> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-export const readState = (): StoredState => {
+const readRaw = (): string | null | undefined => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (raw === null) return memoryState
+    return window.localStorage.getItem(STORAGE_KEY)
+  } catch {
+    return undefined
+  }
+}
+
+export const readState = (): StoredState => {
+  const raw = readRaw()
+  if (raw === undefined || raw === null) return memoryState
+  try {
     const parsed: unknown = JSON.parse(raw)
     if (!isPlainObject(parsed)) return emptyState()
     return { ...emptyState(), ...parsed }

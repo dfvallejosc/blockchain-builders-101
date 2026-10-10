@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readState, resetState, writeState } from '@/data/storage'
 
 describe('storage', () => {
   beforeEach(() => {
     window.localStorage.clear()
     resetState()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('starts empty', () => {
@@ -33,6 +37,18 @@ describe('storage', () => {
     window.localStorage.setItem('habilitapp-demo', '42')
 
     expect(readState().addedCertificates).toEqual([])
+  })
+
+  it('keeps the in-memory state when localStorage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    writeState({ ...readState(), revokedEntities: { 'blocked-entity': '2026-10-09' } })
+
+    expect(readState().revokedEntities).toEqual({ 'blocked-entity': '2026-10-09' })
   })
 
   it('resetState clears what was written', () => {
