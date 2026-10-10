@@ -80,7 +80,7 @@ export const ComponentsPage = () => {
       </Section>
 
       <Section title="Campos">
-        <Field label="Nombre completo" required help="Como aparece en su documento.">
+        <Field label="Nombre completo" required help="Como aparece en tu documento.">
           {(control) => <Input {...control} placeholder="Carlos Andrés Ramírez" />}
         </Field>
         <Field label="NIT" required error="Escribe un NIT con dígito de verificación, por ejemplo 901.482.317-5.">
@@ -104,7 +104,7 @@ export const ComponentsPage = () => {
 
       <Section title="Alertas y avisos">
         <Alert tone="success" title="Emisor registrado">
-          Ya puede emitir certificados.
+          Ya puedes emitir certificados.
         </Alert>
         <Alert tone="warning" title="Entidad revocada">
           No puedes emitir certificados.
@@ -113,7 +113,7 @@ export const ComponentsPage = () => {
           El correo o la contraseña no coinciden.
         </Alert>
         <Alert tone="info" title="Acceso enviado" onClose={() => undefined}>
-          Le enviamos las instrucciones por correo.
+          Te enviamos las instrucciones por correo.
         </Alert>
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => show({ tone: 'success', title: 'Certificado emitido', message: 'Ya puedes imprimirlo.' })}>
@@ -143,7 +143,7 @@ export const ComponentsPage = () => {
             </Select>
           )}
         </Field>
-        <Field label="Certificados que emite" required help="Solo podrá emitir los tipos que marques aquí.">
+        <Field label="Certificados que emite" required help="Solo podrás emitir los tipos que marques aquí.">
           {(control) => (
             <MultiSelect
               {...control}
