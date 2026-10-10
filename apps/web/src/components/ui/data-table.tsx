@@ -18,6 +18,7 @@ interface DataTableProps<Row> {
   columns: Column<Row>[]
   rows: Row[]
   getRowKey: (row: Row) => string
+  /** Pair the selection with a checkbox column so it is not conveyed by color or weight alone. */
   isSelected?: (row: Row) => boolean
   loading?: boolean
   error?: { message: string; onRetry?: () => void }
@@ -64,7 +65,7 @@ export const DataTable = <Row,>({
     )
   }
 
-  const message = error ? (
+  const message = loading ? null : error ? (
     <EmptyState
       variant="error"
       title={error.message}
@@ -76,7 +77,7 @@ export const DataTable = <Row,>({
         )
       }
     />
-  ) : rows.length === 0 && !loading ? (
+  ) : rows.length === 0 ? (
     (empty ?? <EmptyState variant="empty" title="Aún no hay datos" />)
   ) : null
 
@@ -137,7 +138,7 @@ export const DataTable = <Row,>({
                 <tr
                   key={getRowKey(row)}
                   aria-selected={selected || undefined}
-                  className={cn('hover:bg-ha-hover aria-selected:bg-ha-primary-soft aria-selected:hover:bg-ha-primary-soft-active')}
+                  className={cn('hover:bg-ha-hover aria-selected:bg-ha-primary-soft aria-selected:font-semibold aria-selected:hover:bg-ha-primary-soft-active')}
                 >
                   {columns.map((column) => (
                     <td key={column.key} className={cn('h-10 border-b border-ha-border px-3 py-2 align-middle pointer-coarse:h-12', column.className)}>

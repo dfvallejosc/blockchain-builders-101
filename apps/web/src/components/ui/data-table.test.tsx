@@ -124,4 +124,39 @@ describe('DataTable', () => {
     expect(screen.getByText('No pudimos cargar la lista')).toBeInTheDocument()
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
+
+  it('shows only skeleton rows when loading and an error are both set', () => {
+    renderTable({ loading: true, error: { message: 'No pudimos cargar la lista', onRetry: vi.fn() } })
+
+    expect(screen.queryByText('No pudimos cargar la lista')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument()
+    expect(within(screen.getAllByRole('rowgroup')[1]).getAllByRole('row')).toHaveLength(5)
+  })
+
+  it('hides the data rows when there is an error', () => {
+    renderTable({ error: { message: 'No pudimos cargar la lista' } })
+
+    expect(screen.queryByText('Ángel')).not.toBeInTheDocument()
+    expect(within(screen.getAllByRole('rowgroup')[1]).queryAllByRole('row')).toHaveLength(0)
+  })
+
+  it('does not show the empty state while loading empty rows', () => {
+    renderTable({ rows: [], loading: true })
+
+    expect(screen.queryByRole('heading', { name: 'Aún no hay datos' })).not.toBeInTheDocument()
+  })
+
+  it('shows exactly five skeleton rows while loading', () => {
+    renderTable({ loading: true })
+
+    expect(within(screen.getAllByRole('rowgroup')[1]).getAllByRole('row')).toHaveLength(5)
+  })
+
+  it('gives the selected row a non-color cue besides aria-selected', () => {
+    renderTable({ isSelected: (row) => row.id === 'b' })
+
+    const row = within(screen.getAllByRole('rowgroup')[1]).getAllByRole('row')[1]
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(row.className).toContain('aria-selected:font-semibold')
+  })
 })
