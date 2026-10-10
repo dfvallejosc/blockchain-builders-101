@@ -50,11 +50,12 @@ export const ConfirmDialog = ({
 
   const handleCancel = (event: React.SyntheticEvent<HTMLDialogElement>) => {
     event.preventDefault()
+    if (loading) return
     onCancel()
   }
 
   const handleBackdropClick = (event: React.MouseEvent<HTMLDialogElement>) => {
-    if (event.target !== event.currentTarget || confirmText !== undefined) return
+    if (loading || event.target !== event.currentTarget || confirmText !== undefined) return
     onCancel()
   }
 
@@ -88,7 +89,7 @@ export const ConfirmDialog = ({
         )}
       </div>
       <div className="flex flex-wrap justify-end gap-3 border-t border-ha-border px-5 py-4">
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" disabled={loading} onClick={onCancel}>
           {cancelLabel}
         </Button>
         <Button

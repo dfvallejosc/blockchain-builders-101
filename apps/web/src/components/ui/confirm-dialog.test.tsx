@@ -143,6 +143,33 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Procesando…' })).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('disables the Cancelar button while loading', () => {
+    render(
+      <ConfirmDialog open title="Anular" confirmLabel="Anular" loading onConfirm={() => undefined} onCancel={() => undefined}>
+        Cuerpo
+      </ConfirmDialog>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled()
+  })
+
+  it('ignores Escape and the backdrop while loading but still blocks the native close', () => {
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog open title="Anular" confirmLabel="Anular" loading onConfirm={() => undefined} onCancel={onCancel}>
+        Cuerpo
+      </ConfirmDialog>,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Anular' })
+    const escape = new Event('cancel', { cancelable: true })
+
+    fireEvent(dialog, escape)
+    fireEvent.click(dialog)
+
+    expect(escape.defaultPrevented).toBe(true)
+    expect(onCancel).not.toHaveBeenCalled()
+  })
+
   it('needs no typed text when confirmText is not given', () => {
     render(
       <ConfirmDialog open title="Salir" confirmLabel="Salir" onConfirm={() => undefined} onCancel={() => undefined}>
