@@ -106,7 +106,7 @@ export const DataTable = <Row,>({
                     <button
                       type="button"
                       onClick={() => toggleSort(column.key)}
-                      className="-mx-2 inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-sm px-2 hover:bg-ha-border"
+                      className="-mx-2 inline-flex min-h-8 pointer-coarse:min-h-(--touch-min) cursor-pointer items-center gap-1 rounded-sm px-2 hover:bg-ha-border"
                     >
                       {column.header}
                       <SortIcon aria-hidden="true" className={cn('size-4', sortedHere ? 'text-ha-primary' : 'text-ha-text-muted')} />

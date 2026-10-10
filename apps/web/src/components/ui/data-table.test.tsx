@@ -48,6 +48,12 @@ describe('DataTable', () => {
     expect(screen.queryByRole('button', { name: /Acciones/ })).not.toBeInTheDocument()
   })
 
+  it('makes the sort button a 44 px touch target on coarse pointers', () => {
+    renderTable()
+
+    expect(screen.getByRole('button', { name: /Nombre/ }).className).toContain('pointer-coarse:min-h-(--touch-min)')
+  })
+
   it('sorts ascending then descending when the header is pressed, with aria-sort', () => {
     renderTable()
     const header = () => screen.getByRole('columnheader', { name: /Nombre/ })
