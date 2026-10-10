@@ -44,6 +44,29 @@ describe('Toast', () => {
     vi.useRealTimers()
   })
 
+  it('keeps one polite live region mounted before any toast is shown', () => {
+    renderToast('success')
+
+    const region = screen.getByRole('status')
+    expect(region).toHaveAttribute('aria-live', 'polite')
+    expect(region).toHaveAttribute('aria-relevant', 'additions')
+  })
+
+  it('does not give a non-danger toast its own status role', () => {
+    renderToast('success')
+    open()
+
+    expect(document.querySelector('[data-toast]')).not.toHaveAttribute('role')
+    expect(screen.getByRole('status')).toContainElement(document.querySelector<HTMLElement>('[data-toast]'))
+  })
+
+  it('gives a danger toast the alert role', () => {
+    renderToast('danger')
+    open()
+
+    expect(document.querySelector('[data-toast]')).toHaveAttribute('role', 'alert')
+  })
+
   it('shows the title and the message', () => {
     renderToast('success')
     open()

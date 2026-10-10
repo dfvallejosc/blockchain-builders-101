@@ -37,7 +37,7 @@ const ToastItem = ({ toast, onClose }: ToastItemProps) => {
   return (
     <div
       data-toast
-      role={toast.tone === 'danger' ? 'alert' : 'status'}
+      role={toast.tone === 'danger' ? 'alert' : undefined}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -78,7 +78,12 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-(--z-toast) grid justify-items-end gap-2">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-relevant="additions"
+        className="pointer-events-none fixed inset-x-4 bottom-4 z-(--z-toast) grid justify-items-end gap-2"
+      >
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onClose={close} />
         ))}
