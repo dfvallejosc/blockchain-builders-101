@@ -59,7 +59,9 @@ pnpm test:e2e            # e2e de la API; necesita PostgreSQL arriba
 
 Variables de entorno: `.env` en la raíz (PostgreSQL), `apps/api/.env` y `apps/web/.env`. Se copian desde sus `.env.example`. Nunca se versionan.
 
-Del estándar global, Redux Toolkit, React Hook Form, Zod y Axios todavía no están instalados. Se agregan cuando una historia los necesite.
+Del estándar global, Redux Toolkit y Axios todavía no están instalados. Se agregan cuando una historia los necesite. React Router, React Hook Form, Zod y qrcode.react ya están instalados (TA-04) para que las pantallas no toquen `package.json`.
+
+El front vive en `apps/web/src/`: cada superficie tiene su carpeta en `features/` (`emisor`, `admin`, `verificar`) con su `routes.tsx`, y `src/routes.tsx` solo las junta. Los datos son de ejemplo y salen de `src/data/` (se importan desde `@/data`); guardan en `localStorage` y se cambian por la API más adelante.
 
 ## En qué se aparta de las reglas globales
 
