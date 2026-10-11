@@ -12,7 +12,7 @@ import { ReviewStep } from '@/features/emisor/emitir/ReviewStep'
 import { useIssueFlow, type IssueStep } from '@/features/emisor/emitir/useIssueFlow'
 import { WorkerStep } from '@/features/emisor/emitir/WorkerStep'
 
-const STEP_LABELS = ['Trabajador', 'Datos', 'Revisión', 'Emitido']
+const STEP_LABELS = ['Trabajador', 'Datos del certificado', 'Revisión', 'Emitido']
 const STEP_ORDER: IssueStep[] = ['worker', 'details', 'review', 'issued']
 const BLOCKED_REASON = 'No disponible: tu entidad está revocada.'
 
@@ -110,9 +110,9 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
   }
 
   return (
-    <section ref={containerRef} className="mx-auto grid w-full max-w-4xl gap-5 p-6">
+    <section ref={containerRef} className="mx-auto grid w-full max-w-240 content-start gap-6 p-4 pb-16 sm:p-6 sm:pb-16 lg:p-8 lg:pb-16">
       <div>
-        <h1 className="text-2xl font-bold">Emitir certificado</h1>
+        <h1 className="text-3xl font-bold">Emitir certificado</h1>
         <p className="mt-1 text-ha-text-muted">Elige al trabajador, completa los datos del certificado y confirma.</p>
       </div>
       <Steps steps={STEP_LABELS} current={STEP_ORDER.indexOf(flow.step)} />

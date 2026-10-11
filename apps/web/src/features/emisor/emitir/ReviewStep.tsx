@@ -32,7 +32,7 @@ const Row = ({ label, value, mono = false }: RowProps) => (
 export const ReviewStep = ({ worker, entity, values, blockedReason, issuing, failed, onBack, onConfirm }: ReviewStepProps) => (
   <div className="grid gap-5">
     <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
-      <h2 tabIndex={-1} className="text-xl font-bold">
+      <h2 tabIndex={-1} className="text-lg font-semibold">
         Revisa antes de emitir
       </h2>
       <p className="mt-1 text-ha-text-muted">

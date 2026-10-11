@@ -88,7 +88,7 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
   if (workers.length === 0) {
     return (
       <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
-        <h2 tabIndex={-1} className="text-xl font-bold">
+        <h2 tabIndex={-1} className="text-lg font-semibold">
           Aún no hay trabajadores
         </h2>
         <EmptyState
@@ -122,7 +122,7 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
   return (
     <div className="grid gap-5">
       <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
-        <h2 tabIndex={-1} className="text-xl font-bold">
+        <h2 tabIndex={-1} className="text-lg font-semibold">
           Elige al trabajador
         </h2>
         <p className="mt-1 text-ha-text-muted">Busca por nombre o por documento. Si no está en la lista, regístralo.</p>

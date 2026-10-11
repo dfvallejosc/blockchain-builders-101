@@ -63,7 +63,7 @@ describe('IssueCertificatePage', () => {
 
     const heading = await screen.findByRole('heading', { name: 'Datos del certificado' })
     await waitFor(() => expect(heading).toHaveFocus())
-    expect(within(steps).getByText('Datos').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(steps).getByText('Datos del certificado').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 
   it('goes back to edit without losing what was typed', async () => {

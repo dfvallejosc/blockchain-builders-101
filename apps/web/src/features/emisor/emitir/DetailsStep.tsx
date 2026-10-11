@@ -76,7 +76,7 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
 
   return (
     <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
-      <h2 tabIndex={-1} className="text-xl font-bold">
+      <h2 tabIndex={-1} className="text-lg font-semibold">
         Datos del certificado
       </h2>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-ha-border bg-ha-surface-2 px-4 py-2">
