@@ -8,6 +8,7 @@ import { DataTable, type Column } from '@/components/ui/data-table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Field, Input } from '@/components/ui/field'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { Radio } from '@/components/ui/radio'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Steps } from '@/components/ui/steps'
@@ -157,6 +158,9 @@ export const ComponentsPage = () => {
         </Field>
         <Checkbox label="El trabajador autoriza el tratamiento de sus datos personales" />
         <Checkbox label="Deshabilitada" disabled />
+        <Radio name="gallery-radio" label="Trabajo en alturas" defaultChecked />
+        <Radio name="gallery-radio" label="Espacios confinados" />
+        <Radio name="gallery-radio" label="Deshabilitado" disabled />
       </Section>
 
       <Section title="Tabla">
