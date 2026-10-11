@@ -13,7 +13,10 @@ describe('useSheetData', () => {
   })
 
   it('starts loading and then returns the certificate, entity and holder', async () => {
-    const { result } = renderHook(() => useSheetData('HAB-2026-004718', CUMBRE))
+    const { result, rerender } = renderHook(
+      ({ certificateId, entityId }) => useSheetData(certificateId, entityId),
+      { initialProps: { certificateId: 'HAB-2026-004718', entityId: CUMBRE } },
+    )
 
     expect(result.current).toEqual({ status: 'loading' })
     await waitFor(() => expect(result.current.status).toBe('ready'))
@@ -21,6 +24,11 @@ describe('useSheetData', () => {
     expect(result.current.certificate.id).toBe('HAB-2026-004718')
     expect(result.current.entity.id).toBe(CUMBRE)
     expect(result.current.worker.fullName).toBe('Carlos Andrés Ramírez Pineda')
+
+    rerender({ certificateId: 'HAB-2026-999999', entityId: CUMBRE })
+
+    expect(result.current).toEqual({ status: 'loading' })
+    await waitFor(() => expect(result.current.status).toBe('not-found'))
   })
 
   it('returns not-found for an unknown certificate', async () => {

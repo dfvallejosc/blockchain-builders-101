@@ -13,6 +13,7 @@ const renderSheet = async (id: string, email = 'coordinacion@cumbrefirme.co') =>
   await signIn('issuer', email, 'x')
   const router = createMemoryRouter(issuerRoutes, { initialEntries: [`/emisor/certificados/${id}/hoja`] })
   render(<RouterProvider router={router} />)
+  return router
 }
 
 describe('CertificateSheetPage', () => {
@@ -87,5 +88,17 @@ describe('CertificateSheetPage', () => {
     expect(await screen.findByText('No encontramos este certificado')).toBeInTheDocument()
     expect(screen.queryByText(/Carlos/)).not.toBeInTheDocument()
     expect(screen.queryByTestId('qr')).not.toBeInTheDocument()
+  })
+
+  it('replaces the worker name in the document title when the certificate is not found', async () => {
+    const router = await renderSheet('HAB-2026-004718')
+
+    await screen.findByRole('group', { name: 'Certificado HAB-2026-004718' })
+    expect(document.title).toBe('Certificado HAB-2026-004718 · Carlos Andrés Ramírez Pineda')
+
+    await router.navigate('/emisor/certificados/HAB-2026-999999/hoja')
+
+    expect(await screen.findByText('No encontramos este certificado')).toBeInTheDocument()
+    expect(document.title).toBe('Certificado HAB-2026-999999')
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Download } from 'lucide-react'
 import { Link, useOutletContext, useParams } from 'react-router'
 import { Alert } from '@/components/ui/alert'
@@ -49,11 +49,20 @@ const SheetNotice = ({ certificate, status }: { certificate: Certificate; status
   return null
 }
 
-const useDocumentTitle = (certificate: Certificate | null, worker: Worker | null) => {
+const useDocumentTitle = (id: string, certificate: Certificate | null, worker: Worker | null) => {
+  const previousTitle = useRef(document.title)
+
   useEffect(() => {
-    if (!certificate || !worker) return
-    document.title = `Certificado ${certificate.id} · ${worker.fullName}`
-  }, [certificate, worker])
+    return () => {
+      document.title = previousTitle.current
+    }
+  }, [])
+
+  useEffect(() => {
+    document.title = certificate && worker
+      ? `Certificado ${certificate.id} · ${worker.fullName}`
+      : `Certificado ${id}`
+  }, [id, certificate, worker])
 }
 
 export const CertificateSheetPage = () => {
@@ -61,7 +70,7 @@ export const CertificateSheetPage = () => {
   const { id = '' } = useParams()
   const data = useSheetData(id, session.role === 'issuer' ? session.entityId : '')
   const ready = data.status === 'ready' ? data : null
-  useDocumentTitle(ready?.certificate ?? null, ready?.worker ?? null)
+  useDocumentTitle(id, ready?.certificate ?? null, ready?.worker ?? null)
 
   if (data.status === 'loading') {
     return (

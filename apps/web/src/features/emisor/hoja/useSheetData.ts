@@ -18,17 +18,22 @@ const loadSheetData = async (certificateId: string, entityId: string): Promise<S
 }
 
 export const useSheetData = (certificateId: string, entityId: string): SheetData => {
-  const [state, setState] = useState<SheetData>({ status: 'loading' })
+  const [state, setState] = useState<{ certificateId: string; entityId: string; data: SheetData }>({
+    certificateId,
+    entityId,
+    data: { status: 'loading' },
+  })
 
   useEffect(() => {
     let active = true
     loadSheetData(certificateId, entityId).then((next) => {
-      if (active) setState(next)
+      if (active) setState({ certificateId, entityId, data: next })
     })
     return () => {
       active = false
     }
   }, [certificateId, entityId])
 
-  return state
+  if (state.certificateId !== certificateId || state.entityId !== entityId) return { status: 'loading' }
+  return state.data
 }
