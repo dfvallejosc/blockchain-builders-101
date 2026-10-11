@@ -9,6 +9,8 @@ Esta semana construimos el front de HabilitApp con datos de ejemplo. Todavía no
 
 ## 1. Front construido
 
+**Front hospedado:** <https://habilitapp-web.onrender.com>. Para probar el recorrido del emisor, entra en `/emisor/ingresar` con el correo `consultorio@lomasdelsur.co` y cualquier contraseña que no esté vacía. La consulta pública (`/c/:id`) no necesita cuenta.
+
 El front vive en `apps/web` (React 19, Vite, Tailwind 4 y shadcn/ui). Se corre con `pnpm dev:web` y se abre en <http://localhost:5173>. Los datos son de ejemplo: salen de `apps/web/src/data/`, se guardan en `localStorage` y más adelante se cambian por la API. Por eso la sesión de demostración no comprueba la contraseña (basta con que no esté vacía) y solo exige que el correo sea el de una entidad de ejemplo, por ejemplo `consultorio@lomasdelsur.co`: el repositorio es público y no guarda credenciales.
 
 El front sigue el [sistema de diseño](../DESIGN.md) del proyecto: colores, tipografía y radios salen de `tokens.css`, el estado de un certificado siempre se dice con ícono y palabra (Habilitado, Vencido, No válido, Anulado) y la interfaz está en español de Colombia, sin jerga de cadena de bloques. Los componentes compartidos están en `apps/web/src/components/ui/` y, en desarrollo, la ruta `/dev/components` los muestra con sus estados.
