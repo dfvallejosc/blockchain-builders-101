@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -18,14 +18,32 @@ describe('routes', () => {
   })
 
   describe('public pages', () => {
-    it('shows the home page with the two panel entries', () => {
+    it('shows the landing page at the root', async () => {
       renderAt('/')
 
-      expect(screen.getByRole('link', { name: 'Panel del emisor' })).toHaveAttribute('href', '/emisor/ingresar')
-      expect(screen.getByRole('link', { name: 'Panel de administración' })).toHaveAttribute(
-        'href',
-        '/admin/ingresar',
-      )
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Comprueba en segundos si un trabajador está habilitado.' }),
+      ).toBeInTheDocument()
+    })
+
+    it('goes from the landing to the issuer login', async () => {
+      renderAt('/')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
+      const menu = screen.getByRole('group', { name: 'Elige cómo iniciar sesión' })
+      fireEvent.click(within(menu).getByRole('link', { name: /Soy una entidad emisora/ }))
+
+      expect(await screen.findByRole('heading', { name: 'Ingreso del emisor' })).toBeInTheDocument()
+    })
+
+    it('goes from the landing to the admin login', async () => {
+      renderAt('/')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
+      const menu = screen.getByRole('group', { name: 'Elige cómo iniciar sesión' })
+      fireEvent.click(within(menu).getByRole('link', { name: /Administración de HabilitApp/ }))
+
+      expect(await screen.findByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
     })
 
     it('shows the login placeholders without a session', () => {

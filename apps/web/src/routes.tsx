@@ -3,11 +3,11 @@ import { devRoutes } from '@/dev/routes'
 import { adminRoutes } from '@/features/admin/routes'
 import { issuerRoutes } from '@/features/emisor/routes'
 import { verifyRoutes } from '@/features/verificar/routes'
-import { HomePage } from '@/pages/HomePage'
+import { LandingPage } from '@/features/inicio/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export const appRoutes: RouteObject[] = [
-  { path: '/', element: <HomePage /> },
+  { path: '/', element: <LandingPage /> },
   ...issuerRoutes,
   ...adminRoutes,
   ...verifyRoutes,
