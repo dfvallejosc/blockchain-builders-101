@@ -96,7 +96,7 @@ describe('routes', () => {
 
     it.each([
       ['/emisor/trabajadores/nuevo', 'Registrar trabajador'],
-      ['/emisor/certificados/HAB-2026-004718/hoja', 'Hoja del certificado'],
+      ['/emisor/certificados/HAB-2026-004718/hoja', 'Hoja del certificado HAB-2026-004718'],
     ])('renders %s when signed in', async (path, title) => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       renderAt(path)
