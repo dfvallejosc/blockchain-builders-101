@@ -42,9 +42,9 @@ El front sigue el [sistema de diseño](../DESIGN.md) del proyecto: colores, tipo
 
 Las pantallas cubren el recorrido principal del MVP: un consultorio emite un certificado con QR y un coordinador lo comprueba en el celular. El panel del emisor usa un menú lateral y una sesión por rol (`RequireSession`), y la consulta pública no necesita cuenta.
 
-### Capturas
+### Front en funcionamiento
 
-El front funciona en el enlace de arriba. Las capturas de pantalla (escritorio y 390 px) de la emisión, la hoja, el historial y la consulta pública están pendientes de agregar aquí.
+El front se puede ver funcionando en el enlace del inicio de esta sección.
 
 ---
 
@@ -97,7 +97,6 @@ Todo en testnet. Cómo se conecta la API con Stellar y cómo se custodian las ll
 - El ingreso del administrador (`/admin/ingresar`) y todo el panel de administración (lista de emisores, registro y detalle) son marcadores de posición.
 - Los datos son de ejemplo en el navegador: no hay API, base de datos ni sesión real. Falta decidir el proveedor de autenticación (Clerk o Better Auth).
 - La red de Stellar no está conectada: el QR y la consulta funcionan con datos locales.
-- Capturas de pantalla de las pantallas principales.
 
 **Siguiente paso hacia el MVP**
 
