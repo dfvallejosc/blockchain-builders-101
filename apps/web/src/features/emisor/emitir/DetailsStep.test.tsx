@@ -118,7 +118,7 @@ describe('DetailsStep', () => {
     await waitFor(() => expect(summary.parentElement).toHaveFocus())
     fireEvent.click(within(summary).getByRole('button', { name: 'Tipo de certificado' }))
 
-    expect(screen.getByLabelText(/Tipo de certificado/)).toHaveFocus()
+    await waitFor(() => expect(screen.getByLabelText(/Tipo de certificado/)).toHaveFocus())
   })
 
   it('shows an inline error when leaving an invalid field', async () => {

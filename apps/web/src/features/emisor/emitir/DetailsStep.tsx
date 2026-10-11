@@ -100,10 +100,7 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
                   <button
                     type="button"
                     className="min-h-(--touch-min) font-semibold text-ha-primary underline"
-                    onClick={() => {
-                      setFocus(key)
-                      document.getElementsByName(key).item(0)?.focus()
-                    }}
+                    onClick={() => setFocus(key)}
                   >
                     {FIELD_LABELS[key]}
                   </button>

@@ -117,7 +117,10 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
     )
   }
 
-  const help = blockedReason ?? (selectedId === null ? 'Elige a un trabajador para continuar.' : null)
+  const selectedWorker = workers.find((worker) => worker.id === selectedId)
+  const help =
+    blockedReason ??
+    (selectedWorker ? `Elegiste a ${selectedWorker.fullName}.` : 'Elige a un trabajador para continuar.')
 
   return (
     <div className="grid gap-5">

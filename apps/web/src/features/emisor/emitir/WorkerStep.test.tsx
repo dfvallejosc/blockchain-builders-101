@@ -100,6 +100,15 @@ describe('WorkerStep', () => {
     },
   )
 
+  it('keeps saying who is chosen when the search hides that worker', () => {
+    renderStep({ selectedId: 'w-carlos' })
+
+    fireEvent.change(screen.getByLabelText('Buscar por nombre o documento'), { target: { value: 'paola' } })
+
+    expect(screen.queryByText('Carlos Andrés Ramírez Pineda')).not.toBeInTheDocument()
+    expect(screen.getByText('Elegiste a Carlos Andrés Ramírez Pineda.')).toBeInTheDocument()
+  })
+
   it('shows an empty result with a way to clear the search', () => {
     renderStep()
 

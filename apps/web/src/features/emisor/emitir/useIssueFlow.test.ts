@@ -1,7 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState, revokeEntity, verifyCertificate, type IssuerSession } from '@/data'
+import { listCertificates, resetState, revokeEntity, verifyCertificate, type IssuerSession } from '@/data'
+import * as certificatesModule from '@/data/certificates'
 import { useIssueFlow } from '@/features/emisor/emitir/useIssueFlow'
+
+vi.mock('@/data/certificates', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/certificates')>()
+  return { ...actual, listCertificates: vi.fn(actual.listCertificates) }
+})
 
 const CUMBRE = 'centro-entrenamiento-cumbre-firme'
 const session: IssuerSession = {
@@ -19,9 +25,11 @@ const renderFlow = async (initialWorkerId: string | null = null) => {
 }
 
 describe('useIssueFlow', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear()
     resetState()
+    const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
+    vi.mocked(certificatesModule.listCertificates).mockImplementation(actual.listCertificates)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 9, 12))
   })
@@ -111,6 +119,36 @@ describe('useIssueFlow', () => {
     const verification = await verifyCertificate(result.current.issued?.id ?? '')
     expect(verification.status).toBe('valid')
     expect(result.current.load.phase === 'ready' && result.current.load.certificates.length).toBe(before + 1)
+  })
+
+  it('keeps the new certificate in the list even if reloading the data fails', async () => {
+    const { result } = await renderFlow()
+    act(() => result.current.selectWorker('w-sandra'))
+    act(() => result.current.continueToDetails())
+    act(() => result.current.saveDetails(DETAILS))
+    const before = result.current.load.phase === 'ready' ? result.current.load.certificates.length : 0
+    vi.mocked(listCertificates).mockRejectedValue(new Error('offline'))
+
+    await act(() => result.current.issue())
+
+    if (result.current.load.phase !== 'ready') throw new Error('not ready')
+    expect(result.current.load.certificates).toHaveLength(before + 1)
+    expect(result.current.load.certificates[0]?.id).toBe(result.current.issued?.id)
+  })
+
+  it('becomes blocked after the entity is revoked meanwhile even if reloading the data fails', async () => {
+    const { result } = await renderFlow()
+    act(() => result.current.selectWorker('w-sandra'))
+    act(() => result.current.continueToDetails())
+    act(() => result.current.saveDetails(DETAILS))
+    await revokeEntity(CUMBRE)
+    vi.mocked(listCertificates).mockRejectedValue(new Error('offline'))
+
+    await act(() => result.current.issue())
+
+    expect(result.current.blocked).toBe(true)
+    expect(result.current.failed).toBe(false)
+    expect(result.current.step).toBe('review')
   })
 
   it('issues only once when issue is called twice in a row', async () => {

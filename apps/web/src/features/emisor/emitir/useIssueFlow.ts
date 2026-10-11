@@ -57,6 +57,7 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
   const [issued, setIssued] = useState<Certificate | null>(null)
   const [issuing, setIssuing] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [revokedMeanwhile, setRevokedMeanwhile] = useState(false)
   const seeded = useRef(false)
   const issuingRef = useRef(false)
 
@@ -84,7 +85,7 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
     }
   }, [entityId, initialWorkerId, attempt])
 
-  const blocked = load.phase === 'ready' && load.entity.revokedAt !== null
+  const blocked = revokedMeanwhile || (load.phase === 'ready' && load.entity.revokedAt !== null)
 
   const selectWorker = useCallback((id: string) => {
     setDraft((current) => ({ ...current, workerId: id }))
@@ -107,14 +108,6 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
 
   const backToDetails = useCallback(() => setStep('details'), [])
 
-  const refresh = useCallback(async () => {
-    try {
-      setLoad({ phase: 'ready', ...(await fetchAll(entityId)) })
-    } catch {
-      // Keep the previous data visible when a refresh fails.
-    }
-  }, [entityId])
-
   const issue = useCallback(async () => {
     if (issuingRef.current || draft.workerId === null || draft.type === '') return
     issuingRef.current = true
@@ -128,15 +121,18 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
         validUntil: draft.validUntil,
       })
       setIssued(certificate)
+      setLoad((current) =>
+        current.phase === 'ready' ? { ...current, certificates: [certificate, ...current.certificates] } : current,
+      )
       setStep('issued')
     } catch (error) {
-      if (!(error instanceof DataError && error.code === 'entity-revoked')) setFailed(true)
+      if (error instanceof DataError && error.code === 'entity-revoked') setRevokedMeanwhile(true)
+      else setFailed(true)
     } finally {
       issuingRef.current = false
       setIssuing(false)
     }
-    await refresh()
-  }, [draft, entityId, refresh])
+  }, [draft, entityId])
 
   const issueAnother = useCallback(() => {
     setDraft(emptyDraft())

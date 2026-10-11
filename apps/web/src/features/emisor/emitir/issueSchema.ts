@@ -9,7 +9,7 @@ export const buildIssueSchema = (todayIso: string) =>
         .string()
         .min(1, 'Escribe la fecha de emisión.')
         .refine(
-          (value) => value === '' || value <= todayIso,
+          (value) => value <= todayIso,
           `La fecha de emisión no puede ser posterior a hoy (${formatLongDate(todayIso)}).`,
         ),
       validUntil: z.string().min(1, 'Escribe la fecha hasta la que estará vigente.'),
