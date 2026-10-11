@@ -53,7 +53,7 @@ export const IssuedStep = ({ certificate, entity, worker, onIssueAnother }: Issu
         </section>
         <section
           aria-labelledby="certificate-preview-heading"
-          className="grid gap-4 rounded-lg border border-ha-border bg-ha-surface p-5"
+          className="grid gap-3 rounded-lg border border-ha-border bg-ha-surface p-5"
         >
           <h2 id="certificate-preview-heading" className="text-lg font-semibold">
             Vista previa del certificado
