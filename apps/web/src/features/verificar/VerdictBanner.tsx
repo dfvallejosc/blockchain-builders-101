@@ -46,11 +46,15 @@ const toVerdict = (state: VerificationState): Verdict => {
   if (result.status === 'annulled') {
     return { word: 'Anulado', sub: 'La entidad emisora anuló este certificado.', Icon: Ban, tone: SOLID_TONES.danger }
   }
-  const sub =
-    result.reason === 'entity-revoked'
-      ? 'La entidad que lo emitió fue revocada.'
-      : 'Este código QR no corresponde a ningún certificado.'
-  return { word: 'No válido', sub, Icon: CircleX, tone: SOLID_TONES.danger }
+  if (result.status === 'invalid') {
+    const sub =
+      result.reason === 'entity-revoked'
+        ? 'La entidad que lo emitió fue revocada.'
+        : 'Este código QR no corresponde a ningún certificado.'
+    return { word: 'No válido', sub, Icon: CircleX, tone: SOLID_TONES.danger }
+  }
+
+  return { word: 'No válido', sub: 'Este código QR no corresponde a ningún certificado.', Icon: CircleX, tone: SOLID_TONES.danger }
 }
 
 interface VerdictBannerProps {

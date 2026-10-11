@@ -52,12 +52,12 @@ const PageFrame = ({ state, queriedAt, onRetry }: PageFrameProps) => (
 interface VerificationViewProps {
   id: string
   initialForced: ForcedState | null
+  queriedAt: Date
 }
 
-const VerificationView = ({ id, initialForced }: VerificationViewProps) => {
+const VerificationView = ({ id, initialForced, queriedAt }: VerificationViewProps) => {
   const { state: queried, retry } = useVerification(id)
   const [forced, setForced] = useState(initialForced)
-  const [queriedAt] = useState(() => new Date())
 
   const state = forced ? FORCED_STATES[forced] : queried
   const handleRetry = () => {
@@ -72,10 +72,11 @@ export const VerifyPage = () => {
   const { id = '' } = useParams()
   const [searchParams] = useSearchParams()
   const forced = readForcedState(searchParams.get('estado'))
+  const [queriedAt] = useState(() => new Date())
 
   if (forced === 'cargando') {
-    return <PageFrame state={FORCED_STATES.cargando} queriedAt={new Date()} />
+    return <PageFrame state={FORCED_STATES.cargando} queriedAt={queriedAt} />
   }
 
-  return <VerificationView key={id} id={id} initialForced={forced} />
+  return <VerificationView key={`${id}:${forced ?? ''}`} id={id} initialForced={forced} queriedAt={queriedAt} />
 }

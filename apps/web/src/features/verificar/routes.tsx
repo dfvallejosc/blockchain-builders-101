@@ -4,7 +4,7 @@ import { PublicLayout } from '@/layouts/PublicLayout'
 
 export const verifyRoutes: RouteObject[] = [
   {
-    path: '/c/:id',
+    path: '/c/:id?',
     element: <PublicLayout />,
     children: [{ index: true, element: <VerifyPage /> }],
   },

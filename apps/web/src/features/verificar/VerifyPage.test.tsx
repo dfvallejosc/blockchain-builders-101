@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,7 @@ vi.mock('@/data/verification', async (importOriginal) => {
 const renderAt = (path: string) => {
   const router = createMemoryRouter(verifyRoutes, { initialEntries: [path] })
   render(<RouterProvider router={router} />)
+  return router
 }
 
 const MEDICAL_WORDS = /diagn[oó]stic|restricci[oó]n|resultado m[eé]dico|apto|no apto/i
@@ -109,6 +110,16 @@ describe('VerifyPage', () => {
     expect(within(banner).getByRole('heading', { level: 1, name: 'Sin verificar' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Habilitado' })).toBeInTheDocument()
+  })
+
+  it.each(['error', 'cargando'] as const)('clears forced %s when the same id loses its estado query', async (estado) => {
+    const router = renderAt(`/c/HAB-2026-004718?estado=${estado}`)
+
+    await act(async () => {
+      await router.navigate('/c/HAB-2026-004718')
+    })
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Habilitado' })).toBeInTheDocument()
   })

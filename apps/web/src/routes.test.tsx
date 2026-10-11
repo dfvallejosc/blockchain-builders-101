@@ -44,6 +44,12 @@ describe('routes', () => {
       expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
     })
 
+    it.each(['/c', '/c/'])('shows No válido for an empty certificate id at %s', async (path) => {
+      renderAt(path)
+
+      expect(await screen.findByRole('heading', { name: 'No válido' })).toBeInTheDocument()
+    })
+
     it('shows a not found page for an unknown address', () => {
       renderAt('/no-such-page')
 
