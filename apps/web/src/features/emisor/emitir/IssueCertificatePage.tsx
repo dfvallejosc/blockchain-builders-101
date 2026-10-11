@@ -95,7 +95,7 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
     }
     if (flow.step === 'issued' && flow.issued) {
       const issuedWorker = workers.find((candidate) => candidate.id === flow.issued?.workerId)
-      if (issuedWorker) return <IssuedStep certificate={flow.issued} worker={issuedWorker} onIssueAnother={flow.issueAnother} />
+      if (issuedWorker) return <IssuedStep certificate={flow.issued} entity={entity} worker={issuedWorker} onIssueAnother={flow.issueAnother} />
     }
     return (
       <WorkerStep
