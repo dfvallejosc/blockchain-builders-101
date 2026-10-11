@@ -123,4 +123,20 @@ describe('VerifyPage', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Habilitado' })).toBeInTheDocument()
   })
+
+  it('does not say "Verificado por HabilitApp" when the query could not be verified', async () => {
+    renderAt('/c/HAB-2026-004718?estado=error')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Sin verificar' })).toBeInTheDocument()
+    expect(screen.queryByText('Verificado por HabilitApp')).not.toBeInTheDocument()
+  })
+
+  it('stamps the retried query with the time of the retry', async () => {
+    renderAt('/c/HAB-2026-004718?estado=error')
+    vi.setSystemTime(new Date(2026, 9, 9, 15, 30))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByText(/^Consulta: .*3:30/)).toBeInTheDocument()
+  })
 })

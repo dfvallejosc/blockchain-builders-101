@@ -15,7 +15,6 @@ const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
 }
 
 const withThousandDots = (digits: string): string => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-const pad = (value: number): string => String(value).padStart(2, '0')
 
 export const formatLongDate = (isoDate: string): string => {
   const [year, month, day] = isoDate.split('-').map(Number)
@@ -32,6 +31,3 @@ export const formatDocument = (type: DocumentType, number: string): string => {
 }
 
 export const certificateTypeLabel = (type: CertificateType): string => CERTIFICATE_LABELS[type]
-
-export const toIsoDate = (date: Date): string =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`

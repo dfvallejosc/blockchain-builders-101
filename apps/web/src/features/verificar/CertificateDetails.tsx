@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { StatusChip } from '@/components/ui/status-chip'
 import { Skeleton } from '@/components/ui/skeleton'
-import { certificateTypeLabel, formatDocument, formatLongDate, toIsoDate } from '@/features/verificar/format'
+import { toIsoDate } from '@/data/clock'
+import { certificateTypeLabel, formatDocument, formatLongDate } from '@/features/verificar/format'
 import type { VerificationState } from '@/features/verificar/useVerification'
 
 interface CardProps {

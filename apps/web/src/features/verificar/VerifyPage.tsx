@@ -42,7 +42,7 @@ const PageFrame = ({ state, queriedAt, onRetry }: PageFrameProps) => (
       )}
       <CertificateDetails state={state} queriedAt={queriedAt} />
     </div>
-    {state.phase !== 'loading' && (
+    {state.phase === 'done' && (
       <footer className="flex items-center justify-center gap-2 border-t border-ha-border bg-ha-surface-2 p-4 text-sm text-ha-text-muted">
         <ShieldCheck aria-hidden="true" className="size-5 text-ha-primary" />
         <b className="text-ha-text">Verificado por HabilitApp</b>
@@ -54,16 +54,17 @@ const PageFrame = ({ state, queriedAt, onRetry }: PageFrameProps) => (
 interface VerificationViewProps {
   id: string
   initialForced: ForcedState | null
-  queriedAt: Date
 }
 
-const VerificationView = ({ id, initialForced, queriedAt }: VerificationViewProps) => {
+const VerificationView = ({ id, initialForced }: VerificationViewProps) => {
   const { state: queried, retry } = useVerification(id)
   const [forced, setForced] = useState(initialForced)
+  const [queriedAt, setQueriedAt] = useState(() => new Date())
 
   const state = forced ? FORCED_STATES[forced] : queried
   const handleRetry = () => {
     setForced(null)
+    setQueriedAt(new Date())
     retry()
   }
 
@@ -74,11 +75,11 @@ export const VerifyPage = () => {
   const { id = '' } = useParams()
   const [searchParams] = useSearchParams()
   const forced = readForcedState(searchParams.get('estado'))
-  const [queriedAt] = useState(() => new Date())
+  const [mountedAt] = useState(() => new Date())
 
   if (forced === 'cargando') {
-    return <PageFrame state={FORCED_STATES.cargando} queriedAt={queriedAt} />
+    return <PageFrame state={FORCED_STATES.cargando} queriedAt={mountedAt} />
   }
 
-  return <VerificationView key={`${id}:${forced ?? ''}`} id={id} initialForced={forced} queriedAt={queriedAt} />
+  return <VerificationView key={`${id}:${forced ?? ''}`} id={id} initialForced={forced} />
 }
