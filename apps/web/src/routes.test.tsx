@@ -38,10 +38,10 @@ describe('routes', () => {
       expect(screen.getByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
     })
 
-    it('shows the verification page without any session, with the id in the address', () => {
+    it('shows the verification page without any session, with the id in the address', async () => {
       renderAt('/c/HAB-2026-004718')
 
-      expect(screen.getByRole('heading', { name: 'Verificación del certificado' })).toBeInTheDocument()
+      expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
     })
 
     it('shows a not found page for an unknown address', () => {
