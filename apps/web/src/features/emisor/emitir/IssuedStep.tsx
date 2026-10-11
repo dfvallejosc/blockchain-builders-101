@@ -16,7 +16,7 @@ export const IssuedStep = ({ certificate, worker, onIssueAnother }: IssuedStepPr
     <Alert tone="success" title="Certificado emitido">
       {`El certificado ${certificate.id} de ${worker.fullName} quedó registrado y ya se puede comprobar con su código QR.`}
     </Alert>
-    <section className="grid w-full max-w-80 justify-items-center gap-4 rounded-lg border border-ha-border bg-ha-surface p-5 text-center">
+    <section className="grid w-full max-w-80 justify-items-center gap-4 justify-self-center rounded-lg border border-ha-border bg-ha-surface p-5 text-center">
       <h2 tabIndex={-1} className="text-lg font-semibold">
         Código QR
       </h2>
