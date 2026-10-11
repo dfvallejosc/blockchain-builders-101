@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { devRoutes } from '@/dev/routes'
 import { adminRoutes } from '@/features/admin/routes'
 import { issuerRoutes } from '@/features/emisor/routes'
 import { verifyRoutes } from '@/features/verificar/routes'
@@ -10,5 +11,6 @@ export const appRoutes: RouteObject[] = [
   ...issuerRoutes,
   ...adminRoutes,
   ...verifyRoutes,
+  ...(import.meta.env.DEV ? devRoutes : []),
   { path: '*', element: <NotFoundPage /> },
 ]
