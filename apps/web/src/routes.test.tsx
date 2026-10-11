@@ -77,6 +77,15 @@ describe('routes', () => {
       )
     })
 
+    it('shows the HabilitApp logo next to the name in the side bar', async () => {
+      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      renderAt('/emisor/emitir')
+
+      const brand = (await screen.findByRole('complementary')).querySelector('p')
+      expect(brand).toHaveTextContent('HabilitApp')
+      expect(brand?.querySelector('svg')).toBeInTheDocument()
+    })
+
     it('redirects /emisor to the issue page', async () => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       const router = renderAt('/emisor')
