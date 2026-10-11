@@ -10,7 +10,7 @@ interface NavItem {
 
 const NAV_ITEMS: Record<Role, NavItem[]> = {
   issuer: [
-    { label: 'Emitir certificado', to: '/emisor/emitir' },
+    { label: 'Certificados', to: '/emisor/certificados' },
     { label: 'Registrar trabajador', to: '/emisor/trabajadores/nuevo' },
   ],
   admin: [

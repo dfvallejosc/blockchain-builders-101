@@ -49,7 +49,12 @@ describe('IssueCertificatePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Emitir certificado' }))
 
     expect(await screen.findByText('Certificado emitido')).toBeInTheDocument()
-    expect(screen.getByTestId('qr')).toHaveAttribute('data-value', `${window.location.origin}/c/HAB-2026-004719`)
+    const codes = screen.getAllByTestId('qr')
+    expect(codes).toHaveLength(2)
+    codes.forEach((code) =>
+      expect(code).toHaveAttribute('data-value', `${window.location.origin}/c/HAB-2026-004719`),
+    )
+    expect(screen.getByRole('heading', { name: 'Vista previa del certificado' })).toBeInTheDocument()
     expect((await verifyCertificate('HAB-2026-004719')).status).toBe('valid')
   })
 

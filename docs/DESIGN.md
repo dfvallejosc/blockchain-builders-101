@@ -165,6 +165,10 @@ Escala (px / interlineado): `xs` 12/16 · `sm` 14/20 · `base` 16/24 · `lg` 18/
 | Movimiento | 120 ms (cambios de color) y 200 ms (entrada de diálogos y avisos). Con `prefers-reduced-motion: reduce` las duraciones pasan a ~0 y se detienen giros y pulsos |
 | Puntos de quiebre | 640 · 960 · 1280 px. En celular se diseña primero; sin desplazamiento horizontal de página |
 
+### Hoja imprimible del certificado
+
+La hoja carta del certificado (`apps/web/src/features/emisor/hoja/`) tiene su propia escala de papel en `sheet.css`: `--pt` equivale a 1/612 del ancho de la hoja, así que se ve igual en un celular, en un escritorio y en papel. Sus medidas son geometría de la hoja, no tamaños de la interfaz, y por eso no pasan por la escala de `tokens.css`. No introduce colores nuevos: todo sale de los tokens `--ha-*`, y la hoja siempre se ve en claro (`data-theme="light"`), también en modo oscuro.
+
 ---
 
 ## 7. Componentes
