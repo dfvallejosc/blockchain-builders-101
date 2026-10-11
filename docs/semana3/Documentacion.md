@@ -44,7 +44,7 @@ Las pantallas cubren el recorrido principal del MVP: un consultorio emite un cer
 
 ### Capturas
 
-> **Pendiente:** agregar aquí las capturas de pantalla (escritorio y 390 px) de la emisión, la hoja, el historial y la consulta pública, o el enlace al front hospedado si lo hay.
+El front funciona en el enlace de arriba. Las capturas de pantalla (escritorio y 390 px) de la emisión, la hoja, el historial y la consulta pública están pendientes de agregar aquí.
 
 ---
 
@@ -97,7 +97,7 @@ Todo en testnet. Cómo se conecta la API con Stellar y cómo se custodian las ll
 - El ingreso del administrador (`/admin/ingresar`) y todo el panel de administración (lista de emisores, registro y detalle) son marcadores de posición.
 - Los datos son de ejemplo en el navegador: no hay API, base de datos ni sesión real. Falta decidir el proveedor de autenticación (Clerk o Better Auth).
 - La red de Stellar no está conectada: el QR y la consulta funcionan con datos locales.
-- Capturas de pantalla y, si se hospeda, el enlace al front.
+- Capturas de pantalla de las pantallas principales.
 
 **Siguiente paso hacia el MVP**
 
