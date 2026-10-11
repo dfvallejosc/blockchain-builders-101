@@ -9,7 +9,7 @@ Esta semana construimos el front de HabilitApp con datos de ejemplo. Todavía no
 
 ## 1. Front construido
 
-El front vive en `apps/web` (React 19, Vite, Tailwind 4 y shadcn/ui). Se corre con `pnpm dev:web` y se abre en <http://localhost:5173>. Los datos son de ejemplo: salen de `apps/web/src/data/`, se guardan en `localStorage` y más adelante se cambian por la API. Por eso la sesión de demostración acepta cualquier contraseña que no esté vacía: el repositorio es público y no guarda credenciales.
+El front vive en `apps/web` (React 19, Vite, Tailwind 4 y shadcn/ui). Se corre con `pnpm dev:web` y se abre en <http://localhost:5173>. Los datos son de ejemplo: salen de `apps/web/src/data/`, se guardan en `localStorage` y más adelante se cambian por la API. Por eso la sesión de demostración no comprueba la contraseña (basta con que no esté vacía) y solo exige que el correo sea el de una entidad de ejemplo, por ejemplo `consultorio@lomasdelsur.co`: el repositorio es público y no guarda credenciales.
 
 El front sigue el [sistema de diseño](../DESIGN.md) del proyecto: colores, tipografía y radios salen de `tokens.css`, el estado de un certificado siempre se dice con ícono y palabra (Habilitado, Vencido, No válido, Anulado) y la interfaz está en español de Colombia, sin jerga de cadena de bloques. Los componentes compartidos están en `apps/web/src/components/ui/` y, en desarrollo, la ruta `/dev/components` los muestra con sus estados.
 
@@ -28,7 +28,7 @@ El front sigue el [sistema de diseño](../DESIGN.md) del proyecto: colores, tipo
 
 **Emisión (`/emisor/emitir`).** El emisor elige a un trabajador de su lista o lo registra con su autorización. Después escribe el tipo de certificado, la fecha de emisión y la vigencia, con validación de los campos y un resumen de errores. En el tercer paso revisa todo antes de confirmar, para no tener que anular por un error de digitación. Al confirmar ve una vista previa del certificado y su código QR. Si el trabajador ya tiene un certificado vigente del mismo tipo, la pantalla lo detecta.
 
-**Ingreso y trabajadores.** El emisor entra con el correo y la contraseña de su entidad (en la demostración, cualquier contraseña no vacía). Puede registrar un trabajador con su nombre, documento y autorización desde una pantalla propia, y ver la lista de los que ha registrado para encontrarlos rápido al emitir.
+**Ingreso y trabajadores.** El emisor entra con el correo y la contraseña de su entidad (en la demostración, con el correo de una entidad de ejemplo y cualquier contraseña no vacía). Al entrar llega directo a la emisión de certificados. Puede registrar un trabajador con su nombre, documento y autorización desde una pantalla propia, y ver la lista de los que ha registrado para encontrarlos rápido al emitir.
 
 **Hoja del certificado.** Es una página pensada para papel, con el QR y los datos del certificado, lista para imprimir y entregar al trabajador.
 
