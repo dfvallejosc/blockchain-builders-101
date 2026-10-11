@@ -25,23 +25,25 @@ interface PageFrameProps {
 }
 
 const PageFrame = ({ state, queriedAt, onRetry }: PageFrameProps) => (
-  <article className="mx-auto grid w-full max-w-120 content-start overflow-hidden bg-ha-bg pb-6 sm:my-6 sm:rounded-lg sm:border sm:border-ha-border">
+  <article className="mx-auto flex min-h-svh w-full max-w-2xl flex-col bg-ha-bg sm:border-x sm:border-ha-border">
     <div className="flex items-center gap-2 border-b border-ha-border bg-ha-surface px-4 py-3 font-bold text-ha-text">
       <ShieldCheck aria-hidden="true" className="size-6 text-ha-primary" />
       HabilitApp
     </div>
     <VerdictBanner state={state} />
-    {state.phase === 'error' && onRetry && (
-      <div className="px-4 pt-3">
-        <Button size="lg" className="w-full" onClick={onRetry}>
-          <RotateCw aria-hidden="true" className="size-5" />
-          Reintentar
-        </Button>
-      </div>
-    )}
-    <CertificateDetails state={state} queriedAt={queriedAt} />
+    <div className="flex-1 pb-4">
+      {state.phase === 'error' && onRetry && (
+        <div className="px-4 pt-3">
+          <Button size="lg" className="w-full" onClick={onRetry}>
+            <RotateCw aria-hidden="true" className="size-5" />
+            Reintentar
+          </Button>
+        </div>
+      )}
+      <CertificateDetails state={state} queriedAt={queriedAt} />
+    </div>
     {state.phase !== 'loading' && (
-      <footer className="mt-4 flex items-center justify-center gap-2 border-t border-ha-border bg-ha-surface-2 p-4 text-sm text-ha-text-muted">
+      <footer className="flex items-center justify-center gap-2 border-t border-ha-border bg-ha-surface-2 p-4 text-sm text-ha-text-muted">
         <ShieldCheck aria-hidden="true" className="size-5 text-ha-primary" />
         <b className="text-ha-text">Verificado por HabilitApp</b>
       </footer>
