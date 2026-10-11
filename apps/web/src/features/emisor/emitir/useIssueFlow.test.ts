@@ -191,6 +191,19 @@ describe('useIssueFlow', () => {
     expect(result.current.failed).toBe(true)
   })
 
+  it('clears a previous failure when the user goes back to edit', async () => {
+    const { result } = await renderFlow()
+    act(() => result.current.selectWorker('w-sandra'))
+    act(() => result.current.continueToDetails())
+    act(() => result.current.saveDetails({ ...DETAILS, type: 'occupational-medical' }))
+    await act(() => result.current.issue())
+    expect(result.current.failed).toBe(true)
+
+    act(() => result.current.backToDetails())
+
+    expect(result.current.failed).toBe(false)
+  })
+
   it('starts over with issueAnother', async () => {
     const { result } = await renderFlow()
     act(() => result.current.selectWorker('w-sandra'))

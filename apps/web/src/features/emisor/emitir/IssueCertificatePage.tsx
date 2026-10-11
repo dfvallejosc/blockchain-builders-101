@@ -63,7 +63,7 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
     if (flow.step === 'details' && worker) {
       return (
         <div className="grid gap-5">
-          {params.get('nuevo') === '1' && !registeredDismissed && (
+          {params.get('nuevo') === '1' && params.get('trabajador') === draft.workerId && !registeredDismissed && (
             <Alert tone="success" title="Trabajador registrado" onClose={() => setRegisteredDismissed(true)}>
               Ahora completa los datos del certificado.
             </Alert>

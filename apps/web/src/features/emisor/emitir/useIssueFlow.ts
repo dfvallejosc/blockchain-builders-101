@@ -98,15 +98,20 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
 
   const saveDetails = useCallback((values: DetailsFormValues) => {
     setDraft((current) => ({ ...current, ...values }))
+    setFailed(false)
     setStep('review')
   }, [])
 
   const backToWorker = useCallback((values?: DetailsFormValues) => {
     if (values) setDraft((current) => ({ ...current, ...values }))
+    setFailed(false)
     setStep('worker')
   }, [])
 
-  const backToDetails = useCallback(() => setStep('details'), [])
+  const backToDetails = useCallback(() => {
+    setFailed(false)
+    setStep('details')
+  }, [])
 
   const issue = useCallback(async () => {
     if (issuingRef.current || draft.workerId === null || draft.type === '') return

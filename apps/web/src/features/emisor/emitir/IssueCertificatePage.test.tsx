@@ -83,6 +83,18 @@ describe('IssueCertificatePage', () => {
     expect(screen.getByText('Trabajador registrado')).toBeInTheDocument()
   })
 
+  it('shows "Trabajador registrado" only for the worker that came from the address', async () => {
+    await renderAt('/emisor/emitir?trabajador=w-sandra&nuevo=1')
+    await screen.findByText('Trabajador registrado')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar trabajador' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Elegir a Carlos Andrés Ramírez Pineda' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
+    expect(screen.queryByText('Trabajador registrado')).not.toBeInTheDocument()
+  })
+
   it('falls back to the first step for an unknown worker', async () => {
     await renderAt('/emisor/emitir?trabajador=w-nobody')
 
