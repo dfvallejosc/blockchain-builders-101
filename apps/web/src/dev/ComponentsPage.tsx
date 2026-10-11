@@ -11,6 +11,7 @@ import { FilterChip } from '@/components/ui/filter-chip'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Radio } from '@/components/ui/radio'
 import { Select } from '@/components/ui/select'
+import { SearchField } from '@/components/ui/search-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Steps } from '@/components/ui/steps'
 import { StatusChip, type ChipStatus } from '@/components/ui/status-chip'
@@ -54,6 +55,20 @@ const FilterChipDemo = () => {
       <FilterChip pressed={pressed.expired ?? false} onPressedChange={toggle('expired')}>Vencido</FilterChip>
       <FilterChip pressed={pressed.annulled ?? false} onPressedChange={toggle('annulled')}>Anulado</FilterChip>
     </div>
+  )
+}
+
+const SearchFieldDemo = () => {
+  const [query, setQuery] = useState('')
+
+  return (
+    <SearchField
+      label="Buscar certificados de ejemplo"
+      value={query}
+      onChange={setQuery}
+      placeholder="Buscar por trabajador, documento o número"
+      className="max-w-lg"
+    />
   )
 }
 
@@ -120,6 +135,10 @@ export const ComponentsPage = () => {
 
       <Section title="Chips de filtro">
         <FilterChipDemo />
+      </Section>
+
+      <Section title="Búsqueda">
+        <SearchFieldDemo />
       </Section>
 
       <Section title="Alertas y avisos">

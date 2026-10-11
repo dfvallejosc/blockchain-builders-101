@@ -19,6 +19,7 @@ describe('components gallery', () => {
     expect(screen.getByRole('heading', { name: 'Campos' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Chips de estado' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Chips de filtro' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Búsqueda' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Alertas y avisos' })).toBeInTheDocument()
     expect(screen.getAllByText('Habilitado').length).toBeGreaterThan(0)
   })
