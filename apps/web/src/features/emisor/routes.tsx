@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { PlaceholderPage } from '@/components/PlaceholderPage'
+import { IssueCertificatePage } from '@/features/emisor/emitir/IssueCertificatePage'
 import { PanelLayout } from '@/layouts/PanelLayout'
 import { RequireSession } from '@/layouts/RequireSession'
 
@@ -13,7 +14,7 @@ export const issuerRoutes: RouteObject[] = [
         element: <PanelLayout />,
         children: [
           { index: true, element: <Navigate to="/emisor/emitir" replace /> },
-          { path: 'emitir', element: <PlaceholderPage title="Emitir certificado" /> },
+          { path: 'emitir', element: <IssueCertificatePage /> },
           { path: 'trabajadores/nuevo', element: <PlaceholderPage title="Registrar trabajador" /> },
         ],
       },
