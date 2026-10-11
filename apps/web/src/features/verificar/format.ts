@@ -31,3 +31,10 @@ export const formatDocument = (type: DocumentType, number: string): string => {
 }
 
 export const certificateTypeLabel = (type: CertificateType): string => CERTIFICATE_LABELS[type]
+
+const SHORT_MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+export const formatShortDate = (isoDate: string): string => {
+  const [year, month, day] = isoDate.split('-')
+  return `${day} ${SHORT_MONTHS[Number(month) - 1]} ${year}`
+}
