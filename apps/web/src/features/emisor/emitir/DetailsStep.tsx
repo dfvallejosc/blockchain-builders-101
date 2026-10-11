@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Alert } from '@/components/ui/alert'
@@ -31,6 +31,14 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
   const todayIso = today()
   const schema = useMemo(() => buildIssueSchema(todayIso), [todayIso])
   const summaryRef = useRef<HTMLDivElement>(null)
+  const focusSummaryAfterRender = useRef(false)
+  const attachSummary = useCallback((node: HTMLDivElement | null) => {
+    summaryRef.current = node
+    if (node && focusSummaryAfterRender.current) {
+      node.focus()
+      focusSummaryAfterRender.current = false
+    }
+  }, [])
 
   const {
     register,
@@ -45,6 +53,7 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
     defaultValues: initialValues,
     mode: 'onBlur',
     reValidateMode: 'onChange',
+    shouldFocusError: false,
   })
 
   const errorKeys = (Object.keys(FIELD_LABELS) as (keyof IssueFormValues)[]).filter((key) => errors[key])
@@ -80,7 +89,7 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
       </div>
 
       {submitCount > 0 && errorKeys.length > 0 && (
-        <div ref={summaryRef} tabIndex={-1} className="mt-4">
+        <div ref={attachSummary} tabIndex={-1} className="mt-4">
           <Alert
             tone="danger"
             title={`Revisa ${errorKeys.length} ${errorKeys.length === 1 ? 'campo' : 'campos'} antes de continuar`}
@@ -88,7 +97,14 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
             <ul className="mt-1 grid gap-1">
               {errorKeys.map((key) => (
                 <li key={key}>
-                  <button type="button" className="font-semibold text-ha-primary underline" onClick={() => setFocus(key)}>
+                  <button
+                    type="button"
+                    className="min-h-(--touch-min) font-semibold text-ha-primary underline"
+                    onClick={() => {
+                      setFocus(key)
+                      document.getElementsByName(key).item(0)?.focus()
+                    }}
+                  >
                     {FIELD_LABELS[key]}
                   </button>
                 </li>
@@ -98,7 +114,14 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
         </div>
       )}
 
-      <form noValidate onSubmit={handleSubmit(submit, () => summaryRef.current?.focus())} className="mt-4 grid gap-4">
+      <form
+        noValidate
+        onSubmit={handleSubmit(submit, () => {
+          if (summaryRef.current) summaryRef.current.focus()
+          else focusSummaryAfterRender.current = true
+        })}
+        className="mt-4 grid gap-4"
+      >
         <Field
           label={FIELD_LABELS.type}
           required

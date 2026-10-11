@@ -102,6 +102,8 @@ describe('DetailsStep', () => {
     const summary = await screen.findByRole('alert')
     expect(within(summary).getByText('Revisa 3 campos antes de continuar')).toBeInTheDocument()
     expect(within(summary).getAllByRole('button')).toHaveLength(3)
+    expect(within(summary).getAllByRole('button').every((button) => button.className.includes('min-h-(--touch-min)'))).toBe(true)
+    expect(summary.parentElement).toHaveFocus()
     expect(screen.getByLabelText(/Tipo de certificado/)).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByLabelText(/Fecha de emisión/)).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByLabelText(/Vigente hasta/)).toHaveAttribute('aria-invalid', 'true')
@@ -113,6 +115,7 @@ describe('DetailsStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Revisar resumen' }))
     const summary = await screen.findByRole('alert')
+    await waitFor(() => expect(summary.parentElement).toHaveFocus())
     fireEvent.click(within(summary).getByRole('button', { name: 'Tipo de certificado' }))
 
     expect(screen.getByLabelText(/Tipo de certificado/)).toHaveFocus()
