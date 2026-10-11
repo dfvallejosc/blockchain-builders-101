@@ -178,6 +178,16 @@ describe('LandingPage', () => {
       expect(within(preview).getByRole('heading', { level: 1, name: 'Habilitado', hidden: true })).toBeInTheDocument()
     })
 
+    it('says "Sin verificar" when the sample certificate is absent', async () => {
+      vi.mocked(verifyCertificate).mockResolvedValueOnce({ status: 'invalid', reason: 'unknown-certificate' })
+      renderLanding()
+
+      const preview = screen.getByTestId('hero-preview')
+      expect(
+        await within(preview).findByRole('heading', { level: 1, name: 'Sin verificar', hidden: true }),
+      ).toBeInTheDocument()
+    })
+
     it('keeps the page usable and says "Sin verificar" when the sample cannot be read', async () => {
       vi.mocked(verifyCertificate).mockRejectedValueOnce(new Error('storage unavailable'))
       renderLanding()

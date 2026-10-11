@@ -80,7 +80,7 @@ const SignInMenu = () => {
                 className="flex min-h-(--touch-min) flex-col rounded-md p-3 text-ha-text no-underline hover:bg-ha-primary-soft active:bg-ha-primary-soft-active"
               >
                 <b className="text-base font-semibold">{option.title}</b>
-                <span className="text-sm text-ha-text-muted">{option.description}</span>
+                <span className="text-base text-ha-text-muted">{option.description}</span>
               </Link>
             </div>
           ))}

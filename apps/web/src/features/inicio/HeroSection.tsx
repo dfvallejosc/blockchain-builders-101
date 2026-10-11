@@ -14,6 +14,10 @@ const SAMPLE_CERTIFICATE_ID = 'HAB-2026-004718'
 const PhonePreview = () => {
   const { state } = useVerification(SAMPLE_CERTIFICATE_ID)
   const [queriedAt] = useState(() => new Date())
+  const previewState =
+    state.phase === 'done' && state.result.status === 'invalid' && state.result.reason === 'unknown-certificate'
+      ? { phase: 'error' as const }
+      : state
 
   return (
     <div
@@ -26,9 +30,9 @@ const PhonePreview = () => {
         <Logo className="size-6" />
         HabilitApp
       </div>
-      <VerdictBanner state={state} />
+      <VerdictBanner state={previewState} />
       <div className="pb-4">
-        <CertificateDetails state={state} queriedAt={queriedAt} />
+        <CertificateDetails state={previewState} queriedAt={queriedAt} />
       </div>
     </div>
   )

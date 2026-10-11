@@ -90,7 +90,7 @@ export const CertificateTypes = () => (
             <FileCheck aria-hidden="true" className="size-6" />
           </IconTile>
           <h3 className="mt-3 text-lg leading-snug font-bold">{type.title}</h3>
-          <p className="mt-1 text-sm text-ha-text-muted">{type.text}</p>
+          <p className="mt-1 text-base text-ha-text-muted">{type.text}</p>
         </Card>
       ))}
     </div>
