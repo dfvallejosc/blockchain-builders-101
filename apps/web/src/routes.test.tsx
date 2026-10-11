@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -75,6 +75,16 @@ describe('routes', () => {
         'href',
         '/emisor/trabajadores/nuevo',
       )
+    })
+
+    it('lists the certificates at /emisor/certificados, with no menu item to issue (it is reached from the list)', async () => {
+      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      renderAt('/emisor/certificados')
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Certificados' })).toBeInTheDocument()
+      const links = within(screen.getByRole('navigation', { name: 'Secciones' })).getAllByRole('link')
+      expect(links.map((link) => link.textContent)).toEqual(['Certificados', 'Registrar trabajador'])
+      expect(links[0]).toHaveAttribute('aria-current', 'page')
     })
 
     it('shows the HabilitApp logo next to the name in the side bar', async () => {

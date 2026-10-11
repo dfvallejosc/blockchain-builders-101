@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { certificateTypeLabel, formatDocument, formatLongDate } from '@/features/verificar/format'
+import { certificateTypeLabel, formatDocument, formatLongDate, formatShortDate } from '@/features/verificar/format'
 
 describe('formatLongDate', () => {
   it('writes the date in Colombian Spanish without time zone shifts', () => {
@@ -26,5 +26,13 @@ describe('certificateTypeLabel', () => {
     expect(certificateTypeLabel('confined-spaces')).toBe('Espacios confinados')
     expect(certificateTypeLabel('crane-operation')).toBe('Operación de grúa')
     expect(certificateTypeLabel('occupational-medical')).toBe('Concepto médico ocupacional')
+  })
+})
+
+describe('formatShortDate', () => {
+  it('writes day, short month and year without time zone shifts', () => {
+    expect(formatShortDate('2026-10-05')).toBe('05 oct 2026')
+    expect(formatShortDate('2027-01-31')).toBe('31 ene 2027')
+    expect(formatShortDate('2025-09-01')).toBe('01 sep 2025')
   })
 })
