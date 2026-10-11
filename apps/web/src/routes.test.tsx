@@ -77,13 +77,13 @@ describe('routes', () => {
       )
     })
 
-    it('lists the certificates at /emisor/certificados with the menu item first', async () => {
+    it('lists the certificates at /emisor/certificados, with no menu item to issue (it is reached from the list)', async () => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       renderAt('/emisor/certificados')
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Certificados' })).toBeInTheDocument()
       const links = within(screen.getByRole('navigation', { name: 'Secciones' })).getAllByRole('link')
-      expect(links.map((link) => link.textContent)).toEqual(['Certificados', 'Emitir certificado', 'Registrar trabajador'])
+      expect(links.map((link) => link.textContent)).toEqual(['Certificados', 'Registrar trabajador'])
       expect(links[0]).toHaveAttribute('aria-current', 'page')
     })
 
