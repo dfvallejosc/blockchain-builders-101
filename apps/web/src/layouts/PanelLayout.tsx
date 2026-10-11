@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate, useOutletContext } from 'react-router'
+import { Logo } from '@/components/Logo'
 import { LOGIN_PATH } from '@/layouts/RequireSession'
 import { signOut, type Role, type Session } from '@/data'
 
@@ -39,7 +40,10 @@ export const PanelLayout = () => {
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground md:flex-row">
       <aside className="border-b border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:w-64 md:border-r md:border-b-0">
-        <p className="font-bold">HabilitApp</p>
+        <p className="flex items-center gap-3 text-lg font-bold">
+          <Logo className="size-8" />
+          HabilitApp
+        </p>
         <p className="text-sm text-muted-foreground">{PANEL_NAME[role]}</p>
         <nav aria-label="Secciones" className="mt-4">
           <ul className="flex flex-col gap-1">

@@ -38,10 +38,16 @@ describe('routes', () => {
       expect(screen.getByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
     })
 
-    it('shows the verification page without any session, with the id in the address', () => {
+    it('shows the verification page without any session, with the id in the address', async () => {
       renderAt('/c/HAB-2026-004718')
 
-      expect(screen.getByRole('heading', { name: 'Verificación del certificado' })).toBeInTheDocument()
+      expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
+    })
+
+    it.each(['/c', '/c/'])('shows No válido for an empty certificate id at %s', async (path) => {
+      renderAt(path)
+
+      expect(await screen.findByRole('heading', { name: 'No válido' })).toBeInTheDocument()
     })
 
     it('shows a not found page for an unknown address', () => {
@@ -69,6 +75,15 @@ describe('routes', () => {
         'href',
         '/emisor/trabajadores/nuevo',
       )
+    })
+
+    it('shows the HabilitApp logo next to the name in the side bar', async () => {
+      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      renderAt('/emisor/emitir')
+
+      const brand = (await screen.findByRole('complementary')).querySelector('p')
+      expect(brand).toHaveTextContent('HabilitApp')
+      expect(brand?.querySelector('svg')).toBeInTheDocument()
     })
 
     it('redirects /emisor to the issue page', async () => {

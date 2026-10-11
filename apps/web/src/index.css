@@ -31,8 +31,10 @@
     --color-ha-on-primary: var(--ha-on-primary);
     --color-ha-success: var(--ha-success);
     --color-ha-success-bg: var(--ha-success-bg);
+    --color-ha-on-success: var(--ha-on-success);
     --color-ha-warning: var(--ha-warning);
     --color-ha-warning-bg: var(--ha-warning-bg);
+    --color-ha-on-warning: var(--ha-on-warning);
     --color-ha-danger: var(--ha-danger);
     --color-ha-danger-bg: var(--ha-danger-bg);
     --color-ha-danger-hover: var(--ha-danger-hover);
