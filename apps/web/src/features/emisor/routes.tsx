@@ -4,6 +4,7 @@ import { CertificatesPage } from '@/features/emisor/certificados/CertificatesPag
 import { IssueCertificatePage } from '@/features/emisor/emitir/IssueCertificatePage'
 import { CertificateSheetPage } from '@/features/emisor/hoja/CertificateSheetPage'
 import { LoginPage } from '@/features/emisor/ingreso/LoginPage'
+import { WorkersPage } from '@/features/emisor/trabajadores/WorkersPage'
 import { PanelLayout } from '@/layouts/PanelLayout'
 import { RequireSession } from '@/layouts/RequireSession'
 
@@ -19,6 +20,7 @@ export const issuerRoutes: RouteObject[] = [
           { index: true, element: <Navigate to="/emisor/emitir" replace /> },
           { path: 'certificados', element: <CertificatesPage /> },
           { path: 'emitir', element: <IssueCertificatePage /> },
+          { path: 'trabajadores', element: <WorkersPage /> },
           { path: 'trabajadores/nuevo', element: <PlaceholderPage title="Registrar trabajador" /> },
         ],
       },

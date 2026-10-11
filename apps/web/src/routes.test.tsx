@@ -90,20 +90,30 @@ describe('routes', () => {
 
       expect(await screen.findByRole('heading', { name: 'Emitir certificado' })).toBeInTheDocument()
       expect(screen.getByText('Centro de Entrenamiento Cumbre Firme')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Registrar trabajador' })).toHaveAttribute(
+      expect(within(screen.getByRole('navigation', { name: 'Secciones' })).getByRole('link', { name: 'Trabajadores' })).toHaveAttribute(
         'href',
-        '/emisor/trabajadores/nuevo',
+        '/emisor/trabajadores',
       )
     })
 
-    it('lists the certificates at /emisor/certificados, with no menu item to issue (it is reached from the list)', async () => {
+    it('lists the certificates at /emisor/certificados, with no menu item to issue or register (they are reached from the lists)', async () => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       renderAt('/emisor/certificados')
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Certificados' })).toBeInTheDocument()
       const links = within(screen.getByRole('navigation', { name: 'Secciones' })).getAllByRole('link')
-      expect(links.map((link) => link.textContent)).toEqual(['Certificados', 'Registrar trabajador'])
+      expect(links.map((link) => link.textContent)).toEqual(['Certificados', 'Trabajadores'])
       expect(links[0]).toHaveAttribute('aria-current', 'page')
+    })
+
+    it('lists the workers at /emisor/trabajadores, with its menu item marked as current', async () => {
+      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      renderAt('/emisor/trabajadores')
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Trabajadores' })).toBeInTheDocument()
+      const nav = within(screen.getByRole('navigation', { name: 'Secciones' }))
+      expect(nav.getByRole('link', { name: 'Trabajadores' })).toHaveAttribute('aria-current', 'page')
+      expect(nav.getByRole('link', { name: 'Trabajadores' })).toHaveAttribute('href', '/emisor/trabajadores')
     })
 
     it('shows the HabilitApp logo next to the name in the side bar', async () => {
