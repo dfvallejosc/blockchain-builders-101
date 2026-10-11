@@ -56,50 +56,53 @@ const WorkersView = ({ session }: { session: IssuerSession }) => {
   const rows = useMemo(() => filterWorkerRows(allRows, query), [allRows, query])
   const hasWorkers = ready && allRows.length > 0
 
-  const columns: Column<WorkerRow>[] = [
-    {
-      key: 'worker',
-      header: 'Trabajador',
-      cell: (row) => (
-        <>
-          <span className="block break-words">{row.fullName}</span>
-          <span className="block text-sm tracking-wide text-ha-text-muted sm:hidden">{row.document}</span>
-        </>
-      ),
-      sortValue: (row) => row.fullName,
-    },
-    {
-      key: 'document',
-      header: 'Documento',
-      className: 'whitespace-nowrap max-sm:hidden',
-      cell: (row) => row.document,
-    },
-    {
-      key: 'actions',
-      header: 'Acciones',
-      className: 'text-right',
-      cell: (row) =>
-        blocked ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled
-            aria-label={`Emitir certificado a ${row.fullName}`}
-            aria-describedby={reasonId}
-          >
-            Emitir certificado
-          </Button>
-        ) : (
-          <Link
-            to={`${ISSUE_PATH}?trabajador=${row.id}`}
-            aria-label={`Emitir certificado a ${row.fullName}`}
-            className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-          >
-            Emitir certificado
-          </Link>
+  const columns = useMemo<Column<WorkerRow>[]>(
+    () => [
+      {
+        key: 'worker',
+        header: 'Trabajador',
+        cell: (row) => (
+          <>
+            <span className="block break-words">{row.fullName}</span>
+            <span className="block text-sm tracking-wide text-ha-text-muted sm:hidden">{row.document}</span>
+          </>
         ),
-    },
-  ]
+        sortValue: (row) => row.fullName,
+      },
+      {
+        key: 'document',
+        header: 'Documento',
+        className: 'whitespace-nowrap max-sm:hidden',
+        cell: (row) => row.document,
+      },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        className: 'text-right',
+        cell: (row) =>
+          blocked ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              aria-label={`Emitir certificado a ${row.fullName}`}
+              aria-describedby={reasonId}
+            >
+              Emitir certificado
+            </Button>
+          ) : (
+            <Link
+              to={`${ISSUE_PATH}?trabajador=${encodeURIComponent(row.id)}`}
+              aria-label={`Emitir certificado a ${row.fullName}`}
+              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+            >
+              Emitir certificado
+            </Link>
+          ),
+      },
+    ],
+    [blocked, reasonId],
+  )
 
   const emptyState = !hasWorkers ? (
     <EmptyState

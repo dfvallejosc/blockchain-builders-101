@@ -26,6 +26,7 @@ describe('toWorkerRows', () => {
       id: 'w-carlos',
       fullName: 'Carlos Andrés Ramírez Pineda',
       document: 'C.C. 1.020.345.678',
+      documentNumber: '1020345678',
     })
   })
 
@@ -50,6 +51,21 @@ describe('filterWorkerRows', () => {
   it('matches by document ignoring dots and spaces', () => {
     expect(filterWorkerRows(rows, '1.020.345').map((row) => row.id)).toEqual(['w-carlos'])
     expect(filterWorkerRows(rows, '52 418').map((row) => row.id)).toEqual(['w-paola'])
+  })
+
+  it('does not match across the words of a name', () => {
+    expect(filterWorkerRows(rows, 'sa')).toEqual([])
+    expect(filterWorkerRows(rows, 'carlos andres').map((row) => row.id)).toEqual(['w-carlos'])
+  })
+
+  it('does not match the document type prefix', () => {
+    expect(filterWorkerRows(rows, 'cc')).toEqual([])
+    expect(filterWorkerRows(rows, 'pasaporte')).toEqual([])
+    expect(filterWorkerRows(rows, 'pa7731').map((row) => row.id)).toEqual(['w-nicolas'])
+  })
+
+  it('does not treat a query of only dots as blank', () => {
+    expect(filterWorkerRows(rows, '.')).toEqual([])
   })
 
   it('returns nothing when no worker matches', () => {
