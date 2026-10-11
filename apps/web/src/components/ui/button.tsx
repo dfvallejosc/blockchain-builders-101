@@ -1,66 +1,99 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
-import { Slot } from "radix-ui"
+import type { ComponentProps, MouseEvent, ReactNode } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { LoaderCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+export const buttonVariants = cva(
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent font-semibold whitespace-nowrap no-underline transition-colors duration-(--duration-fast) ease-(--ease-standard) enabled:cursor-pointer disabled:cursor-not-allowed aria-busy:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        primary:
+          'bg-ha-primary text-ha-on-primary enabled:hover:bg-ha-primary-hover enabled:active:bg-ha-primary-active disabled:border-ha-border disabled:bg-ha-surface-2 disabled:text-ha-disabled-fg',
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          'border-ha-border-strong bg-ha-surface text-ha-text enabled:hover:bg-ha-surface-2 enabled:active:bg-ha-border disabled:border-ha-border disabled:bg-ha-surface-2 disabled:text-ha-disabled-fg',
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          'bg-transparent text-ha-primary enabled:hover:bg-ha-primary-soft enabled:active:bg-ha-primary-soft-active disabled:bg-transparent disabled:text-ha-disabled-fg',
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          'bg-ha-danger text-ha-on-danger enabled:hover:bg-ha-danger-hover enabled:active:bg-ha-danger-active disabled:border-ha-border disabled:bg-ha-surface-2 disabled:text-ha-disabled-fg',
       },
       size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+        sm: 'min-h-(--control-sm) px-3 text-sm pointer-coarse:min-h-(--touch-min)',
+        md: 'min-h-(--control-md) px-5 text-base',
+        lg: 'min-h-(--control-lg) px-6 text-lg',
+      },
+      iconOnly: {
+        true: 'px-0',
+        false: '',
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
+    compoundVariants: [
+      { iconOnly: true, size: 'sm', className: 'w-(--control-sm) pointer-coarse:w-(--touch-min)' },
+      { iconOnly: true, size: 'md', className: 'w-(--control-md)' },
+      { iconOnly: true, size: 'lg', className: 'w-(--control-lg)' },
+    ],
+    defaultVariants: { variant: 'primary', size: 'md', iconOnly: false },
+  },
 )
 
-function Button({
+type ButtonBaseProps = Omit<ComponentProps<'button'>, 'children'> &
+  Pick<VariantProps<typeof buttonVariants>, 'variant' | 'size'> & {
+    children: ReactNode
+    loading?: boolean
+    loadingText?: string
+  }
+
+type IconOnlyProps = { iconOnly: true; 'aria-label': string } | { iconOnly?: false }
+
+export type ButtonProps = ButtonBaseProps & IconOnlyProps
+
+export const Button = ({
+  variant,
+  size,
+  iconOnly = false,
+  loading = false,
+  loadingText,
   className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot.Root : "button"
+  onClick,
+  type = 'button',
+  children,
+  ...rest
+}: ButtonProps) => {
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (loading) {
+      event.preventDefault()
+      return
+    }
+    onClick?.(event)
+  }
+
+  const hasLoadingText = loadingText !== undefined
+  const hideLabel = loading && hasLoadingText
+  const spinner = <LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
 
   return (
-    <Comp
-      data-slot="button"
-      data-variant={variant}
-      data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
+    <button
+      type={type}
+      aria-busy={loading || undefined}
+      onClick={handleClick}
+      className={cn(buttonVariants({ variant, size, iconOnly }), className)}
+      {...rest}
+    >
+      <span className="inline-grid place-items-center">
+        <span
+          aria-hidden={hideLabel || undefined}
+          className={cn('col-start-1 row-start-1 inline-flex items-center justify-center gap-2', hideLabel && 'invisible')}
+        >
+          {loading && !hasLoadingText && spinner}
+          {children}
+        </span>
+        {hideLabel && (
+          <span className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2">
+            {spinner}
+            {loadingText}
+          </span>
+        )}
+      </span>
+    </button>
   )
 }
-
-export { Button, buttonVariants }

@@ -136,3 +136,29 @@
   --warning: var(--ha-warning);
   --warning-foreground: var(--ha-on-warning);
 }
+
+/* ── Size, focus, motion and layer invariants (same in both modes) ── */
+:root {
+  --control-sm: 2.25rem;  /* 36: fine pointer only; rises to 44 on touch */
+  --control-md: 2.75rem;  /* 44 */
+  --control-lg: 3.25rem;  /* 52 */
+  --touch-min: 2.75rem;   /* 44 */
+
+  --focus-width: 3px;
+  --focus-offset: 2px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --z-menu: 20;
+  --z-dialog: 30;
+  --z-toast: 40;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+  }
+}
