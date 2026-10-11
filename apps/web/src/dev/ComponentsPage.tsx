@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Field, Input } from '@/components/ui/field'
+import { FilterChip } from '@/components/ui/filter-chip'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Radio } from '@/components/ui/radio'
 import { Select } from '@/components/ui/select'
@@ -41,6 +42,20 @@ const CERTIFICATE_OPTIONS = [
   { value: 'confined-spaces', label: 'Espacios confinados' },
   { value: 'crane-operation', label: 'Operación de grúa' },
 ]
+
+const FilterChipDemo = () => {
+  const [pressed, setPressed] = useState<Record<string, boolean>>({ valid: true })
+  const toggle = (key: string) => (next: boolean) => setPressed((current) => ({ ...current, [key]: next }))
+
+  return (
+    <div role="group" aria-label="Filtrar por estado de ejemplo" className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-semibold">Estado</span>
+      <FilterChip pressed={pressed.valid ?? false} onPressedChange={toggle('valid')}>Habilitado</FilterChip>
+      <FilterChip pressed={pressed.expired ?? false} onPressedChange={toggle('expired')}>Vencido</FilterChip>
+      <FilterChip pressed={pressed.annulled ?? false} onPressedChange={toggle('annulled')}>Anulado</FilterChip>
+    </div>
+  )
+}
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="grid gap-4 border-t border-ha-border py-6">
@@ -101,6 +116,10 @@ export const ComponentsPage = () => {
             <StatusChip key={status} status={status} size="sm" />
           ))}
         </div>
+      </Section>
+
+      <Section title="Chips de filtro">
+        <FilterChipDemo />
       </Section>
 
       <Section title="Alertas y avisos">
