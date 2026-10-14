@@ -1,6 +1,6 @@
 import { dataSource } from '../src/database/data-source.js';
 
-export default async function setupDatabase(): Promise<void> {
+export async function setup(): Promise<void> {
   await dataSource.initialize();
   try {
     await dataSource.runMigrations();
