@@ -1,10 +1,11 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { PlaceholderPage } from '@/components/PlaceholderPage'
+import { LoginPage } from '@/features/admin/ingreso/LoginPage'
 import { PanelLayout } from '@/layouts/PanelLayout'
 import { RequireSession } from '@/layouts/RequireSession'
 
 export const adminRoutes: RouteObject[] = [
-  { path: '/admin/ingresar', element: <PlaceholderPage title="Ingreso de administración" /> },
+  { path: '/admin/ingresar', element: <LoginPage /> },
   {
     path: '/admin',
     element: <RequireSession role="admin" />,
