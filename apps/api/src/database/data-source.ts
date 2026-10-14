@@ -6,10 +6,12 @@ import { Worker } from '../workers/worker.entity.js';
 import { postgresConnection } from './connection.js';
 import { migrations } from './migrations/index.js';
 
+export const entities = [Issuer, Worker, Certificate];
+
 export const createDataSource = (url: string, ssl: boolean): DataSource =>
   new DataSource({
     ...postgresConnection(url, ssl),
-    entities: [Issuer, Worker, Certificate],
+    entities,
     migrations,
   });
 

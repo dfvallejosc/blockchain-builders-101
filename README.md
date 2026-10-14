@@ -67,6 +67,10 @@ La ruta `GET /health` responde `200` cuando la API alcanza la base de datos y `5
 | `pnpm test` | Pruebas unitarias de la API y de la interfaz |
 | `pnpm test:e2e` | Pruebas de la API contra PostgreSQL (necesita la base de datos local arriba) |
 | `pnpm build` | Compila la API y la interfaz |
+| `pnpm --filter api migration:generate src/database/migrations/<Nombre>` | Genera una migración a partir de las entidades (compila antes). Después hay que sumar el archivo generado a la lista de `apps/api/src/database/migrations/index.ts`, y una entidad nueva a `entities` en `apps/api/src/database/data-source.ts` |
+| `pnpm --filter api migration:run` | Aplica las migraciones pendientes |
+| `pnpm --filter api migration:revert` | Revierte la última migración |
+| `pnpm --filter api start:prod` | Corre las migraciones pendientes antes de arrancar la API (así las recibe staging) |
 
 ## Integración continua
 
