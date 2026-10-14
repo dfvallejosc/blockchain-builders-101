@@ -49,7 +49,7 @@ describe('routes', () => {
       const menu = screen.getByRole('group', { name: 'Elige cómo iniciar sesión' })
       fireEvent.click(within(menu).getByRole('link', { name: /Administración de HabilitApp/ }))
 
-      expect(await screen.findByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
     })
 
     it('shows the issuer login without a session', async () => {
@@ -57,9 +57,9 @@ describe('routes', () => {
       expect(await screen.findByRole('heading', { level: 1, name: 'Panel del emisor' })).toBeInTheDocument()
     })
 
-    it('shows the admin login placeholder without a session', () => {
+    it('shows the admin login without a session', async () => {
       renderAt('/admin/ingresar')
-      expect(screen.getByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
     })
 
     it('shows the verification page without any session, with the id in the address', async () => {
@@ -174,7 +174,7 @@ describe('routes', () => {
     it('sends a visitor without session to the admin login', async () => {
       const router = renderAt('/admin/emisores')
 
-      expect(await screen.findByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
       expect(router.state.location.pathname).toBe('/admin/ingresar')
     })
 
@@ -198,6 +198,19 @@ describe('routes', () => {
       expect(router.state.location.pathname).toBe('/admin/emisores')
     })
 
+    it('signs out from the top bar and goes back to the admin login', async () => {
+      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+      const router = renderAt('/admin/emisores')
+      await screen.findByRole('heading', { name: 'Emisores' })
+
+      await act(async () => {
+        screen.getByRole('button', { name: 'Cerrar sesión' }).click()
+      })
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/admin/ingresar')
+    })
+
     it.each([
       ['/admin/emisores/nuevo', 'Registrar emisor'],
       ['/admin/emisores/salud-laboral-rio-claro', 'Detalle del emisor'],
@@ -212,7 +225,7 @@ describe('routes', () => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       const router = renderAt('/admin/emisores')
 
-      expect(await screen.findByRole('heading', { name: 'Ingreso de administración' })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
       expect(router.state.location.pathname).toBe('/admin/ingresar')
     })
   })
