@@ -79,6 +79,17 @@ describe('registerEntitySchema', () => {
     expect(messagesFor({ type: 'hospital' }).type).toBe('Elige el tipo de entidad.')
     expect(messagesFor({ city: 'Gotham' }).city).toBe('Elige la ciudad de la entidad.')
   })
+
+  it.each([[['nope']], [['height-work', 'nope']]])('rejects certificate types %j that are not in the list', (certificateTypes) => {
+    expect(messagesFor({ certificateTypes }).certificateTypes).toBe('Elige al menos un tipo de certificado.')
+  })
+
+  it('accepts every certificate type in the list', () => {
+    expect(
+      messagesFor({ certificateTypes: ['height-work', 'confined-spaces', 'crane-operation', 'occupational-medical'] })
+        .certificateTypes,
+    ).toBeUndefined()
+  })
 })
 
 describe('formatNit and formatPhone', () => {

@@ -51,7 +51,13 @@ export const registerEntitySchema = z.object({
   name: z.string().trim().min(3, 'Escribe el nombre de la entidad.'),
   type: z.string().refine((value) => ENTITY_TYPE_OPTIONS.some((option) => option.value === value), 'Elige el tipo de entidad.'),
   city: z.string().refine((value) => CITY_OPTIONS.some((city) => city === value), 'Elige la ciudad de la entidad.'),
-  certificateTypes: z.array(z.string()).min(1, 'Elige al menos un tipo de certificado.'),
+  certificateTypes: z
+    .array(z.string())
+    .min(1, 'Elige al menos un tipo de certificado.')
+    .refine(
+      (values) => values.every((value) => CERTIFICATE_OPTIONS.some((option) => option.value === value)),
+      'Elige al menos un tipo de certificado.',
+    ),
   nit: z
     .string()
     .trim()
