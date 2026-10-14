@@ -115,7 +115,7 @@ describe('RegisterEntityPage', () => {
     const summary = await screen.findByText('Revisa 8 campos antes de continuar')
     await waitFor(() => expect(summary.closest('[tabindex="-1"]')).toHaveFocus())
     expect(screen.getByLabelText(/Nombre de la entidad/)).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText(/NIT/)).toHaveAccessibleDescription(/Revisa|Escribe el NIT/)
+    expect(screen.getByLabelText(/NIT/)).toHaveAccessibleDescription(/Escribe el NIT de la entidad\./)
     expect(entitiesModule.registerEntity).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Teléfono' }))
     await waitFor(() => expect(screen.getByLabelText(/Teléfono/)).toHaveFocus())
@@ -179,7 +179,8 @@ describe('RegisterEntityPage', () => {
 
     submit()
 
-    expect(await screen.findByText('Ya hay un emisor con esos datos')).toBeInTheDocument()
+    const alert = await screen.findByText('Ya hay un emisor con esos datos')
+    await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus())
     expect(router.state.location.pathname).toBe('/admin/emisores/nuevo')
     expect((await listEntities()).length).toBe(8)
   })
@@ -192,7 +193,8 @@ describe('RegisterEntityPage', () => {
 
     submit()
 
-    expect(await screen.findByText('No pudimos registrar al emisor')).toBeInTheDocument()
+    const alert = await screen.findByText('No pudimos registrar al emisor')
+    await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus())
     expect(router.state.location.pathname).toBe('/admin/emisores/nuevo')
   })
 

@@ -50,6 +50,8 @@ export const RegisterEntityPage = () => {
     }
   }, [])
 
+  const focusOnMount = useCallback((node: HTMLDivElement | null) => node?.focus(), [])
+
   const {
     register: field,
     control,
@@ -98,15 +100,18 @@ export const RegisterEntityPage = () => {
         </p>
       </div>
 
-      {error === 'duplicate' && (
-        <Alert tone="warning" title="Ya hay un emisor con esos datos">
-          El nombre, el NIT o el correo ya están registrados. Revisa los datos.
-        </Alert>
-      )}
-      {error === 'failed' && (
-        <Alert tone="danger" title="No pudimos registrar al emisor">
-          Revisa tu conexión e inténtalo de nuevo.
-        </Alert>
+      {error && (
+        <div key={error} ref={focusOnMount} tabIndex={-1}>
+          {error === 'duplicate' ? (
+            <Alert tone="warning" title="Ya hay un emisor con esos datos">
+              El nombre, el NIT o el correo ya están registrados. Revisa los datos.
+            </Alert>
+          ) : (
+            <Alert tone="danger" title="No pudimos registrar al emisor">
+              Revisa tu conexión e inténtalo de nuevo.
+            </Alert>
+          )}
+        </div>
       )}
 
       {submitCount > 0 && errorKeys.length > 0 && (
