@@ -226,4 +226,10 @@ describe('database schema (e2e)', () => {
     await scratch.runMigrations();
     expect(await tablesPresent()).toEqual(['certificate', 'issuer', 'worker']);
   });
+
+  it('leaves the application database migrated by the e2e setup', async () => {
+    const rows: Row[] = await dataSource.query("SELECT to_regclass('public.certificate') AS certificate");
+
+    expect(rows[0].certificate).toBe('certificate');
+  });
 });
