@@ -5,6 +5,7 @@ import { AppController } from './app.controller.js';
 import { appConfig } from './config/app.config.js';
 import { databaseConfig } from './config/database.config.js';
 import { validateEnv } from './config/env.validation.js';
+import { postgresConnection } from './database/connection.js';
 import { HealthModule } from './health/health.module.js';
 
 @Module({
@@ -19,13 +20,7 @@ import { HealthModule } from './health/health.module.js';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const database = config.getOrThrow<ConfigType<typeof databaseConfig>>('database');
-        return {
-          type: 'postgres' as const,
-          url: database.url,
-          ssl: database.ssl ? { rejectUnauthorized: false } : false,
-          autoLoadEntities: true,
-          synchronize: false,
-        };
+        return { ...postgresConnection(database.url, database.ssl), autoLoadEntities: true };
       },
     }),
     HealthModule,

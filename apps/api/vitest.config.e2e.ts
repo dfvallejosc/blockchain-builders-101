@@ -7,5 +7,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Runs the pending migrations once, so every e2e suite finds its tables.
+    globalSetup: ['./test/setup-database.ts'],
   },
 });
