@@ -18,7 +18,7 @@ export const toWorkerRows = (workers: Worker[]): WorkerRow[] =>
     }))
     .sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'))
 
-const fold = (text: string): string =>
+export const fold = (text: string): string =>
   text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
