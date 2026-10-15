@@ -184,7 +184,7 @@ describe('routes', () => {
 
       expect(await screen.findByRole('heading', { name: 'Emisores' })).toBeInTheDocument()
       expect(screen.getByText('Daniela Rojas')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Registrar emisor' })).toHaveAttribute(
+      expect(await within(screen.getByRole('main')).findByRole('link', { name: 'Registrar emisor' })).toHaveAttribute(
         'href',
         '/admin/emisores/nuevo',
       )
