@@ -129,4 +129,4 @@ No las decidas solas. Pregunta antes de tocarlas:
 
 ## Decisiones tomadas
 
-- Autenticación: Clerk, con un guard propio en la API. Falta que el equipo lo confirme en el PR de TA-20. Cómo se da el primer acceso, el vínculo cuenta ↔ emisor, la sesión y las entidades revocadas siguen abiertos. Detalle y razones en `docs/kb/autenticacion.md`.
+- Autenticación: Clerk, con un guard propio en la API. Falta que el equipo lo confirme en el PR de TA-20. Una entidad revocada no tiene acceso. Detalle, razones y lo que está por verificar en `docs/kb/autenticacion.md`.

@@ -14,16 +14,18 @@ Lo decidió Diego Vallejos, responsable de TA-20, en la sesión de brainstorming
 
 Se descartó Better Auth. Lo que se averiguó de él está al final, por si se vuelve a evaluar.
 
-## Qué falta decidir
+## Decidido en detalle
 
-Varias decisiones de la sesión se tomaron pensando en Better Auth y **ya no valen**. Hay que volver a decidirlas con Clerk, de una en una. No las decidas solas:
+Diego aprobó estas seis el 2026-10-16. Las marcadas con "por verificar" dependen de algo que la documentación de Clerk no confirmó, y se comprueban en una instancia de desarrollo antes de contar con ellas.
 
-- Cómo recibe el emisor su primer acceso (invitación por correo de Clerk o cuenta creada con contraseña).
-- Dónde vive el vínculo cuenta ↔ emisor, ya que la tabla de usuarios es de Clerk.
-- Qué puede hacer una entidad revocada. Bloquear usuarios (`banUser`) no está incluido en el plan gratis.
-- Cómo viaja la sesión entre el front y la API. Con Clerk el token puede ir en el encabezado `Authorization`, y puede que el proxy de Render deje de hacer falta (por verificar).
-- Cómo se crea el primer administrador.
-- Cómo se cierra el registro libre, para que nadie se cree una cuenta por su cuenta.
+1. **Primer acceso del emisor:** invitación por correo de Clerk. Por verificar que el plan gratis la permita. Si no, se crea la cuenta con una contraseña temporal.
+2. **Vínculo cuenta ↔ emisor:** `role` e `issuerId` van en los metadatos públicos del usuario en Clerk, y la API los pone al invitar. El guard los lee del token si el plan gratis deja añadir datos al token (por verificar). Si no, consulta a Clerk con una caché corta en memoria. No hay tabla de cuentas propia. Si el `issuerId` no existe en nuestra base, el guard responde 403.
+3. **Entidad revocada: no se permite el acceso.** Como el plan gratis no incluye `banUser`, lo aplica el guard: si `issuer.revokedAt` está marcado, responde 403 en cualquier ruta, incluido `GET /me`, con un código que el front usa para mostrar el motivo. `issuer.revokedAt` es la única fuente de verdad. Clerk puede dejarla autenticarse, pero la API no le da nada.
+4. **Sesión:** el front manda el token de Clerk en el encabezado `Authorization`. No hace falta cookie ni proxy en Render. `authorizedParties` usa `CORS_ORIGIN`.
+5. **Primer administrador:** se crea a mano en el panel de Clerk con `role: admin` en sus metadatos. No hay código ni contraseña en variables de entorno.
+6. **Registro libre:** se cierra en el panel de Clerk con el modo solo por invitación (por verificar que el plan gratis lo permita). Además, el guard rechaza con 403 a cualquier usuario sin rol en sus metadatos. Solo correo y contraseña por ahora. Entrar con Google se puede activar después en el panel, sin cambiar la API.
+
+**Pruebas:** unitarias del guard con un verificador falso, y e2e con tokens firmados en local usando `jwtKey` (verificación sin red), para que el CI no necesite llaves de Clerk. Por verificar al instalar.
 
 ## Lo que se sabe de Clerk
 
