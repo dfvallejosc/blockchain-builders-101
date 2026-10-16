@@ -129,4 +129,4 @@ No las decidas solas. Pregunta antes de tocarlas:
 
 ## Decisiones tomadas
 
-- Autenticación: Better Auth, con la contraseña inicial del emisor como contraseña temporal que genera la API, y cookie `httpOnly` con proxy desde el front. Falta que el equipo la confirme en el PR de TA-20. Detalle, razones y lo que sigue abierto en `docs/kb/autenticacion.md`.
+- Autenticación: Clerk, con un guard propio en la API. Falta que el equipo lo confirme en el PR de TA-20. Cómo se da el primer acceso, el vínculo cuenta ↔ emisor, la sesión y las entidades revocadas siguen abiertos. Detalle y razones en `docs/kb/autenticacion.md`.

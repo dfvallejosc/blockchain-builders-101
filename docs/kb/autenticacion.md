@@ -4,40 +4,51 @@ Estado de las decisiones de autenticación. Es la base de TA-20 (issue #63). Rev
 
 ## Decidido
 
-Las tomó Diego Vallejos, responsable de TA-20, en la sesión de brainstorming. El issue pide que el equipo elija el proveedor y que la razón quede en el PR, así que **Andres y Luis deben confirmarlas al revisar el PR**.
+Lo decidió Diego Vallejos, responsable de TA-20, en la sesión de brainstorming. El issue pide que el equipo elija el proveedor y que la razón quede en el PR, así que **Andres y Luis deben confirmarlo al revisar el PR**.
 
 | Decisión | Elegido | Razón |
 | --- | --- | --- |
-| Proveedor | **Better Auth** | Los usuarios viven en nuestro PostgreSQL, así que ligar la cuenta con el emisor y revisar si está revocado se resuelve con una consulta a la misma base. Las pruebas de 401 y 403 corren en local contra PostgreSQL, sin servicios externos ni llaves compartidas en un repositorio público. Costo cero. |
-| Primera contraseña de un emisor | **Contraseña temporal** | El administrador crea la cuenta, la API genera una contraseña aleatoria y la devuelve una sola vez, y el emisor debe cambiarla al entrar. No se guarda en claro ni se escribe en logs. No hace falta un servicio de correo. |
-| Sesión entre front y API | **Cookie `httpOnly` con proxy** (plan B de la sesión, ver abajo) | El sitio del front en Render reenvía `/api/*` a la API con una regla de reescritura, y el navegador ve un solo origen. La alternativa de respaldo es un token Bearer. |
+| Proveedor | **Clerk** | Es lo más rápido de poner en marcha, el plan gratis cubre de sobra a nuestros usuarios y no custodiamos contraseñas. Clerk envía él mismo las invitaciones por correo. |
+| Conexión con NestJS | **Guard propio** | Un módulo `auth/` con un guard global que verifica el token de Clerk con `@clerk/backend`, y decoradores propios `@Public()`, `@Roles()` y `@CurrentIssuer()`. Se descartó un paquete de la comunidad. |
+| Alcance de TA-20 | **Solo la base** | El guard, los roles, los decoradores, el vínculo cuenta ↔ emisor y `GET /me` (rol y entidad de la sesión). Las rutas de administración de entidades son de TA-21. |
 
-Por qué no Clerk: es más rápido de poner en marcha, pero habría que mantener sincronizado el vínculo cuenta ↔ emisor entre su servicio y nuestra base, y las pruebas necesitarían simular la verificación del token o repartir llaves. Clerk sigue siendo una elección razonable si el plazo aprieta más que lo anterior. Su gratuidad hasta 10k usuarios activos al mes sale del skill del equipo y no se verificó en su página de precios.
+Se descartó Better Auth. Lo que se averiguó de él está al final, por si se vuelve a evaluar.
 
-## Sin probar todavía
+## Qué falta decidir
 
-La regla de reescritura `/api/*` no existe ni se ha probado. La documentación de Render dice que una regla de reescritura sirve el contenido de la URL de destino sin cambiar la dirección del navegador, y que el destino puede ser una URL pública. No dice nada sobre cookies, encabezados ni tiempos de espera. Hay que crear la regla y probarla contra el front desplegado antes de contar con ella. Si no pasa bien las cookies, se cambia a Bearer.
+Varias decisiones de la sesión se tomaron pensando en Better Auth y **ya no valen**. Hay que volver a decidirlas con Clerk, de una en una. No las decidas solas:
 
-## Lo que se sabe de Better Auth
-
-Comprobado en su documentación el 2026-10-16:
-
-- No trae adaptador de TypeORM. Se conecta con Kysely sobre un `Pool` de `pg` (también hay Prisma, Drizzle y MongoDB).
-- Su CLI `generate` produce un archivo SQL con sus tablas. Ese SQL se pasaría a una migración de TypeORM generada con la CLI, no escrita a mano. Su comando `migrate` solo sirve con Kysely y no se usa aquí, porque las migraciones son de TypeORM.
-- Los nombres de tablas y columnas se mapean uno por uno con `modelName` y `fields`. No hay conversión automática a snake_case.
-- Se pueden agregar campos propios al usuario con `user.additionalFields`. Los campos del servidor, como `role`, van con `input: false`.
-- El plugin `admin` trae roles (`admin` y `user`, ampliables), `createUser` (un administrador crea la cuenta de otro, con correo obligatorio), `setUserPassword` y bloqueo de usuarios.
-- Para NestJS no hay paquete oficial. Existe `@thallesp/nestjs-better-auth`, mantenido por la comunidad: guard global (todo privado por defecto), `@AllowAnonymous()` para rutas públicas y `@Session()`. Exige `bodyParser: false` al crear la aplicación. La documentación no dice nada sobre ESM, y la API de este repo usa ES modules, así que hay que comprobarlo al instalar.
-
-## Abierto
-
-No las decidas solas. Pregunta antes:
-
-- Usar el paquete de la comunidad para NestJS o escribir un guard propio sobre la API de sesión de Better Auth.
-- Cómo queda ligada la cuenta con el emisor (campo en el usuario, tabla aparte).
-- Si un emisor revocado puede entrar, y dónde se bloquea que emita o anule.
+- Cómo recibe el emisor su primer acceso (invitación por correo de Clerk o cuenta creada con contraseña).
+- Dónde vive el vínculo cuenta ↔ emisor, ya que la tabla de usuarios es de Clerk.
+- Qué puede hacer una entidad revocada. Bloquear usuarios (`banUser`) no está incluido en el plan gratis.
+- Cómo viaja la sesión entre el front y la API. Con Clerk el token puede ir en el encabezado `Authorization`, y puede que el proxy de Render deje de hacer falta (por verificar).
 - Cómo se crea el primer administrador.
-- Cómo corren en staging las migraciones de las tablas de Better Auth (ver [infraestructura](infraestructura.md)).
+- Cómo se cierra el registro libre, para que nadie se cree una cuenta por su cuenta.
+
+## Lo que se sabe de Clerk
+
+Comprobado en su documentación el 2026-10-16. Lo que la documentación no confirmó está marcado.
+
+**Plan gratis (Hobby)**
+- Hasta 50.000 usuarios retenidos al mes por aplicación. Un usuario cuenta solo si vuelve al menos 24 horas después de registrarse. El skill de backend del equipo decía 10k y estaba desactualizado. Pasado ese límite hay un mes de gracia para pagar.
+- **No incluye:** bloqueo de usuarios (`ban`), requisitos de contraseña personalizados, plantillas de correo personalizadas, MFA, quitar la marca de Clerk, passkeys ni códigos por SMS.
+- Las sesiones duran 7 días y no se pueden cambiar.
+- Los roles personalizados de organización exigen un complemento de pago. No se usarían organizaciones.
+- Hasta 3 puestos en el panel de Clerk.
+
+**Verificar el token en nuestra API**
+- `@clerk/backend` ofrece `authenticateRequest()`, que puede verificar sin red si se le pasa `jwtKey` (la clave pública) junto con `publishableKey`. `authorizedParties` debe listar los orígenes permitidos, o queda abierto a CSRF.
+- Entre orígenes distintos, el token llega por el encabezado `Authorization`. En el mismo origen llega por la cookie `__session`.
+- La documentación no confirmó la firma de `verifyToken`. Se comprueba al instalar.
+- Se pueden añadir datos al token de sesión (por ejemplo el rol) desde el panel, en Sessions. El límite es 1,2 KB. No se confirmó que esté en el plan gratis ni la sintaxis para metadatos públicos.
+
+**Invitaciones**
+- `POST /v1/invitations` (límite de 100 por hora) acepta `emailAddress`, `redirectUrl` y `publicMetadata`. Clerk envía el correo con un enlace único. El correo del invitado queda verificado y la invitación vence al mes. Se pueden revocar.
+- No se confirmó que las invitaciones estén en el plan gratis, ni que el `publicMetadata` de la invitación pase al usuario.
+- Una invitación **no impide** que alguien se registre por su cuenta. Para eso hace falta el modo "solo por invitación" en el panel. No se confirmó que esté en el plan gratis.
+
+**Bloqueo**
+- `banUser()` revoca sus sesiones y le impide volver a entrar, pero el plan gratis lo excluye. `lockUser()` bloquea solo hasta que pasa un tiempo (por defecto 1 hora). No se confirmó si está en el plan gratis.
 
 ## Reglas que ya fijan el criterio de aceptación
 
@@ -46,3 +57,12 @@ No las decidas solas. Pregunta antes:
 - Un emisor solo actúa en nombre de su entidad.
 - Ninguna llave ni credencial se versiona. Todo sale de variables de entorno y `apps/api/.env.example` se mantiene al día.
 - No se registran contraseñas, tokens ni datos personales en logs, y los errores no exponen trazas, consultas ni nombres de tablas.
+
+## Better Auth (descartado)
+
+Comprobado en su documentación el 2026-10-16:
+
+- No trae adaptador de TypeORM. Se conecta con Kysely sobre un `Pool` de `pg`. Su CLI `generate` produce SQL con sus tablas, que habría que pasar a una migración de TypeORM.
+- Los usuarios viven en nuestro PostgreSQL y se pueden añadir campos propios al usuario. El plugin `admin` trae roles, `createUser` y bloqueo de usuarios.
+- Para NestJS solo hay un paquete de la comunidad, `@thallesp/nestjs-better-auth`. No documenta ESM, y exige `bodyParser: false`.
+- Se descartó porque el equipo prefirió Clerk por velocidad y por no custodiar contraseñas. Habría dado pruebas e2e locales y un vínculo cuenta ↔ emisor dentro de nuestra base.
