@@ -39,7 +39,26 @@ function readMetadata(payload: object): Record<string, unknown> {
   return metadata as Record<string, unknown>;
 }
 
-function isValidJwtKey(pem: string): boolean {
+// Clerk only reads a key in this form: it cuts the header and trailer out of the text.
+const PEM_HEADER = '-----BEGIN PUBLIC KEY-----';
+const PEM_TRAILER = '-----END PUBLIC KEY-----';
+const PEM_LINE_LENGTH = 64;
+const PEM_PATTERN = new RegExp(`^\\s*${PEM_HEADER}([\\s\\S]*?)${PEM_TRAILER}\\s*$`);
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+// Rewrites the key as a canonical multi-line PEM, so a key flattened into one line
+// (or joined with spaces) in an env var still works. Returns undefined when the
+// text is not a SPKI "BEGIN PUBLIC KEY" PEM, which is the only form Clerk can import.
+function normalizePem(pem: string): string | undefined {
+  const match = PEM_PATTERN.exec(pem);
+  if (!match) return undefined;
+  const body = match[1].replace(/\s+/g, '');
+  if (!BASE64_PATTERN.test(body)) return undefined;
+  const lines = body.match(new RegExp(`.{1,${PEM_LINE_LENGTH}}`, 'g')) ?? [];
+  return `${PEM_HEADER}\n${lines.join('\n')}\n${PEM_TRAILER}\n`;
+}
+
+function isRsaPublicKey(pem: string): boolean {
   try {
     const key = createPublicKey(pem);
     const details = key.asymmetricKeyDetails;
@@ -53,12 +72,19 @@ function isValidJwtKey(pem: string): boolean {
   }
 }
 
+// Returns the key in the form that is both validated here and handed to Clerk.
+function normalizeJwtKey(pem: string): string | undefined {
+  const normalized = normalizePem(pem);
+  return normalized !== undefined && isRsaPublicKey(normalized) ? normalized : undefined;
+}
+
 function isTokenFailure(error: unknown): boolean {
   return error instanceof TokenVerificationError && TOKEN_REASONS.has(error.reason);
 }
 
 export class ClerkTokenVerifier implements TokenVerifier {
   private keyChecked = false;
+  private normalizedJwtKey: string | undefined;
 
   constructor(private readonly options: ClerkTokenVerifierOptions) {}
 
@@ -85,17 +111,21 @@ export class ClerkTokenVerifier implements TokenVerifier {
       throw new Error('ClerkTokenVerifier needs a jwtKey or a secretKey');
     }
     // The jwtKey wins over the secretKey inside Clerk, so a bad one must not pass as a bad token.
-    if (jwtKey && !isValidJwtKey(jwtKey)) {
-      throw new Error('ClerkTokenVerifier jwtKey is not a valid RSA public key');
+    if (jwtKey) {
+      const normalized = normalizeJwtKey(jwtKey);
+      if (normalized === undefined) {
+        throw new Error('ClerkTokenVerifier jwtKey is not a valid RSA public key');
+      }
+      this.normalizedJwtKey = normalized;
     }
     this.keyChecked = true;
   }
 
   private async verifyWithClerk(token: string): Promise<Awaited<ReturnType<typeof verifyToken>>> {
-    const { jwtKey, secretKey, authorizedParties } = this.options;
+    const { secretKey, authorizedParties } = this.options;
     try {
       const payload = await verifyToken(token, {
-        jwtKey,
+        jwtKey: this.normalizedJwtKey,
         secretKey,
         authorizedParties: authorizedParties.length > 0 ? authorizedParties : undefined,
       });
