@@ -31,6 +31,7 @@ No hay producción todavía. Todo lo que está desplegado es staging, en Render.
 - **La base de staging vence el 2026-11-07.** Es PostgreSQL en plan free y Render la borra a los 30 días si no se pasa a un plan de pago. Está sin resolver.
 - **Front y API son sitios distintos para el navegador.** Los dos viven bajo `onrender.com`, que está en la Public Suffix List (línea 15568 de la lista, comprobada el 2026-10-16), así que `habilitapp-web.onrender.com` y `habilitapp-api.onrender.com` no comparten sitio. Una cookie de la API sería de terceros. Ver [autenticación](autenticacion.md).
 - **La API en plan free se duerme** cuando no recibe tráfico, y la primera petición después tarda. Es el comportamiento del plan free de Render y no se midió aquí.
+- **Falta confirmar si Render fija `NODE_ENV=production` en `habilitapp-api`.** Con esa variable la API exige `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` y `CORS_ORIGIN` y no arranca si falta alguna (ver [autenticación](autenticacion.md)). Está sin resolver. Como fusionar a `main` despliega solo, `habilitapp-api` debe tener esas tres variables antes de fusionar la rama de autenticación; si no, el despliegue falla al arrancar.
 - El front en staging todavía usa datos de ejemplo en `localStorage` y no llama a la API.
 
 ## Render CLI
