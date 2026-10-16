@@ -1,0 +1,29 @@
+import { Module } from '@nestjs/common';
+import { ConfigService, type ConfigType } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { splitOrigins } from '../app.setup.js';
+import { appConfig } from '../config/app.config.js';
+import { clerkConfig } from '../config/clerk.config.js';
+import { Issuer } from '../issuers/issuer.entity.js';
+import { AuthGuard } from './auth.guard.js';
+import { ClerkTokenVerifier } from './clerk-token-verifier.js';
+import { MeController } from './me.controller.js';
+import { TOKEN_VERIFIER, type TokenVerifier } from './token-verifier.js';
+
+export const createTokenVerifier = (config: ConfigService): TokenVerifier => {
+  const clerk = config.getOrThrow<ConfigType<typeof clerkConfig>>('clerk');
+  const app = config.getOrThrow<ConfigType<typeof appConfig>>('app');
+  const authorizedParties = splitOrigins(app.corsOrigin ?? '').filter((origin) => origin !== '');
+  return new ClerkTokenVerifier({ jwtKey: clerk.jwtKey, secretKey: clerk.secretKey, authorizedParties });
+};
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Issuer])],
+  controllers: [MeController],
+  providers: [
+    { provide: TOKEN_VERIFIER, inject: [ConfigService], useFactory: createTokenVerifier },
+    { provide: APP_GUARD, useClass: AuthGuard },
+  ],
+})
+export class AuthModule {}
