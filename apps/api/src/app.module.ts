@@ -11,6 +11,7 @@ import { postgresConnection } from './database/connection.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
 import { HealthModule } from './health/health.module.js';
 import { VerificationModule } from './verification/verification.module.js';
+import { IssuersModule } from './issuers/issuers.module.js';
 import { WorkersModule } from './workers/workers.module.js';
 
 @Module({
@@ -29,6 +30,7 @@ import { WorkersModule } from './workers/workers.module.js';
       },
     }),
     AuthModule,
+    IssuersModule,
     WorkersModule,
     CertificatesModule,
     VerificationModule,
