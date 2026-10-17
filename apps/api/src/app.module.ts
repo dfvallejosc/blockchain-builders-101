@@ -9,6 +9,7 @@ import { databaseConfig } from './config/database.config.js';
 import { validateEnv } from './config/env.validation.js';
 import { postgresConnection } from './database/connection.js';
 import { HealthModule } from './health/health.module.js';
+import { WorkersModule } from './workers/workers.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module.js';
       },
     }),
     AuthModule,
+    WorkersModule,
     HealthModule,
   ],
   controllers: [AppController],
