@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, resetState, signIn } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
 
@@ -18,10 +19,19 @@ const fill = (email: string, password: string) => {
 
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
 
+vi.mock('@clerk/react', () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
+
 describe('LoginPage', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('shows the screen texts from the mockup', async () => {

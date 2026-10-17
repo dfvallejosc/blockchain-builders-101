@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -5,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, signIn } from '@/data'
 import * as certificatesModule from '@/data/certificates'
 import { issuerRoutes } from '@/features/emisor/routes'
+
+vi.mock('@clerk/react', () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
 
 vi.mock('@/data/certificates', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/certificates')>()
@@ -24,6 +29,7 @@ const renderSheet = async (id: string, email = 'coordinacion@cumbrefirme.co') =>
 
 describe('CertificateSheetPage', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
     vi.useFakeTimers({ toFake: ['Date'] })
@@ -32,6 +38,7 @@ describe('CertificateSheetPage', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.useRealTimers()
     vi.restoreAllMocks()
   })

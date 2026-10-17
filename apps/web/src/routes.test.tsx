@@ -1,10 +1,15 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { resetState, signIn } from '@/data'
 import { appRoutes } from '@/routes'
+
+vi.mock('@clerk/react', () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -18,8 +23,13 @@ const renderAt = (path: string) => {
 
 describe('routes', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   describe('public pages', () => {
@@ -55,6 +65,13 @@ describe('routes', () => {
     it('shows the issuer login without a session', async () => {
       renderAt('/emisor/ingresar')
       expect(await screen.findByRole('heading', { level: 1, name: 'Panel del emisor' })).toBeInTheDocument()
+    })
+
+    it('shows a configuration notice instead of the issuer login when there is no Clerk key', async () => {
+      vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', '')
+      renderAt('/emisor/ingresar')
+
+      expect(await screen.findByRole('heading', { name: 'El ingreso no está configurado' })).toBeInTheDocument()
     })
 
     it('shows the admin login without a session', async () => {

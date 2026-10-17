@@ -1,10 +1,15 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, revokeEntity, signIn } from '@/data'
 import * as workersModule from '@/data/workers'
 import { issuerRoutes } from '@/features/emisor/routes'
+
+vi.mock('@clerk/react', () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
 
 vi.mock('@/data/workers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/workers')>()
@@ -31,11 +36,16 @@ const waitForRows = async (count = 12) => {
 
 describe('WorkersPage', () => {
   beforeEach(async () => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
     const actual = await vi.importActual<typeof import('@/data/workers')>('@/data/workers')
     vi.mocked(workersModule.listWorkers).mockReset()
     vi.mocked(workersModule.listWorkers).mockImplementation(actual.listWorkers)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('lists the workers of the signed-in entity by name, with their document and the count', async () => {

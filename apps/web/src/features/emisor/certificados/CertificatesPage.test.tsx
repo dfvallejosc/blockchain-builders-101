@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -5,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, revokeEntity, signIn } from '@/data'
 import * as certificatesModule from '@/data/certificates'
 import { issuerRoutes } from '@/features/emisor/routes'
+
+vi.mock('@clerk/react', () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
 
 vi.mock('@/data/certificates', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/certificates')>()
@@ -36,6 +41,7 @@ const waitForRows = async (count = 18) => {
 
 describe('CertificatesPage', () => {
   beforeEach(async () => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
     const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
@@ -46,6 +52,7 @@ describe('CertificatesPage', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.useRealTimers()
   })
 
