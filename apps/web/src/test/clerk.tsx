@@ -1,10 +1,18 @@
 import type { ReactNode } from 'react'
+import { vi } from 'vitest'
 import type { MeResponse } from '@/api/me'
 import { DataError, getEntity, getSession, signOut } from '@/data'
 import { readState } from '@/data/storage'
 
 // Until the issuer pages read the API, their tests drive the issuer session with the demo
 // sign-in: these mocks make Clerk and GET /me mirror that demo session.
+
+// Controls what the Clerk sign-in hook does in the login screen tests.
+export const signInControl = {
+  password: vi.fn(async (_params: { identifier: string; password: string }): Promise<{ error: unknown }> => ({ error: null })),
+  finalize: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+  status: 'complete',
+}
 
 const demoIssuerSession = () => readState().sessions.issuer
 
@@ -15,6 +23,11 @@ export const demoClerkModule = () => ({
     isSignedIn: demoIssuerSession() !== null,
     getToken: async () => (demoIssuerSession() === null ? null : 'demo-token'),
     signOut: async () => signOut('issuer'),
+  }),
+  useSignIn: () => ({
+    errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
+    fetchStatus: 'idle',
+    signIn: signInControl,
   }),
   useUser: () => {
     const session = demoIssuerSession()

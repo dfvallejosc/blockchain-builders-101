@@ -1,13 +1,15 @@
+import { ClerkAPIResponseError } from '@clerk/react/errors'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getSession, resetState, signIn } from '@/data'
+import { resetState, signIn } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { signInControl } from '@/test/clerk'
 import { createQueryWrapper } from '@/test/query'
 
-const renderLogin = (path = '/emisor/ingresar') => {
-  const router = createMemoryRouter([...issuerRoutes, { path: '/', element: <p>Inicio</p> }], { initialEntries: [path] })
+const renderLogin = (entry: string | { pathname: string; state: unknown } = '/emisor/ingresar') => {
+  const router = createMemoryRouter([...issuerRoutes, { path: '/', element: <p>Inicio</p> }], { initialEntries: [entry] })
   render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
@@ -22,8 +24,28 @@ const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar
 vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
 vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
+const clerkError = (code: string) =>
+  new ClerkAPIResponseError('Request failed', {
+    data: [{ code, message: 'Clerk internal message', long_message: 'Clerk long message' }],
+    status: 422,
+  })
+
+// A successful sign-in also opens the demo session that the mocked Clerk hooks mirror.
+const signinOk = () =>
+  signInControl.password.mockImplementation(async ({ identifier, password }) => {
+    await signIn('issuer', identifier, password)
+    return { error: null }
+  })
+
+const ISSUER_EMAIL = 'coordinacion@cumbrefirme.co'
+
 describe('LoginPage', () => {
   beforeEach(() => {
+    signInControl.status = 'complete'
+    signInControl.password.mockReset()
+    signinOk()
+    signInControl.finalize.mockReset()
+    signInControl.finalize.mockResolvedValue({ error: null })
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
@@ -58,40 +80,134 @@ describe('LoginPage', () => {
     expect(screen.queryByText(/cumbrefirme/)).not.toBeInTheDocument()
   })
 
-  it('signs in with valid demo credentials and opens the issuer panel', async () => {
+  it('signs in with Clerk using the trimmed email, finalizes and opens the issuer panel', async () => {
     const router = renderLogin()
     await screen.findByLabelText(/Usuario/)
-    fill('coordinacion@cumbrefirme.co', 'cualquier-cosa')
+    fill(`  ${ISSUER_EMAIL}  `, 'cualquier-cosa')
 
     submit()
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
+    expect(signInControl.password).toHaveBeenCalledWith({ identifier: ISSUER_EMAIL, password: 'cualquier-cosa' })
+    expect(signInControl.finalize).toHaveBeenCalledTimes(1)
     expect(await screen.findByRole('heading', { level: 1, name: 'Emitir certificado' })).toBeInTheDocument()
-    expect((await getSession('issuer'))?.role).toBe('issuer')
   })
 
-  it('shows the error alert and does not enter with an unknown user', async () => {
-    const router = renderLogin()
+  it.each(['form_identifier_not_found', 'form_password_incorrect'])(
+    'shows the credentials alert without Clerk text when Clerk answers %s',
+    async (code) => {
+      signInControl.password.mockResolvedValue({ error: clerkError(code) })
+      const router = renderLogin()
+      await screen.findByLabelText(/Usuario/)
+      fill('nadie@ejemplo.co', 'x')
+
+      submit()
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent('No pudimos iniciar tu sesión')
+      expect(alert).toHaveTextContent('El usuario o la contraseña no coinciden. Revisa los datos e inténtalo de nuevo.')
+      expect(screen.queryByText(/Clerk/)).not.toBeInTheDocument()
+      expect(signInControl.finalize).not.toHaveBeenCalled()
+      expect(router.state.location.pathname).toBe('/emisor/ingresar')
+    },
+  )
+
+  it.each([
+    ['a network failure', () => Promise.reject(new Error('Failed to fetch: https://clerk.internal'))],
+    ['another Clerk error', async () => ({ error: clerkError('too_many_requests') })],
+  ])('shows the generic alert on %s', async (_name, result) => {
+    signInControl.password.mockImplementation(result)
+    renderLogin()
     await screen.findByLabelText(/Usuario/)
-    fill('nadie@ejemplo.co', 'x')
+    fill(ISSUER_EMAIL, 'x')
 
     submit()
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('No pudimos iniciar tu sesión')
-    expect(alert).toHaveTextContent('El usuario o la contraseña no coinciden. Revisa los datos e inténtalo de nuevo.')
-    expect(router.state.location.pathname).toBe('/emisor/ingresar')
-    expect(await getSession('issuer')).toBeNull()
+    expect(alert).toHaveTextContent('Inténtalo de nuevo en un momento.')
+    expect(alert).not.toHaveTextContent(/Clerk|clerk|fetch|coincid/)
+  })
+
+  it('shows the generic alert when the sign-in needs more steps', async () => {
+    signInControl.status = 'needs_second_factor'
+    renderLogin()
+    await screen.findByLabelText(/Usuario/)
+    fill(ISSUER_EMAIL, 'x')
+
+    submit()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Inténtalo de nuevo en un momento.')
+    expect(signInControl.finalize).not.toHaveBeenCalled()
+  })
+
+  it('shows the generic alert when finalizing fails', async () => {
+    signInControl.finalize.mockResolvedValue({ error: clerkError('session_exists') })
+    renderLogin()
+    await screen.findByLabelText(/Usuario/)
+    fill(ISSUER_EMAIL, 'x')
+
+    submit()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Inténtalo de nuevo en un momento.')
+  })
+
+  it('disables the button and says it is signing in while Clerk responds', async () => {
+    signInControl.password.mockImplementation(() => new Promise(() => undefined))
+    renderLogin()
+    await screen.findByLabelText(/Usuario/)
+    fill(ISSUER_EMAIL, 'x')
+
+    submit()
+
+    const button = await screen.findByRole('button', { name: 'Iniciando sesión…' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(signInControl.password).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['expired', 'Tu sesión venció', 'Inicia sesión de nuevo.'],
+    ['revoked', 'Tu entidad fue revocada', 'Tu entidad ya no puede usar HabilitApp.'],
+    ['no-role', 'Tu cuenta no tiene un rol asignado', 'Pídele ayuda al equipo de HabilitApp.'],
+    ['not-issuer', 'Esta cuenta no es de una entidad emisora', 'Entra con la cuenta de tu entidad.'],
+  ])('explains why the session ended: %s', async (reason, title, text) => {
+    renderLogin({ pathname: '/emisor/ingresar', state: { reason } })
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(title)
+    expect(alert).toHaveTextContent(text)
+    expect(alert.querySelector('svg')).not.toBeNull()
+  })
+
+  it('ignores a reason that is not one of the known ones', async () => {
+    renderLogin({ pathname: '/emisor/ingresar', state: { reason: '<b>hola</b>' } })
+    await screen.findByLabelText(/Usuario/)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('replaces the reason alert with the credentials alert after a rejected sign-in', async () => {
+    signInControl.password.mockResolvedValue({ error: clerkError('form_password_incorrect') })
+    renderLogin({ pathname: '/emisor/ingresar', state: { reason: 'expired' } })
+    await screen.findByLabelText(/Usuario/)
+    fill(ISSUER_EMAIL, 'x')
+
+    submit()
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('El usuario o la contraseña no coinciden.'))
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
   it('hides the error alert as soon as the user edits a field', async () => {
+    signInControl.password.mockResolvedValue({ error: clerkError('form_identifier_not_found') })
     renderLogin()
     await screen.findByLabelText(/Usuario/)
     fill('nadie@ejemplo.co', 'x')
     submit()
     await screen.findByRole('alert')
 
-    fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: 'coordinacion@cumbrefirme.co' } })
+    fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: ISSUER_EMAIL } })
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -109,6 +225,7 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText(/Contraseña/)).toHaveAccessibleDescription('Escribe tu contraseña.')
     await waitFor(() => expect(screen.getByLabelText(/Usuario/)).toHaveFocus())
     expect(screen.queryByText('No pudimos iniciar tu sesión')).not.toBeInTheDocument()
+    expect(signInControl.password).not.toHaveBeenCalled()
   })
 
   it('validates the email while filling it in', async () => {
@@ -121,12 +238,21 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Escribe un correo válido.')).toBeInTheDocument()
   })
 
-  it('sends a signed-in issuer straight to the panel', async () => {
-    await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+  it('sends an issuer already signed in to Clerk straight to the panel', async () => {
+    await signIn('issuer', ISSUER_EMAIL, 'x')
     const router = renderLogin()
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
     expect(screen.queryByLabelText(/Usuario/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the login open when a session ended with a reason, even if Clerk still has a session', async () => {
+    await signIn('issuer', ISSUER_EMAIL, 'x')
+    const router = renderLogin({ pathname: '/emisor/ingresar', state: { reason: 'revoked' } })
+
+    expect(await screen.findByLabelText(/Usuario/)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Tu entidad fue revocada')
+    expect(router.state.location.pathname).toBe('/emisor/ingresar')
   })
 
   it('goes back to the home page', async () => {

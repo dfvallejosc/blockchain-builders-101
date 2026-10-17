@@ -7,7 +7,7 @@ import { LOGIN_PATH } from '@/layouts/RequireSession'
 export type SessionEndReason = 'expired' | 'revoked' | 'no-role' | 'not-issuer'
 
 interface SessionEndDeps {
-  signOut: () => Promise<unknown>
+  signOut: (options: { redirectUrl: string }) => Promise<unknown>
   queryClient: QueryClient
   navigate: NavigateFunction
 }
@@ -27,7 +27,7 @@ export const endIssuerSession = async (
   { signOut, queryClient, navigate }: SessionEndDeps,
   reason?: SessionEndReason,
 ): Promise<void> => {
-  await signOut().catch(() => undefined)
+  await signOut({ redirectUrl: LOGIN_PATH.issuer }).catch(() => undefined)
   queryClient.clear()
   await navigate(LOGIN_PATH.issuer, { replace: true, state: reason ? { reason } : undefined })
 }

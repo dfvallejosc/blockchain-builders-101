@@ -42,6 +42,7 @@ describe('endIssuerSession', () => {
     await endIssuerSession({ signOut, queryClient, navigate }, 'revoked')
 
     expect(signOut).toHaveBeenCalledTimes(1)
+    expect(signOut).toHaveBeenCalledWith({ redirectUrl: '/emisor/ingresar' })
     expect(queryClient.getQueryData(['issuer', 'workers'])).toBeUndefined()
     expect(navigate).toHaveBeenCalledWith('/emisor/ingresar', { replace: true, state: { reason: 'revoked' } })
     expect(calls).toEqual(['signOut', 'navigate'])

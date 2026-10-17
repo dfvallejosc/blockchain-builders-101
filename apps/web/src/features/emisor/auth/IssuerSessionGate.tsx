@@ -29,7 +29,7 @@ const useEndSession = (): { ending: boolean; end: EndSession } => {
       if (endingRef.current) return
       endingRef.current = true
       setEnding(true)
-      await endIssuerSession({ signOut: () => signOut(), queryClient, navigate }, reason)
+      await endIssuerSession({ signOut: (options) => signOut(options), queryClient, navigate }, reason)
     },
     [signOut, queryClient, navigate],
   )
