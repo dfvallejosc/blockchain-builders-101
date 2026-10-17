@@ -150,6 +150,14 @@ export class CertificatesService {
       throw new ConflictException(CERTIFICATE_ALREADY_ANNULLED_MESSAGE);
     }
 
+    const update = await this.certificates.update(
+      { id, issuerId: issuer.id, annulledAt: IsNull() },
+      { annulledAt: new Date() },
+    );
+    if (update.affected !== 1) {
+      throw new ConflictException(CERTIFICATE_ALREADY_ANNULLED_MESSAGE);
+    }
+
     await this.registry.annul(id);
     const annulledCertificate = await this.certificates.findOne({
       where: { id, issuerId: issuer.id },

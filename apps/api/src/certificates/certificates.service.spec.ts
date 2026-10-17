@@ -85,6 +85,7 @@ const buildHarness = () => {
   const certificates = {
     find: vi.fn(),
     findOne: vi.fn(),
+    update: vi.fn(),
   };
   const register = vi.fn().mockResolvedValue(undefined);
   const annul = vi.fn().mockResolvedValue(undefined);
@@ -309,6 +310,7 @@ describe('CertificatesService', () => {
     it('annuls a certificate and returns its updated response', async () => {
       const { service, certificates, annul } = buildHarness();
       certificates.findOne.mockResolvedValue(buildCertificate());
+      certificates.update.mockResolvedValue({ affected: 1 });
       const updated = buildCertificate({
         annulledAt: new Date('2026-10-17T17:00:00.000Z'),
       });
@@ -319,7 +321,40 @@ describe('CertificatesService', () => {
       await expect(
         service.annul(buildIssuer(), CERTIFICATE_ID),
       ).resolves.toEqual(toCertificateResponse(updated));
+      expect(certificates.update).toHaveBeenCalledWith(
+        { id: CERTIFICATE_ID, issuerId: ISSUER_ID, annulledAt: IsNull() },
+        { annulledAt: expect.any(Date) },
+      );
       expect(annul).toHaveBeenCalledWith(CERTIFICATE_ID);
+    });
+
+    it('returns a conflict when another annulment wins the conditional update', async () => {
+      const { service, certificates } = buildHarness();
+      const certificate = buildCertificate();
+      const updated = buildCertificate({
+        annulledAt: new Date('2026-10-17T17:00:00.000Z'),
+      });
+      certificates.findOne
+        .mockResolvedValueOnce(certificate)
+        .mockResolvedValueOnce(certificate)
+        .mockResolvedValueOnce(updated);
+      certificates.update
+        .mockResolvedValueOnce({ affected: 1 })
+        .mockResolvedValueOnce({ affected: 0 });
+
+      const results = await Promise.allSettled([
+        service.annul(buildIssuer(), CERTIFICATE_ID),
+        service.annul(buildIssuer(), CERTIFICATE_ID),
+      ]);
+
+      expect(
+        results.filter((result) => result.status === 'fulfilled'),
+      ).toHaveLength(1);
+      const rejected = results.find((result) => result.status === 'rejected');
+      expect(rejected?.status).toBe('rejected');
+      if (rejected?.status === 'rejected') {
+        expect(rejected.reason).toBeInstanceOf(ConflictException);
+      }
     });
   });
 });
