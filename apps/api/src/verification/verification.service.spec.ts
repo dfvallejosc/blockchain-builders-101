@@ -2,7 +2,7 @@ import type { Repository } from 'typeorm';
 import { Certificate } from '../certificates/certificate.entity.js';
 import { CertificateType } from '../certificates/certificate-type.js';
 import type { CertificateRegistry, RegistryStatus } from '../certificates/certificate-registry.js';
-import { ProvisionalFingerprintService } from '../certificates/fingerprint/provisional-fingerprint.service.js';
+import { FingerprintService } from '../fingerprint/fingerprint.service.js';
 import type { Issuer } from '../issuers/issuer.entity.js';
 import type { Worker } from '../workers/worker.entity.js';
 import type { VerificationResult } from './verification-result.js';
@@ -11,11 +11,11 @@ import { VerificationService } from './verification.service.js';
 const CERTIFICATE_ID = 'd1eb3fd0-3e55-467c-b877-1e7c97a00f94';
 const ISSUER_ID = '3f0c6a52-6a0a-4c0e-9d7e-2f4d2d3a7b11';
 const WORKER_ID = '5d29407a-f5e4-4af1-8dc2-91a22c0d81f0';
-const SALT = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+const SALT = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
 const TODAY = '2026-10-17';
 const UNKNOWN: VerificationResult = { status: 'invalid', reason: 'unknown-certificate' };
 
-const fingerprints = new ProvisionalFingerprintService();
+const fingerprints = new FingerprintService();
 
 const buildWorker = (overrides: Partial<Worker> = {}): Worker =>
   ({
@@ -41,15 +41,15 @@ const buildIssuer = (overrides: Partial<Issuer> = {}): Issuer =>
 const legitFingerprint = (validUntil: string): string =>
   fingerprints.compute(
     {
-      certificateId: CERTIFICATE_ID,
+      id: CERTIFICATE_ID,
       issuerId: ISSUER_ID,
       type: CertificateType.HeightWork,
       issuedAt: '2026-10-01',
       validUntil,
-      documentType: 'cc',
-      documentNumber: 'AB12345',
+      workerDocumentType: 'cc',
+      workerDocumentNumber: 'AB12345',
+      salt: SALT,
     },
-    SALT,
   );
 
 const buildCertificate = (overrides: Partial<Certificate> = {}): Certificate =>
@@ -227,7 +227,13 @@ describe('VerificationService', () => {
         'the stored worker document changed',
         { certificate: buildCertificate({ worker: buildWorker({ documentNumber: 'ZZ99999' }) }) },
       ],
-      ['the salt changed', { certificate: buildCertificate({ salt: 'ffffffffffffffffffffffffffffffff' }) }],
+      ['the salt changed', { certificate: buildCertificate({ salt: 'f'.repeat(64) }) }],
+      // The fingerprint module rejects data it cannot canonicalize; that must not turn into a 500.
+      ['the stored salt is not valid', { certificate: buildCertificate({ salt: 'short' }) }],
+      [
+        'the stored worker document cannot be hashed',
+        { certificate: buildCertificate({ worker: buildWorker({ documentNumber: 'AB\n12345' }) }) },
+      ],
       // The registry attests other dates than the ones the fingerprint was made from.
       ['the registry validity differs', { status: buildStatus({ validUntil: '2099-01-01' }) }],
       ['the registry issuer differs', { status: buildStatus({ issuerId: '67c52ca1-b02b-4bad-a65a-f799e3aa64c2' }) }],
