@@ -1,5 +1,17 @@
 import { plainToInstance } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUrl, Max, Min, validateSync } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Max,
+  Min,
+  ValidateIf,
+  validateSync,
+} from 'class-validator';
 
 export const NodeEnv = {
   Development: 'development',
@@ -24,9 +36,24 @@ export class EnvironmentVariables {
   @IsBoolean()
   DATABASE_SSL: boolean = false;
 
+  @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
+  @IsString()
+  @IsNotEmpty()
+  CORS_ORIGIN?: string;
+
+  @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
+  @IsString()
+  @IsNotEmpty()
+  CLERK_SECRET_KEY?: string;
+
+  @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
+  @IsString()
+  @IsNotEmpty()
+  CLERK_PUBLISHABLE_KEY?: string;
+
   @IsOptional()
   @IsString()
-  CORS_ORIGIN?: string;
+  CLERK_JWT_KEY?: string;
 }
 
 export const validateEnv = (config: Record<string, unknown>): EnvironmentVariables => {

@@ -16,6 +16,9 @@ El producto está definido en estos dos documentos, que son la fuente de verdad:
 - `docs/semana2/EnunciadoEntregable2.md`: enunciado del entregable de la semana 2.
 - `docs/semana1/` y `docs/semana2/`: además, un archivo por integrante con sus entregables individuales.
 - `docs/DESIGN.md`: sistema de diseño de HabilitApp (colores, tipografía, componentes, accesibilidad y voz). Es la guía de todo el front; ver "Frontend" más abajo.
+- `docs/kb/`: estado real de lo que ya existe. Léelo antes de afirmar algo sobre el entorno o sobre una decisión tomada:
+  - `docs/kb/infraestructura.md`: qué hay desplegado en Render (front, API y base de staging), cómo se despliega y qué problemas conocidos hay. El Render CLI ya tiene sesión en la máquina de Diego: úsalo (`render services -o json --confirm`) en vez de suponer.
+  - `docs/kb/autenticacion.md`: decisiones de autenticación y roles (TA-20), lo que ya se probó y lo que sigue abierto.
 - Tablero de historias y tareas: <https://github.com/users/dfvallejosc/projects/2>
 - Las notas de clase y `docs/Syllabus.md` no están versionados. Si existen en local, léelos para plazos y criterios de evaluación.
 
@@ -120,7 +123,10 @@ Todo desarrollo del front sigue `docs/DESIGN.md`. Léelo (al menos las secciones
 
 No las decidas solas. Pregunta antes de tocarlas:
 
-- Proveedor de autenticación (Clerk o Better Auth).
 - Cómo se conecta la API con Stellar y cómo se custodian las llaves de los emisores.
 - Entidades de la base de datos y cómo se organizan los módulos de la API.
-- Staging: la propuesta es la API en Render y PostgreSQL en Neon.
+- Staging: ya corre en Render (front, API y PostgreSQL), no en Neon. Sigue abierto qué hacer con la base free, que vence el 2026-11-07, y cómo corren las migraciones allí. Ver `docs/kb/infraestructura.md`.
+
+## Decisiones tomadas
+
+- Autenticación: Clerk, con un guard propio en la API. Falta que el equipo lo confirme en el PR de TA-20. Una entidad revocada no tiene acceso. Detalle, razones y lo que está por verificar en `docs/kb/autenticacion.md`.
