@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { DataError } from '@/data/errors'
-import { NotIssuerError } from '@/features/auth/errors'
+import { NotAdminError, NotIssuerError } from '@/features/auth/errors'
 import { endSession, sessionEndReasonFor } from '@/features/auth/sessionEnd'
 
 describe('sessionEndReasonFor', () => {
@@ -12,6 +12,7 @@ describe('sessionEndReasonFor', () => {
     [new DataError('entity-revoked'), true, 'revoked'],
     [new DataError('forbidden'), true, 'no-role'],
     [new NotIssuerError(), true, 'not-issuer'],
+    [new NotAdminError(), true, 'not-admin'],
   ])('maps %o (profile query: %s) to %s', (error, fromProfile, reason) => {
     expect(sessionEndReasonFor(error, fromProfile)).toBe(reason)
   })
