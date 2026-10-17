@@ -1,51 +1,32 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  DataError,
-  getEntity,
-  listCertificates,
-  listWorkers,
-  type Certificate,
-  type Entity,
-  type Worker,
-} from '@/data'
+import { useQuery } from '@tanstack/react-query'
+import { listCertificates } from '@/api/certificates'
+import { listWorkers } from '@/api/workers'
+import type { Certificate, Worker } from '@/data'
+
+export const CERTIFICATES_KEY = ['issuer', 'certificates'] as const
+const WORKERS_KEY = ['issuer', 'workers'] as const
 
 export type CertificatesState =
   | { phase: 'loading' }
   | { phase: 'error' }
-  | { phase: 'ready'; entity: Entity; workers: Worker[]; certificates: Certificate[] }
+  | { phase: 'ready'; workers: Worker[]; certificates: Certificate[] }
 
-const fetchAll = async (entityId: string) => {
-  const [entity, workers, certificates] = await Promise.all([
-    getEntity(entityId),
-    listWorkers(entityId),
-    listCertificates(entityId),
-  ])
-  if (!entity) throw new DataError('not-found')
-  return { entity, workers, certificates }
-}
+export const useCertificates = () => {
+  const certificates = useQuery({ queryKey: CERTIFICATES_KEY, queryFn: listCertificates })
+  const workers = useQuery({ queryKey: WORKERS_KEY, queryFn: listWorkers })
 
-export const useCertificates = (entityId: string) => {
-  const [load, setLoad] = useState<CertificatesState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
+  const load: CertificatesState =
+    certificates.data && workers.data
+      ? { phase: 'ready', workers: workers.data, certificates: certificates.data }
+      : [certificates, workers].some((query) => query.isError && !query.isFetching)
+        ? { phase: 'error' }
+        : { phase: 'loading' }
 
-  useEffect(() => {
-    let cancelled = false
-    fetchAll(entityId)
-      .then((data) => {
-        if (!cancelled) setLoad({ phase: 'ready', ...data })
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ phase: 'error' })
-      })
-    return () => {
-      cancelled = true
+  const retry = () => {
+    for (const query of [certificates, workers]) {
+      if (query.isError) void query.refetch()
     }
-  }, [entityId, attempt])
-
-  const retry = useCallback(() => {
-    setLoad({ phase: 'loading' })
-    setAttempt((current) => current + 1)
-  }, [])
+  }
 
   return { load, retry }
 }
