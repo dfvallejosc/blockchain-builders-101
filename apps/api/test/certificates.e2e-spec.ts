@@ -469,9 +469,9 @@ describe('Certificates (e2e)', () => {
         annul(issuerToken(issuerAId), issued.body.id),
       ]);
 
-      expect(responses.map((response) => response.status).sort()).toEqual([
-        200, 409,
-      ]);
+      expect(
+        responses.map((response) => response.status).sort((a, b) => a - b),
+      ).toEqual([200, 409]);
     });
 
     it('annuls an owned certificate and keeps its annulledAt unchanged on a second attempt', async () => {
