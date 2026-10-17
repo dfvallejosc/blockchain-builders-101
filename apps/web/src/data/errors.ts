@@ -6,6 +6,10 @@ export type DataErrorCode =
   | 'entity-revoked'
   | 'type-not-allowed'
   | 'invalid-dates'
+  | 'invalid-input'
+  | 'unauthorized'
+  | 'unavailable'
+  | 'unknown'
 
 export class DataError extends Error {
   readonly code: DataErrorCode
