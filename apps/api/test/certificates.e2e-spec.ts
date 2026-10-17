@@ -8,8 +8,10 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { Certificate } from '../src/certificates/certificate.entity.js';
 import { CertificateType } from '../src/certificates/certificate-type.js';
+import { FingerprintService } from '../src/fingerprint/fingerprint.service.js';
 import { Issuer } from '../src/issuers/issuer.entity.js';
 import { IssuerType } from '../src/issuers/issuer-type.js';
+import { DocumentType } from '../src/workers/document-type.js';
 import { Worker } from '../src/workers/worker.entity.js';
 import { createTokenSigner } from './support/token-signer.js';
 
@@ -251,6 +253,19 @@ describe('Certificates (e2e)', () => {
         .getRepository(Certificate)
         .findOneByOrFail({ id: response.body.id });
       expect(stored.fingerprint).toMatch(/^[0-9a-f]{64}$/i);
+      expect(stored.salt).toMatch(/^[0-9a-f]{64}$/);
+      expect(stored.fingerprint).toBe(
+        new FingerprintService().compute({
+          id: stored.id,
+          issuerId: issuerAId,
+          type: CertificateType.HeightWork,
+          issuedAt: ISSUED_AT,
+          validUntil: VALID_UNTIL,
+          workerDocumentType: DocumentType.Cc,
+          workerDocumentNumber: workerA.documentNumber,
+          salt: stored.salt,
+        }),
+      );
     });
 
     it('answers 401 without a token', async () => {
@@ -454,9 +469,9 @@ describe('Certificates (e2e)', () => {
         annul(issuerToken(issuerAId), issued.body.id),
       ]);
 
-      expect(responses.map((response) => response.status).sort()).toEqual([
-        200, 409,
-      ]);
+      expect(
+        responses.map((response) => response.status).sort((a, b) => a - b),
+      ).toEqual([200, 409]);
     });
 
     it('annuls an owned certificate and keeps its annulledAt unchanged on a second attempt', async () => {

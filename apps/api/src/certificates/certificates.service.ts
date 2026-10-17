@@ -22,9 +22,8 @@ import {
   type CertificateResponse,
 } from './certificate-response.js';
 import { datesAreOrdered, todayInBogota } from './dates.js';
+import { FingerprintService } from '../fingerprint/fingerprint.service.js';
 import type { IssueCertificateDto } from './dto/issue-certificate.dto.js';
-import type { FingerprintService } from './fingerprint/fingerprint.service.js';
-import { FINGERPRINT_SERVICE } from './fingerprint/fingerprint.service.js';
 
 const INVALID_DATE_ORDER_MESSAGE =
   'La fecha de vencimiento debe ser posterior a la fecha de emisión.';
@@ -46,7 +45,6 @@ export class CertificatesService {
     private readonly certificates: Repository<Certificate>,
     @Inject(CERTIFICATE_REGISTRY)
     private readonly registry: CertificateRegistry,
-    @Inject(FINGERPRINT_SERVICE)
     private readonly fingerprint: FingerprintService,
   ) {}
 
@@ -94,18 +92,16 @@ export class CertificatesService {
 
       const id = randomUUID();
       const salt = this.fingerprint.generateSalt();
-      const fingerprint = this.fingerprint.compute(
-        {
-          certificateId: id,
-          issuerId: issuer.id,
-          type: input.type,
-          issuedAt: input.issuedAt,
-          validUntil: input.validUntil,
-          documentType: worker.documentType,
-          documentNumber: worker.documentNumber,
-        },
+      const fingerprint = this.fingerprint.compute({
+        id,
+        issuerId: issuer.id,
+        type: input.type,
+        issuedAt: input.issuedAt,
+        validUntil: input.validUntil,
+        workerDocumentType: worker.documentType,
+        workerDocumentNumber: worker.documentNumber,
         salt,
-      );
+      });
       const certificate = await manager.save(
         Certificate,
         Object.assign(new Certificate(), {
