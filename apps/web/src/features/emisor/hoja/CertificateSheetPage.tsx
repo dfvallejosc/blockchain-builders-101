@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Download } from 'lucide-react'
-import { Link, useOutletContext, useParams } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { Link, useParams } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
-import { certificateStatus, type Certificate, type Session, type Worker } from '@/data'
+import { certificateStatus, type Certificate, type Worker } from '@/data'
 import { CertificateSheet } from '@/features/emisor/hoja/CertificateSheet'
 import { useSheetData } from '@/features/emisor/hoja/useSheetData'
 import { formatCertificateId } from '@/data/certificate-id'
@@ -67,9 +68,9 @@ const useDocumentTitle = (id: string, certificate: Certificate | null, worker: W
 }
 
 export const CertificateSheetPage = () => {
-  const session = useOutletContext<Session>()
   const { id = '' } = useParams()
-  const data = useSheetData(id, session.role === 'issuer' ? session.entityId : '')
+  const queryClient = useQueryClient()
+  const data = useSheetData(id)
   const ready = data.status === 'ready' ? data : null
   useDocumentTitle(id, ready?.certificate ?? null, ready?.worker ?? null)
 
@@ -77,6 +78,24 @@ export const CertificateSheetPage = () => {
     return (
       <main className={PAGE_CLASS}>
         <Skeleton className="aspect-[8.5/11] h-auto w-full" />
+      </main>
+    )
+  }
+
+  if (data.status === 'error') {
+    return (
+      <main className={PAGE_CLASS}>
+        <EmptyState
+          variant="error"
+          title="No pudimos cargar el certificado"
+          action={
+            <Button variant="secondary" onClick={() => void queryClient.invalidateQueries({ queryKey: ['issuer'] })}>
+              Reintentar
+            </Button>
+          }
+        >
+          Revisa tu conexión e inténtalo de nuevo.
+        </EmptyState>
       </main>
     )
   }
@@ -99,7 +118,7 @@ export const CertificateSheetPage = () => {
     )
   }
 
-  const { certificate, entity, worker } = data
+  const { certificate, profile, worker } = data
   const status = certificateStatus(certificate)
   const annulled = status === 'annulled'
 
@@ -111,7 +130,7 @@ export const CertificateSheetPage = () => {
       <div className={cn(annulled && 'print:hidden')}>
         <CertificateSheet
           certificate={certificate}
-          entity={entity}
+          profile={profile}
           worker={worker}
           verifyUrl={`${window.location.origin}/c/${certificate.id}`}
         />

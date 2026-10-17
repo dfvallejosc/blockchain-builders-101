@@ -1,7 +1,8 @@
 import { useId } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { Logo } from '@/components/Logo'
-import type { Certificate, Entity, Worker } from '@/data'
+import type { IssuerProfile } from '@/api/me'
+import type { Certificate, Worker } from '@/data'
 import { formatCertificateId } from '@/data/certificate-id'
 import { certificateTypeLabel, formatDocument, formatLongDate } from '@/features/verificar/format'
 import '@/features/emisor/hoja/sheet.css'
@@ -11,7 +12,7 @@ const SEAL_PATH = 'M20 66a46 46 0 1 1 92 0a46 46 0 1 1-92 0'
 
 interface CertificateSheetProps {
   certificate: Certificate
-  entity: Entity
+  profile: IssuerProfile
   worker: Worker
   verifyUrl: string
 }
@@ -38,7 +39,7 @@ const Seal = () => {
   )
 }
 
-export const CertificateSheet = ({ certificate, entity, worker, verifyUrl }: CertificateSheetProps) => {
+export const CertificateSheet = ({ certificate, profile, worker, verifyUrl }: CertificateSheetProps) => {
   const code = formatCertificateId(certificate.number, certificate.issuedAt)
 
   return (
@@ -56,8 +57,8 @@ export const CertificateSheet = ({ certificate, entity, worker, verifyUrl }: Cer
         </div>
         <div className="sheet__ent">
           <span className="sheet__lbl">Entidad emisora</span>
-          <b>{entity.name}</b>
-          <span className="sheet__sub">{`NIT ${entity.nit} · ${entity.city}`}</span>
+          <b>{profile.name}</b>
+          <span className="sheet__sub">{`NIT ${profile.nit} · ${profile.city}`}</span>
         </div>
         <div className="sheet__title">
           <span className="sheet__lbl">Certificado de</span>

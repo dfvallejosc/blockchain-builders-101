@@ -46,3 +46,19 @@ const getDemoMe = async (): Promise<MeResponse> => {
 }
 
 export const demoMeModule = () => ({ getMe: getDemoMe })
+
+// For tests that mock `@/api/*` themselves: a signed-in Clerk user, independent of the demo data.
+export const signedInClerkModule = () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    getToken: async () => 'test-token',
+    signOut: async () => undefined,
+  }),
+  useUser: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    user: { primaryEmailAddress: { emailAddress: 'emisor@example.co' } },
+  }),
+})

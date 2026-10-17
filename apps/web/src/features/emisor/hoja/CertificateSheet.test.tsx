@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { Certificate, Entity, Worker } from '@/data'
+import type { IssuerProfile } from '@/api/me'
+import type { Certificate, Worker } from '@/data'
 import { CertificateSheet } from '@/features/emisor/hoja/CertificateSheet'
 
 vi.mock('qrcode.react', () => ({
@@ -17,7 +18,13 @@ const CERTIFICATE: Certificate = {
   validUntil: '2027-10-02',
   annulledAt: null,
 }
-const ENTITY = { id: 'e', name: 'Centro de Entrenamiento Cumbre Firme', nit: '901.456.223-8', city: 'Medellín' } as Entity
+const PROFILE: IssuerProfile = {
+  id: 'e',
+  name: 'Centro de Entrenamiento Cumbre Firme',
+  certificateTypes: ['height-work'],
+  nit: '901.456.223-8',
+  city: 'Medellín',
+}
 const WORKER = {
   id: 'w',
   fullName: 'Carlos Andrés Ramírez Pineda',
@@ -27,10 +34,10 @@ const WORKER = {
 const VERIFY_URL = 'https://verifica.example.co/c/HAB-2026-004718'
 
 const renderSheet = () =>
-  render(<CertificateSheet certificate={CERTIFICATE} entity={ENTITY} worker={WORKER} verifyUrl={VERIFY_URL} />)
+  render(<CertificateSheet certificate={CERTIFICATE} profile={PROFILE} worker={WORKER} verifyUrl={VERIFY_URL} />)
 
 describe('CertificateSheet', () => {
-  it('shows the entity, certificate type, holder and both dates', () => {
+  it('shows the issuer, certificate type, holder and both dates', () => {
     renderSheet()
     const sheet = screen.getByRole('group', { name: 'Certificado HAB-2026-004718' })
 
@@ -82,7 +89,7 @@ describe('CertificateSheet', () => {
     const { container } = render(
       <CertificateSheet
         certificate={{ ...CERTIFICATE, id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c', number: 4801, issuedAt: '2026-10-05' }}
-        entity={ENTITY}
+        profile={PROFILE}
         worker={WORKER}
         verifyUrl="https://verifica.example.co/c/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c"
       />,

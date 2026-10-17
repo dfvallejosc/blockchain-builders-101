@@ -9,6 +9,36 @@ import { createQueryWrapper } from '@/test/query'
 
 vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
 vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
+vi.mock('@/api/workers', () => ({
+  listWorkers: async () => [
+    {
+      id: 'w-carlos',
+      entityId: 'e-1',
+      fullName: 'Carlos Andrés Ramírez Pineda',
+      documentType: 'cc',
+      documentNumber: '1020345678',
+      registeredAt: '2026-09-01',
+      consentedAt: '2026-09-01',
+    },
+  ],
+  registerWorker: vi.fn(),
+}))
+vi.mock('@/api/certificates', () => ({
+  listCertificates: async () => [
+    {
+      number: 4718,
+      id: SHEET_ID,
+      entityId: 'e-1',
+      workerId: 'w-carlos',
+      type: 'height-work',
+      issuedAt: '2026-10-02',
+      validUntil: '2027-10-02',
+      annulledAt: null,
+    },
+  ],
+}))
+
+const { SHEET_ID } = vi.hoisted(() => ({ SHEET_ID: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c' }))
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -157,7 +187,7 @@ describe('routes', () => {
 
     it.each([
       ['/emisor/trabajadores/nuevo', 'Registrar trabajador'],
-      ['/emisor/certificados/HAB-2026-004718/hoja', 'Hoja del certificado HAB-2026-004718'],
+      [`/emisor/certificados/${SHEET_ID}/hoja`, 'Hoja del certificado HAB-2026-004718'],
     ])('renders %s when signed in', async (path, title) => {
       await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
       renderAt(path)

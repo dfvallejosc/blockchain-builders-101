@@ -61,7 +61,7 @@ export const IssuedStep = ({ certificate, entity, worker, onIssueAnother }: Issu
             Vista previa del certificado
           </h2>
           <div className="mx-auto w-full max-w-105">
-            <CertificateSheet certificate={certificate} entity={entity} worker={worker} verifyUrl={verifyUrl} />
+            <CertificateSheet certificate={certificate} profile={entity} worker={worker} verifyUrl={verifyUrl} />
           </div>
         </section>
       </div>

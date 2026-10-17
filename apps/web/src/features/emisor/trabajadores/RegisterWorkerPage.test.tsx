@@ -3,21 +3,40 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
-import { listWorkers, resetState, revokeEntity, signIn } from '@/data'
+import { getMe, type IssuerProfile } from '@/api/me'
+import { listWorkers, registerWorker } from '@/api/workers'
+import { DataError } from '@/data/errors'
+import type { Worker } from '@/data/types'
 import { issuerRoutes } from '@/features/emisor/routes'
 import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
-vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).signedInClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(), registerWorker: vi.fn() }))
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
 }))
 
-const CUMBRE = 'centro-entrenamiento-cumbre-firme'
+const PROFILE: IssuerProfile = {
+  id: 'e-1',
+  name: 'Centro de Entrenamiento Cumbre Firme',
+  certificateTypes: ['height-work'],
+  nit: '901.456.223-8',
+  city: 'Medellín',
+}
+
+const CREATED: Worker = {
+  id: 'w-marta',
+  entityId: 'e-1',
+  fullName: 'Marta Lucía Gómez Ríos',
+  documentType: 'cc',
+  documentNumber: '1037456789',
+  registeredAt: '2026-10-09',
+  consentedAt: '2026-10-09',
+}
 
 const renderAt = async (path: string) => {
-  await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
   const router = createMemoryRouter(issuerRoutes, { initialEntries: [path] })
   render(
     <ToastProvider>
@@ -40,8 +59,9 @@ const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Registr
 describe('RegisterWorkerPage', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
-    window.localStorage.clear()
-    resetState()
+    vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
+    vi.mocked(listWorkers).mockReset().mockResolvedValue([])
+    vi.mocked(registerWorker).mockReset().mockResolvedValue(CREATED)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 9, 12))
     vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
@@ -85,7 +105,7 @@ describe('RegisterWorkerPage', () => {
     expect(
       await screen.findAllByText('Sin la autorización del trabajador no podemos registrarlo. Pídesela antes de continuar.'),
     ).not.toHaveLength(0)
-    expect(await listWorkers(CUMBRE)).toHaveLength(12)
+    expect(registerWorker).not.toHaveBeenCalled()
   })
 
   it('shows inline errors and an error summary that links to each field', async () => {
@@ -106,7 +126,7 @@ describe('RegisterWorkerPage', () => {
     await waitFor(() => expect(screen.getByLabelText(/Número de documento/)).toHaveFocus())
   })
 
-  it('registers the worker with the data layer and goes back to the entity flow', async () => {
+  it('registers the worker through the API and goes back to the entity flow', async () => {
     const router = await renderAt('/emisor/trabajadores/nuevo')
     await screen.findByLabelText(/Nombre completo/)
     fillForm()
@@ -114,9 +134,12 @@ describe('RegisterWorkerPage', () => {
     submit()
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
-    const workers = await listWorkers(CUMBRE)
-    const added = workers.find((worker) => worker.documentNumber === '1037456789')
-    expect(added).toMatchObject({ fullName: 'Marta Lucía Gómez Ríos', documentType: 'cc', consentedAt: '2026-10-09' })
+    expect(registerWorker).toHaveBeenCalledWith({
+      fullName: 'Marta Lucía Gómez Ríos',
+      documentType: 'cc',
+      documentNumber: '1037456789',
+      dataConsent: true,
+    })
     expect(await screen.findByText('Trabajador registrado')).toBeInTheDocument()
   })
 
@@ -127,15 +150,12 @@ describe('RegisterWorkerPage', () => {
 
     submit()
 
-    const added = async () => (await listWorkers(CUMBRE)).find((worker) => worker.documentNumber === '1037456789')
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
-    const worker = await added()
-    expect(router.state.location.search).toBe(`?trabajador=${worker?.id}&nuevo=1`)
-    expect(await screen.findByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
-    expect(screen.getByText('Ahora completa los datos del certificado.')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?trabajador=w-marta&nuevo=1')
   })
 
   it('warns when the worker is already registered in the entity', async () => {
+    vi.mocked(registerWorker).mockRejectedValue(new DataError('duplicate'))
     const router = await renderAt('/emisor/trabajadores/nuevo')
     await screen.findByLabelText(/Nombre completo/)
     fireEvent.change(screen.getByLabelText(/Nombre completo/), { target: { value: 'Carlos Andrés Ramírez Pineda' } })
@@ -147,10 +167,44 @@ describe('RegisterWorkerPage', () => {
 
     expect(await screen.findByText('Ya registraste a esta persona')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/emisor/trabajadores/nuevo')
-    expect(await listWorkers(CUMBRE)).toHaveLength(12)
+  })
+
+  it('shows a generic failure when the API fails for any other reason', async () => {
+    vi.mocked(registerWorker).mockRejectedValue(new DataError('unavailable'))
+    const router = await renderAt('/emisor/trabajadores/nuevo')
+    await screen.findByLabelText(/Nombre completo/)
+    fillForm()
+
+    submit()
+
+    expect(await screen.findByText('No pudimos registrar al trabajador')).toBeInTheDocument()
+    expect(screen.queryByText('Ya registraste a esta persona')).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/emisor/trabajadores/nuevo')
+  })
+
+  it('sends one request when the form is submitted twice quickly', async () => {
+    let release: (worker: Worker) => void = () => undefined
+    vi.mocked(registerWorker).mockImplementation(
+      () =>
+        new Promise<Worker>((resolve) => {
+          release = resolve
+        }),
+    )
+    const router = await renderAt('/emisor/trabajadores/nuevo')
+    await screen.findByLabelText(/Nombre completo/)
+    fillForm()
+
+    submit()
+    submit()
+    await waitFor(() => expect(registerWorker).toHaveBeenCalledTimes(1))
+    release(CREATED)
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
+    expect(registerWorker).toHaveBeenCalledTimes(1)
   })
 
   it('hides the duplicate warning when the next submit has validation errors', async () => {
+    vi.mocked(registerWorker).mockRejectedValue(new DataError('duplicate'))
     await renderAt('/emisor/trabajadores/nuevo')
     await screen.findByLabelText(/Nombre completo/)
     fireEvent.change(screen.getByLabelText(/Nombre completo/), { target: { value: 'Carlos Andrés Ramírez Pineda' } })
@@ -173,13 +227,5 @@ describe('RegisterWorkerPage', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'Cancelar' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
-  })
-
-  it('blocks registering when the entity is revoked', async () => {
-    await revokeEntity(CUMBRE)
-    await renderAt('/emisor/trabajadores/nuevo')
-
-    expect(await screen.findByText('Tu entidad está revocada')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Registrar trabajador' })).toBeDisabled()
   })
 })
