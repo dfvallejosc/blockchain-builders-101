@@ -2,13 +2,10 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState } from '@/data'
-import { verifyCertificate } from '@/data/verification'
 import { LandingPage } from '@/features/inicio/LandingPage'
+import { apiClient } from '@/lib/api-client'
 
-vi.mock('@/data/verification', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/verification')>()
-  return { verifyCertificate: vi.fn(actual.verifyCertificate) }
-})
+const DEMO_ID = 'd1eb3fd0-3e55-467c-b877-1e7c97a00f94'
 
 const renderLanding = () =>
   render(
@@ -21,13 +18,15 @@ describe('LandingPage', () => {
   beforeEach(() => {
     window.localStorage.clear()
     resetState()
-    vi.mocked(verifyCertificate).mockClear()
+    vi.spyOn(apiClient, 'get')
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 9, 12))
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
   })
 
   describe('structure', () => {
@@ -151,13 +150,22 @@ describe('LandingPage', () => {
   })
 
   describe('calls to action', () => {
-    it('sends the main button to the sample certificate check', () => {
+    it('sends the main button to the demo certificate check when one is configured', () => {
+      vi.stubEnv('VITE_DEMO_CERTIFICATE_ID', DEMO_ID)
       renderLanding()
 
       expect(screen.getByRole('link', { name: 'Ver cómo se verifica un certificado' })).toHaveAttribute(
         'href',
-        '/c/HAB-2026-004718',
+        `/c/${DEMO_ID}`,
       )
+    })
+
+    it.each(['', '   '])('hides the demo link instead of sending anyone to a made-up id when the setting is %j', (value) => {
+      vi.stubEnv('VITE_DEMO_CERTIFICATE_ID', value)
+      renderLanding()
+
+      expect(screen.queryByRole('link', { name: 'Ver cómo se verifica un certificado' })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Soy una entidad emisora' })).toBeInTheDocument()
     })
 
     it('sends "Soy una entidad emisora" to the audience section', () => {
@@ -178,25 +186,11 @@ describe('LandingPage', () => {
       expect(within(preview).getByRole('heading', { level: 1, name: 'Habilitado', hidden: true })).toBeInTheDocument()
     })
 
-    it('says "Sin verificar" when the sample certificate is absent', async () => {
-      vi.mocked(verifyCertificate).mockResolvedValueOnce({ status: 'invalid', reason: 'unknown-certificate' })
+    it('draws the preview from a fixed sample and never asks the API', async () => {
       renderLanding()
+      await screen.findByText('Carlos Andrés Ramírez Pineda')
 
-      const preview = screen.getByTestId('hero-preview')
-      expect(
-        await within(preview).findByRole('heading', { level: 1, name: 'Sin verificar', hidden: true }),
-      ).toBeInTheDocument()
-    })
-
-    it('keeps the page usable and says "Sin verificar" when the sample cannot be read', async () => {
-      vi.mocked(verifyCertificate).mockRejectedValueOnce(new Error('storage unavailable'))
-      renderLanding()
-
-      const preview = screen.getByTestId('hero-preview')
-      expect(
-        await within(preview).findByRole('heading', { level: 1, name: 'Sin verificar', hidden: true }),
-      ).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Ver cómo se verifica un certificado' })).toBeInTheDocument()
+      expect(apiClient.get).not.toHaveBeenCalled()
     })
 
     it('does not let anything inside the preview take the focus', () => {
