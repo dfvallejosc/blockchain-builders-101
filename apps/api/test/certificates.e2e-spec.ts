@@ -443,6 +443,22 @@ describe('Certificates (e2e)', () => {
   });
 
   describe('POST /certificates/:id/annul', () => {
+    it('answers exactly one 200 and one 409 for simultaneous annulments', async () => {
+      const raceWorker = await createIsolatedWorker(issuerAId);
+      const issued = await issue(issuerToken(issuerAId), raceWorker.id).expect(
+        201,
+      );
+
+      const responses = await Promise.all([
+        annul(issuerToken(issuerAId), issued.body.id),
+        annul(issuerToken(issuerAId), issued.body.id),
+      ]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        200, 409,
+      ]);
+    });
+
     it('annuls an owned certificate and keeps its annulledAt unchanged on a second attempt', async () => {
       const annulWorker = await createIsolatedWorker(issuerAId);
       const issued = await issue(issuerToken(issuerAId), annulWorker.id).expect(
