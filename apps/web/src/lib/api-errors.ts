@@ -26,7 +26,7 @@ export const mapApiError = (error: unknown): DataError => {
       ) {
         return new DataError('entity-revoked')
       }
-      return new DataError('unauthorized')
+      return new DataError('forbidden')
     }
     case 404:
       return new DataError('not-found')
