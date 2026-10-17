@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { IssuerAuthLayout } from '@/features/emisor/auth/IssuerAuthLayout'
+import { AuthLayout } from '@/features/auth/AuthLayout'
 
 const providerProps = vi.hoisted(() => ({ calls: [] as { publishableKey?: string }[] }))
 
@@ -16,13 +16,13 @@ vi.mock('@clerk/react', () => ({
 
 const renderLayout = () => {
   const router = createMemoryRouter(
-    [{ element: <IssuerAuthLayout />, children: [{ path: '/', element: <p>Contenido del emisor</p> }] }],
+    [{ element: <AuthLayout />, children: [{ path: '/', element: <p>Contenido del emisor</p> }] }],
     { initialEntries: ['/'] },
   )
   render(<RouterProvider router={router} />)
 }
 
-describe('IssuerAuthLayout', () => {
+describe('AuthLayout', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     providerProps.calls.length = 0
