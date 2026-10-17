@@ -46,6 +46,7 @@ const LoginForm = ({ reason }: LoginFormProps) => {
   const navigate = useNavigate()
   const { signIn } = useSignIn()
   const [failure, setFailure] = useState<Failure | null>(null)
+  const [attempted, setAttempted] = useState(false)
   const {
     register,
     handleSubmit,
@@ -66,6 +67,7 @@ const LoginForm = ({ reason }: LoginFormProps) => {
   }
 
   const submit = async (values: LoginFormValues) => {
+    setAttempted(true)
     setFailure(null)
     const result = await attempt(values).catch((): Failure => 'generic')
     if (result) {
@@ -98,7 +100,7 @@ const LoginForm = ({ reason }: LoginFormProps) => {
           Inténtalo de nuevo en un momento.
         </Alert>
       )}
-      {failure === null && reason && (
+      {failure === null && !attempted && reason && (
         <Alert tone="danger" title={REASON_ALERTS[reason].title}>
           {REASON_ALERTS[reason].text}
         </Alert>

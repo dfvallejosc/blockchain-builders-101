@@ -199,6 +199,20 @@ describe('LoginPage', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1)
   })
 
+  it('does not bring the session-ended reason back after a sign-in attempt, even when a field is edited', async () => {
+    signInControl.password.mockResolvedValue({ error: clerkError('form_password_incorrect') })
+    renderLogin({ pathname: '/emisor/ingresar', state: { reason: 'expired' } })
+    await screen.findByLabelText(/Usuario/)
+    fill(ISSUER_EMAIL, 'x')
+    submit()
+    await screen.findByText('El usuario o la contraseña no coinciden.', { exact: false })
+
+    fireEvent.change(screen.getByLabelText(/Contraseña/), { target: { value: 'otra' } })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tu sesión venció')).not.toBeInTheDocument()
+  })
+
   it('hides the error alert as soon as the user edits a field', async () => {
     signInControl.password.mockResolvedValue({ error: clerkError('form_identifier_not_found') })
     renderLogin()
