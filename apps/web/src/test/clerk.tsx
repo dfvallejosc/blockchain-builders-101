@@ -56,6 +56,11 @@ export const signedInClerkModule = () => ({
     getToken: async () => 'test-token',
     signOut: async () => undefined,
   }),
+  useSignIn: () => ({
+    errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
+    fetchStatus: 'idle',
+    signIn: signInControl,
+  }),
   useUser: () => ({
     isLoaded: true,
     isSignedIn: true,

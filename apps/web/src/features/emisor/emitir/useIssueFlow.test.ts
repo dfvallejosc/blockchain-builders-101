@@ -185,6 +185,7 @@ describe('useIssueFlow', () => {
       first = result.current.issue()
       void result.current.issue()
     })
+    await waitFor(() => expect(issueCertificate).toHaveBeenCalledTimes(1))
     await act(async () => {
       release(CREATED)
       await first
@@ -231,7 +232,7 @@ describe('useIssueFlow', () => {
   })
 
   it.each<DataErrorCode>(['unauthorized', 'entity-revoked'])(
-    'leaves %s to the session gate without showing a failure',
+    'shows no failure for %s: the session gate ends the session (see IssueCertificatePage tests)',
     async (code) => {
       vi.mocked(issueCertificate).mockRejectedValue(new DataError(code))
       const { result } = await renderFlow()

@@ -202,6 +202,21 @@ describe('IssueCertificatePage', () => {
     expect(await screen.findByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
   })
 
+  it.each([
+    ['unauthorized', 'Tu sesión venció'],
+    ['entity-revoked', 'Tu entidad fue revocada'],
+  ] as const)('ends the session and goes to the login when issuing fails with %s', async (code, title) => {
+    vi.mocked(issueCertificate).mockRejectedValue(new DataError(code))
+    const router = renderAt('/emisor/emitir')
+    await goToReview()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Emitir certificado' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(title)
+    expect(router.state.location.pathname).toBe('/emisor/ingresar')
+    expect(screen.queryByText('No pudimos emitir el certificado')).not.toBeInTheDocument()
+  })
+
   it('shows a generic error without details when issuing fails', async () => {
     vi.mocked(issueCertificate).mockRejectedValue(new DataError('invalid-input'))
     renderAt('/emisor/emitir')

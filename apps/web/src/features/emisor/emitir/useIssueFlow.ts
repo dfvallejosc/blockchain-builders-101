@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { issueCertificate, listCertificates } from '@/api/certificates'
 import type { IssuerProfile } from '@/api/me'
 import { DataError, type Certificate, type CertificateType, type Worker } from '@/data'
 import { today } from '@/data/clock'
+import type { IssueCertificateInput } from '@/data/types'
 import { useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
 import { useWorkersQuery } from '@/features/emisor/trabajadores/useWorkers'
 
@@ -49,6 +50,8 @@ export const useIssueFlow = (initialWorkerId: string | null) => {
   const [failure, setFailure] = useState<IssueFailure>(null)
   const [seeded, setSeeded] = useState(false)
   const issuingRef = useRef(false)
+  const mutation = useMutation({ mutationFn: (input: IssueCertificateInput) => issueCertificate(input) })
+  const { mutateAsync } = mutation
 
   const queries = [profile, workers, certificates]
   const load: LoadState =
@@ -96,7 +99,7 @@ export const useIssueFlow = (initialWorkerId: string | null) => {
     setIssuing(true)
     setFailure(null)
     try {
-      const certificate = await issueCertificate({
+      const certificate = await mutateAsync({
         workerId: draft.workerId,
         type: draft.type,
         issuedAt: draft.issuedAt,
@@ -111,7 +114,7 @@ export const useIssueFlow = (initialWorkerId: string | null) => {
       issuingRef.current = false
       setIssuing(false)
     }
-  }, [draft, queryClient])
+  }, [draft, queryClient, mutateAsync])
 
   const issueAnother = useCallback(() => {
     setDraft(emptyDraft())
