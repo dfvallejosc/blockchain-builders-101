@@ -18,7 +18,7 @@ Se descartó Better Auth. Lo que se averiguó de él está al final, por si se v
 
 Diego aprobó estas seis el 2026-10-16. Las marcadas con "por verificar" dependen de algo que la documentación de Clerk no confirmó, y se comprueban en una instancia de desarrollo antes de contar con ellas.
 
-1. **Primer acceso del emisor:** invitación por correo de Clerk. Por verificar que el plan gratis la permita. Si no, se crea la cuenta con una contraseña temporal.
+1. **Primer acceso del emisor:** invitación por correo de Clerk, creada con `AccountsService.inviteIssuer`. Funcionó de punta a punta en una instancia de desarrollo (ver "Comprobado contra Clerk real"). Falta confirmar que el plan gratis la incluya en producción; si no, se crea la cuenta con una contraseña temporal.
 2. **Vínculo cuenta ↔ emisor:** `role` e `issuerId` van en los metadatos públicos del usuario en Clerk, y la API los pone al invitar. El guard los lee del token como `metadata: { role, issuerId }`. En una instancia de desarrollo de Clerk el token real trae esa forma (ver "Comprobado contra Clerk real"). Falta confirmar que el plan gratis la incluya en producción; si no, hará falta una tarea nueva (por ejemplo, consultar a Clerk con una caché corta en memoria), y hoy eso no está implementado. No hay tabla de cuentas propia. Si el `issuerId` no existe en nuestra base, el guard responde 403.
 3. **Entidad revocada: no se permite el acceso.** Como el plan gratis no incluye `banUser`, lo aplica el guard: si `issuer.revokedAt` está marcado, responde 403 en cualquier ruta, incluido `GET /me`, con un código que el front usa para mostrar el motivo. `issuer.revokedAt` es la única fuente de verdad. Clerk puede dejarla autenticarse, pero la API no le da nada.
 4. **Sesión:** el front manda el token de Clerk en el encabezado `Authorization`. No hace falta cookie ni proxy en Render. `authorizedParties` usa `CORS_ORIGIN`.
@@ -47,7 +47,10 @@ Comprobado en su documentación el 2026-10-16. Lo que la documentación no confi
 
 **Invitaciones**
 - `POST /v1/invitations` (límite de 100 por hora) acepta `emailAddress`, `redirectUrl` y `publicMetadata`. Clerk envía el correo con un enlace único. El correo del invitado queda verificado y la invitación vence al mes. Se pueden revocar.
-- No se confirmó que las invitaciones estén en el plan gratis, ni que el `publicMetadata` de la invitación pase al usuario.
+- En la instancia de desarrollo, el `publicMetadata` de la invitación pasa al usuario cuando la acepta. No se confirmó que el plan gratis incluya las invitaciones en producción.
+- El correo de la invitación llega **en inglés** ("Your invitation", plantilla por defecto de Clerk). El plan gratis no deja personalizar las plantillas de correo, así que los emisores lo recibirían así.
+- `inviteIssuer` no pasa `redirectUrl`. Al aceptar, Clerk deja al invitado en la página "Welcome" del portal de su instancia. Cuando exista el front, la invitación tendrá que mandarlo a su pantalla de ingreso (tarea del front).
+- `createInvitation` sin `ignoreExisting` falla si el correo ya tiene una invitación o una cuenta; hoy se vería como un 500. TA-21 debe decidir qué hacer.
 - Una invitación **no impide** que alguien se registre por su cuenta. Para eso hace falta el modo "solo por invitación" en el panel. No se confirmó que esté en el plan gratis.
 
 **Bloqueo**
@@ -66,9 +69,13 @@ Prueba manual del 2026-10-17 en una instancia de **desarrollo** de Clerk (tipo d
 | Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id` y `name` de la entidad, sin correo ni teléfono |
 | Entidad con `revoked_at` marcado y la misma sesión de Clerk | `403` con `code: "issuer-revoked"` |
 | Token inválido con llaves configuradas | `401` |
+| Invitación creada con `AccountsService.inviteIssuer(issuerId, correo)` | Funciona: Clerk envía el correo (en inglés) |
+| Aceptar esa invitación y entrar con el usuario nuevo | El usuario queda con `role` e `issuerId` de la invitación y `GET /me` responde `200` con la entidad |
+
+Una rareza de la prueba: la primera vez que se pulsó *Accept invitation*, el portal mostró "You are signed in" y **no se creó el usuario**; ingresar con ese correo daba "Couldn't find your account". Después se completó la aceptación y funcionó. La causa probable, sin confirmar, es que ya había una sesión abierta en el portal de Clerk. Conviene decirles a los emisores que abran el enlace sin otra sesión de Clerk iniciada.
 
 Quedó **sin comprobar**:
-- Las invitaciones (`inviteIssuer`): que existan en el plan gratis y que el `publicMetadata` de la invitación llegue al usuario.
+- Que el plan gratis incluya las invitaciones en producción (la prueba fue en desarrollo).
 - El modo solo por invitación, para cerrar el registro libre. En la instancia de prueba el registro sigue abierto.
 - Entrar con Google: viene encendido por defecto en la instancia y hay que apagarlo en *Configure → User & authentication → SSO connections*. Si alguien entra con Google, Clerk puede crear un usuario sin rol y la API le responde 403.
 - Un token real con `CLERK_JWT_KEY` (verificación sin red).
