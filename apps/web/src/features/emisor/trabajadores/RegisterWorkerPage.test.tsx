@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -6,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { listWorkers, resetState, revokeEntity, signIn } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
@@ -24,6 +23,7 @@ const renderAt = async (path: string) => {
     <ToastProvider>
       <RouterProvider router={router} />
     </ToastProvider>,
+    { wrapper: createQueryWrapper() },
   )
   return router
 }

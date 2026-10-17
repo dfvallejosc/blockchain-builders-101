@@ -1,14 +1,14 @@
-import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSession, resetState, signIn } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { createQueryWrapper } from '@/test/query'
 
 const renderLogin = (path = '/emisor/ingresar') => {
   const router = createMemoryRouter([...issuerRoutes, { path: '/', element: <p>Inicio</p> }], { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
 
@@ -19,9 +19,8 @@ const fill = (email: string, password: string) => {
 
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 describe('LoginPage', () => {
   beforeEach(() => {

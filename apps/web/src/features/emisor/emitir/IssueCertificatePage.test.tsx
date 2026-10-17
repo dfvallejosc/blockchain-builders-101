@@ -1,14 +1,13 @@
-import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, revokeEntity, signIn, verifyCertificate } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
@@ -19,7 +18,7 @@ const CUMBRE = 'centro-entrenamiento-cumbre-firme'
 const renderAt = async (path: string) => {
   await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
   const router = createMemoryRouter(issuerRoutes, { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
 

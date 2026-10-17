@@ -1,15 +1,14 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { resetState, signIn } from '@/data'
 import { appRoutes } from '@/routes'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -17,6 +16,7 @@ const renderAt = (path: string) => {
     <ToastProvider>
       <RouterProvider router={router} />
     </ToastProvider>,
+    { wrapper: createQueryWrapper() },
   )
   return router
 }

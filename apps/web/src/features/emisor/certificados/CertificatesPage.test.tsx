@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -6,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, revokeEntity, signIn } from '@/data'
 import * as certificatesModule from '@/data/certificates'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 vi.mock('@/data/certificates', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/certificates')>()
@@ -23,7 +22,7 @@ const LOMAS_EMAIL = 'consultorio@lomasdelsur.co'
 const renderPage = async (email = CUMBRE_EMAIL) => {
   await signIn('issuer', email, 'x')
   const router = createMemoryRouter(issuerRoutes, { initialEntries: ['/emisor/certificados'] })
-  render(<RouterProvider router={router} />)
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
 
@@ -201,7 +200,7 @@ describe('CertificatesPage', () => {
     await signIn('issuer', CUMBRE_EMAIL, 'x')
     await revokeEntity(CUMBRE)
     const router = createMemoryRouter(issuerRoutes, { initialEntries: ['/emisor/certificados'] })
-    render(<RouterProvider router={router} />)
+    render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
 
     await waitForRows()
     expect(screen.getByRole('alert')).toHaveTextContent(/Tu entidad está revocada desde el/)

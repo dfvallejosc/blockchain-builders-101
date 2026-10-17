@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -6,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, signIn } from '@/data'
 import * as certificatesModule from '@/data/certificates'
 import { issuerRoutes } from '@/features/emisor/routes'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@clerk/react', () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
+vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
 
 vi.mock('@/data/certificates', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/certificates')>()
@@ -23,7 +22,7 @@ vi.mock('qrcode.react', () => ({
 const renderSheet = async (id: string, email = 'coordinacion@cumbrefirme.co') => {
   await signIn('issuer', email, 'x')
   const router = createMemoryRouter(issuerRoutes, { initialEntries: [`/emisor/certificados/${id}/hoja`] })
-  render(<RouterProvider router={router} />)
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
 
