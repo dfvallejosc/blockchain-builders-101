@@ -185,9 +185,11 @@ describe('CertificatesService', () => {
       expect(response).not.toHaveProperty('fingerprint');
     });
 
-    it('does not register anything when the fingerprint module rejects the data', async () => {
+    it('does not save or register the certificate when the fingerprint module rejects the data', async () => {
       const { service, manager, register, compute } = buildHarness();
-      manager.findOne.mockResolvedValueOnce(buildWorker()).mockResolvedValue(null);
+      manager.findOne
+        .mockResolvedValueOnce(buildWorker())
+        .mockResolvedValue(null);
       compute.mockImplementation(() => {
         throw new FingerprintInputError('workerDocumentNumber');
       });
