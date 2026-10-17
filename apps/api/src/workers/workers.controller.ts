@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { CurrentIssuer, Roles } from '../auth/decorators.js';
 import type { Issuer } from '../issuers/issuer.entity.js';
-import type { CreateWorkerDto } from './dto/create-worker.dto.js';
-import type { ListWorkersQueryDto } from './dto/list-workers-query.dto.js';
+import { CreateWorkerDto } from './dto/create-worker.dto.js';
+import { ListWorkersQueryDto } from './dto/list-workers-query.dto.js';
 import type { WorkerResponse } from './worker-response.js';
 import { WorkersService } from './workers.service.js';
 
