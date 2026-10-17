@@ -17,5 +17,7 @@ import { Worker } from '../workers/worker.entity.js';
     { provide: CERTIFICATE_REGISTRY, useClass: PostgresCertificateRegistry },
     { provide: FINGERPRINT_SERVICE, useClass: ProvisionalFingerprintService },
   ],
+  // The public verification reads the registry and recomputes the fingerprint with the same implementations.
+  exports: [CERTIFICATE_REGISTRY, FINGERPRINT_SERVICE],
 })
 export class CertificatesModule {}
