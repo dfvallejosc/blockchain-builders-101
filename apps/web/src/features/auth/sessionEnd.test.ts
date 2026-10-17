@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { DataError } from '@/data/errors'
-import { NotIssuerError } from '@/features/emisor/auth/useIssuerProfile'
-import { endIssuerSession, sessionEndReasonFor } from '@/features/emisor/auth/sessionEnd'
+import { NotIssuerError } from '@/features/auth/errors'
+import { endSession, sessionEndReasonFor } from '@/features/auth/sessionEnd'
 
 describe('sessionEndReasonFor', () => {
   it.each([
@@ -27,7 +27,7 @@ describe('sessionEndReasonFor', () => {
   })
 })
 
-describe('endIssuerSession', () => {
+describe('endSession', () => {
   it('closes the Clerk session, empties the cache and goes to the login with the reason', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } })
     queryClient.setQueryData(['issuer', 'workers'], ['w1'])
@@ -39,7 +39,7 @@ describe('endIssuerSession', () => {
       calls.push('navigate')
     })
 
-    await endIssuerSession({ signOut, queryClient, navigate }, 'revoked')
+    await endSession({ signOut, queryClient, navigate }, '/emisor/ingresar', 'revoked')
 
     expect(signOut).toHaveBeenCalledTimes(1)
     expect(signOut).toHaveBeenCalledWith({ redirectUrl: '/emisor/ingresar' })
@@ -48,12 +48,12 @@ describe('endIssuerSession', () => {
     expect(calls).toEqual(['signOut', 'navigate'])
   })
 
-  it('goes to the login without a reason when the user signs out', async () => {
+  it('goes to the login it was given, without a reason, when the user signs out', async () => {
     const navigate = vi.fn()
 
-    await endIssuerSession({ signOut: vi.fn(async () => undefined), queryClient: new QueryClient(), navigate })
+    await endSession({ signOut: vi.fn(async () => undefined), queryClient: new QueryClient(), navigate }, '/admin/ingresar')
 
-    expect(navigate).toHaveBeenCalledWith('/emisor/ingresar', { replace: true, state: undefined })
+    expect(navigate).toHaveBeenCalledWith('/admin/ingresar', { replace: true, state: undefined })
   })
 
   it('still empties the cache and leaves when Clerk fails to sign out', async () => {
@@ -61,7 +61,11 @@ describe('endIssuerSession', () => {
     queryClient.setQueryData(['issuer', 'workers'], ['w1'])
     const navigate = vi.fn()
 
-    await endIssuerSession({ signOut: vi.fn(async () => Promise.reject(new Error('offline'))), queryClient, navigate }, 'expired')
+    await endSession(
+      { signOut: vi.fn(async () => Promise.reject(new Error('offline'))), queryClient, navigate },
+      '/emisor/ingresar',
+      'expired',
+    )
 
     expect(queryClient.getQueryData(['issuer', 'workers'])).toBeUndefined()
     expect(navigate).toHaveBeenCalledWith('/emisor/ingresar', { replace: true, state: { reason: 'expired' } })

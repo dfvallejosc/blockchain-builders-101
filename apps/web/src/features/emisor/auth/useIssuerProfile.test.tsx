@@ -2,7 +2,8 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getMe, type IssuerProfile } from '@/api/me'
 import { DataError } from '@/data/errors'
-import { NotIssuerError, useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
+import { NotIssuerError } from '@/features/auth/errors'
+import { useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
 import { createQueryWrapper, createTestQueryClient } from '@/test/query'
 
 const clerk = vi.hoisted(() => ({ isSignedIn: true }))

@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { loginSchema, type LoginFormValues } from '@/features/emisor/ingreso/loginSchema'
-import type { SessionEndReason } from '@/features/emisor/auth/sessionEnd'
+import type { SessionEndReason } from '@/features/auth/sessionEnd'
 
 const PANEL_PATH = '/emisor'
 

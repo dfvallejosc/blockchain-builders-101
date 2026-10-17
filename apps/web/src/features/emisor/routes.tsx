@@ -1,5 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router'
-import { IssuerAuthLayout } from '@/features/emisor/auth/IssuerAuthLayout'
+import { AuthLayout } from '@/features/auth/AuthLayout'
 import { IssuerSessionGate } from '@/features/emisor/auth/IssuerSessionGate'
 import { CertificatesPage } from '@/features/emisor/certificados/CertificatesPage'
 import { IssueCertificatePage } from '@/features/emisor/emitir/IssueCertificatePage'
@@ -11,7 +11,7 @@ import { PanelLayout } from '@/layouts/PanelLayout'
 
 export const issuerRoutes: RouteObject[] = [
   {
-    element: <IssuerAuthLayout />,
+    element: <AuthLayout />,
     children: [
       { path: '/emisor/ingresar', element: <LoginPage /> },
       {

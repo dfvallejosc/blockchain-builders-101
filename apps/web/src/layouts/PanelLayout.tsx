@@ -1,7 +1,7 @@
 import { useContext } from 'react'
 import { NavLink, Outlet, useNavigate, useOutletContext } from 'react-router'
 import { Logo } from '@/components/Logo'
-import { LOGIN_PATH } from '@/layouts/RequireSession'
+import { LOGIN_PATH } from '@/features/auth/loginPaths'
 import { SessionActionsContext } from '@/layouts/SessionActionsContext'
 import { signOut, type Role, type Session } from '@/data'
 

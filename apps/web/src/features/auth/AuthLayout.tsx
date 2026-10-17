@@ -2,7 +2,7 @@ import { ClerkProvider } from '@clerk/react'
 import { Outlet } from 'react-router'
 import { EmptyState } from '@/components/ui/empty-state'
 
-export const IssuerAuthLayout = () => {
+export const AuthLayout = () => {
   const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
   if (!publishableKey) {
