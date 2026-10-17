@@ -24,6 +24,7 @@ describe('mapApiError', () => {
     [409, 'duplicate'],
     [400, 'invalid-input'],
     [401, 'unauthorized'],
+    [403, 'forbidden'],
     [500, 'unavailable'],
     [502, 'unavailable'],
     [503, 'unavailable'],
@@ -39,11 +40,11 @@ describe('mapApiError', () => {
     ['missing body', undefined],
     ['string body', 'issuer-revoked'],
     ['non-revocation body code', { code: 'other-error' }],
-  ])('maps a 403 with %s to unauthorized', (_description, data) => {
+  ])('maps a 403 with %s to forbidden', (_description, data) => {
     const result = mapApiError(axiosError(403, data))
 
     expect(result).toBeInstanceOf(DataError)
-    expect(result.code).toBe('unauthorized')
+    expect(result.code).toBe('forbidden')
   })
 
   it('maps a network error and a timeout to unavailable', () => {

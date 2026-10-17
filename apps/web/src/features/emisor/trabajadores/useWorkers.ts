@@ -1,39 +1,25 @@
-import { useCallback, useEffect, useState } from 'react'
-import { DataError, getEntity, listWorkers, type Entity, type Worker } from '@/data'
+import { useQuery } from '@tanstack/react-query'
+import { listWorkers } from '@/api/workers'
+import type { Worker } from '@/data'
+
+export const WORKERS_KEY = ['issuer', 'workers'] as const
 
 export type WorkersState =
   | { phase: 'loading' }
   | { phase: 'error' }
-  | { phase: 'ready'; entity: Entity; workers: Worker[] }
+  | { phase: 'ready'; workers: Worker[] }
 
-const fetchAll = async (entityId: string) => {
-  const [entity, workers] = await Promise.all([getEntity(entityId), listWorkers(entityId)])
-  if (!entity) throw new DataError('not-found')
-  return { entity, workers }
-}
+export const useWorkersQuery = () => useQuery({ queryKey: WORKERS_KEY, queryFn: listWorkers })
 
-export const useWorkers = (entityId: string) => {
-  const [load, setLoad] = useState<WorkersState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
+export const useWorkers = () => {
+  const query = useWorkersQuery()
+  const { refetch } = query
 
-  useEffect(() => {
-    let cancelled = false
-    fetchAll(entityId)
-      .then((data) => {
-        if (!cancelled) setLoad({ phase: 'ready', ...data })
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ phase: 'error' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [entityId, attempt])
+  const load: WorkersState = query.data
+    ? { phase: 'ready', workers: query.data }
+    : query.isError && !query.isFetching
+      ? { phase: 'error' }
+      : { phase: 'loading' }
 
-  const retry = useCallback(() => {
-    setLoad({ phase: 'loading' })
-    setAttempt((current) => current + 1)
-  }, [])
-
-  return { load, retry }
+  return { load, retry: () => void refetch() }
 }

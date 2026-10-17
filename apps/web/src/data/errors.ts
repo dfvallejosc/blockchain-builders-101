@@ -8,6 +8,7 @@ export type DataErrorCode =
   | 'invalid-dates'
   | 'invalid-input'
   | 'unauthorized'
+  | 'forbidden'
   | 'unavailable'
   | 'unknown'
 

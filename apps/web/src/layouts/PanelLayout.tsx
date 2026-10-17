@@ -1,6 +1,8 @@
+import { useContext } from 'react'
 import { NavLink, Outlet, useNavigate, useOutletContext } from 'react-router'
 import { Logo } from '@/components/Logo'
 import { LOGIN_PATH } from '@/layouts/RequireSession'
+import { SessionActionsContext } from '@/layouts/SessionActionsContext'
 import { signOut, type Role, type Session } from '@/data'
 
 interface NavItem {
@@ -29,10 +31,15 @@ const userLabel = (session: Session): string =>
 
 export const PanelLayout = () => {
   const session = useOutletContext<Session>()
+  const sessionActions = useContext(SessionActionsContext)
   const navigate = useNavigate()
   const { role } = session
 
   const handleSignOut = async () => {
+    if (sessionActions) {
+      await sessionActions.signOut()
+      return
+    }
     await signOut(role)
     navigate(LOGIN_PATH[role])
   }

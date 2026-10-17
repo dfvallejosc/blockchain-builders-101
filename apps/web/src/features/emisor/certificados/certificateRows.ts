@@ -1,4 +1,5 @@
 import { certificateStatus, type Certificate, type CertificateStatus, type Worker } from '@/data'
+import { formatCertificateId } from '@/data/certificate-id'
 import { today } from '@/data/clock'
 import { certificateTypeLabel, formatDocument, formatShortDate } from '@/features/verificar/format'
 
@@ -6,6 +7,7 @@ export type NoteTone = 'neutral' | 'warning' | 'danger'
 
 export interface CertificateRow {
   id: string
+  code: string
   workerName: string
   workerDocument: string
   typeLabel: string
@@ -67,6 +69,7 @@ export const toRows = (
 
     return {
       id: certificate.id,
+      code: formatCertificateId(certificate.number, certificate.issuedAt),
       workerName: worker?.fullName ?? MISSING_WORKER_NAME,
       workerDocument: worker ? formatDocument(worker.documentType, worker.documentNumber) : '',
       typeLabel: certificateTypeLabel(certificate.type),
@@ -96,7 +99,7 @@ export const filterRows = (
   return rows.filter((row) => {
     const matchesStatus = statuses.size === 0 || statuses.has(row.status)
     const matchesQuery =
-      needle === '' || [row.workerName, row.workerDocument, row.id].some((field) => compact(field).includes(needle))
+      needle === '' || [row.workerName, row.workerDocument, row.code].some((field) => compact(field).includes(needle))
     return matchesStatus && matchesQuery
   })
 }

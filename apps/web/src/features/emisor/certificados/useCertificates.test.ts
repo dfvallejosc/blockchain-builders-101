@@ -1,52 +1,67 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState } from '@/data'
-import * as certificatesModule from '@/data/certificates'
+import { listCertificates } from '@/api/certificates'
+import { listWorkers } from '@/api/workers'
+import type { Certificate, Worker } from '@/data/types'
 import { useCertificates } from '@/features/emisor/certificados/useCertificates'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@/data/certificates', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/certificates')>()
-  return { ...actual, listCertificates: vi.fn(actual.listCertificates) }
-})
+vi.mock('@/api/certificates', () => ({ listCertificates: vi.fn(), annulCertificate: vi.fn() }))
+vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(), registerWorker: vi.fn() }))
 
-const CUMBRE = 'centro-entrenamiento-cumbre-firme'
+const WORKER: Worker = {
+  id: 'w-1',
+  entityId: 'e-1',
+  fullName: 'Carlos Andrés Ramírez Pineda',
+  documentType: 'cc',
+  documentNumber: '1020345678',
+  registeredAt: '2026-09-01',
+  consentedAt: '2026-09-01',
+}
+
+const CERTIFICATE: Certificate = {
+  number: 4718,
+  id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c',
+  entityId: 'e-1',
+  workerId: 'w-1',
+  type: 'height-work',
+  issuedAt: '2026-10-02',
+  validUntil: '2027-10-02',
+  annulledAt: null,
+}
 
 describe('useCertificates', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
-    const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
-    vi.mocked(certificatesModule.listCertificates).mockReset()
-    vi.mocked(certificatesModule.listCertificates).mockImplementation(actual.listCertificates)
+  beforeEach(() => {
+    vi.mocked(listCertificates).mockReset().mockResolvedValue([CERTIFICATE])
+    vi.mocked(listWorkers).mockReset().mockResolvedValue([WORKER])
   })
 
-  it('starts loading and then gives the entity, its workers and its certificates', async () => {
-    const view = renderHook(() => useCertificates(CUMBRE))
+  it('starts loading and then gives the workers and certificates of the API', async () => {
+    const view = renderHook(() => useCertificates(), { wrapper: createQueryWrapper() })
 
     expect(view.result.current.load.phase).toBe('loading')
     await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
 
-    const load = view.result.current.load
-    if (load.phase !== 'ready') throw new Error('expected ready')
-    expect(load.entity.id).toBe(CUMBRE)
-    expect(load.workers.length).toBeGreaterThan(0)
-    expect(load.certificates).toHaveLength(18)
-    expect(certificatesModule.listCertificates).toHaveBeenCalledWith(CUMBRE)
-  })
-
-  it('goes to error when the entity does not exist', async () => {
-    const view = renderHook(() => useCertificates('no-existe'))
-
-    await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
+    expect(view.result.current.load).toEqual({ phase: 'ready', workers: [WORKER], certificates: [CERTIFICATE] })
+    expect(listCertificates).toHaveBeenCalledTimes(1)
+    expect(listWorkers).toHaveBeenCalledTimes(1)
   })
 
   it('goes to error when loading fails and recovers on retry', async () => {
-    vi.mocked(certificatesModule.listCertificates).mockRejectedValueOnce(new Error('boom'))
-    const view = renderHook(() => useCertificates(CUMBRE))
+    vi.mocked(listCertificates).mockRejectedValueOnce(new Error('boom'))
+    const view = renderHook(() => useCertificates(), { wrapper: createQueryWrapper() })
 
     await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
     act(() => view.result.current.retry())
-    expect(view.result.current.load.phase).toBe('loading')
+
     await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
+    expect(listCertificates).toHaveBeenCalledTimes(2)
+  })
+
+  it('goes to error when the workers fail to load', async () => {
+    vi.mocked(listWorkers).mockRejectedValueOnce(new Error('boom'))
+    const view = renderHook(() => useCertificates(), { wrapper: createQueryWrapper() })
+
+    await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
   })
 })

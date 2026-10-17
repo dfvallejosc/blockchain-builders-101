@@ -1,51 +1,46 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState } from '@/data'
-import * as workersModule from '@/data/workers'
+import { listWorkers } from '@/api/workers'
+import type { Worker } from '@/data/types'
 import { useWorkers } from '@/features/emisor/trabajadores/useWorkers'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@/data/workers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/workers')>()
-  return { ...actual, listWorkers: vi.fn(actual.listWorkers) }
-})
+vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(), registerWorker: vi.fn() }))
 
-const CUMBRE = 'centro-entrenamiento-cumbre-firme'
+const WORKER: Worker = {
+  id: 'w-1',
+  entityId: 'e-1',
+  fullName: 'Carlos Andrés Ramírez Pineda',
+  documentType: 'cc',
+  documentNumber: '1020345678',
+  registeredAt: '2026-09-01',
+  consentedAt: '2026-09-01',
+}
 
 describe('useWorkers', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
-    const actual = await vi.importActual<typeof import('@/data/workers')>('@/data/workers')
-    vi.mocked(workersModule.listWorkers).mockReset()
-    vi.mocked(workersModule.listWorkers).mockImplementation(actual.listWorkers)
+  beforeEach(() => {
+    vi.mocked(listWorkers).mockReset()
   })
 
-  it('starts loading and then gives the entity and its workers', async () => {
-    const view = renderHook(() => useWorkers(CUMBRE))
+  it('starts loading and then gives the workers of the API', async () => {
+    vi.mocked(listWorkers).mockResolvedValue([WORKER])
+    const view = renderHook(() => useWorkers(), { wrapper: createQueryWrapper() })
 
     expect(view.result.current.load.phase).toBe('loading')
     await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
 
-    const load = view.result.current.load
-    if (load.phase !== 'ready') throw new Error('expected ready')
-    expect(load.entity.id).toBe(CUMBRE)
-    expect(load.workers).toHaveLength(12)
-    expect(workersModule.listWorkers).toHaveBeenCalledWith(CUMBRE)
-  })
-
-  it('goes to error when the entity does not exist', async () => {
-    const view = renderHook(() => useWorkers('no-existe'))
-
-    await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
+    expect(view.result.current.load).toEqual({ phase: 'ready', workers: [WORKER] })
+    expect(listWorkers).toHaveBeenCalledTimes(1)
   })
 
   it('goes to error when loading fails and recovers on retry', async () => {
-    vi.mocked(workersModule.listWorkers).mockRejectedValueOnce(new Error('boom'))
-    const view = renderHook(() => useWorkers(CUMBRE))
+    vi.mocked(listWorkers).mockRejectedValueOnce(new Error('boom')).mockResolvedValue([WORKER])
+    const view = renderHook(() => useWorkers(), { wrapper: createQueryWrapper() })
 
     await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
     act(() => view.result.current.retry())
-    expect(view.result.current.load.phase).toBe('loading')
+
     await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
+    expect(listWorkers).toHaveBeenCalledTimes(2)
   })
 })

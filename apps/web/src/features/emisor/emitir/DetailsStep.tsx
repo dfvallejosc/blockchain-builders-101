@@ -1,20 +1,24 @@
 import { useCallback, useMemo, useRef } from 'react'
+import { Link } from 'react-router'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import type { IssuerProfile } from '@/api/me'
 import { Alert } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Select } from '@/components/ui/select'
-import type { Certificate, Entity, Worker } from '@/data'
+import type { Certificate, Worker } from '@/data'
 import { today } from '@/data/clock'
 import { findActiveDuplicate } from '@/features/emisor/emitir/findActiveDuplicate'
 import { buildIssueSchema, type IssueFormValues } from '@/features/emisor/emitir/issueSchema'
 import type { DetailsFormValues } from '@/features/emisor/emitir/useIssueFlow'
 import { certificateTypeLabel, formatDocument, formatLongDate } from '@/features/verificar/format'
 
+const DUPLICATE_ID = 'details-duplicate'
+
 interface DetailsStepProps {
   worker: Worker
-  entity: Entity
+  profile: IssuerProfile
   certificates: Certificate[]
   initialValues: DetailsFormValues
   onChangeWorker: (values: DetailsFormValues) => void
@@ -27,7 +31,7 @@ const FIELD_LABELS: Record<keyof IssueFormValues, string> = {
   validUntil: 'Vigente hasta',
 }
 
-export const DetailsStep = ({ worker, entity, certificates, initialValues, onChangeWorker, onSubmit }: DetailsStepProps) => {
+export const DetailsStep = ({ worker, profile, certificates, initialValues, onChangeWorker, onSubmit }: DetailsStepProps) => {
   const todayIso = today()
   const schema = useMemo(() => buildIssueSchema(todayIso), [todayIso])
   const summaryRef = useRef<HTMLDivElement>(null)
@@ -58,9 +62,13 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
 
   const errorKeys = (Object.keys(FIELD_LABELS) as (keyof IssueFormValues)[]).filter((key) => errors[key])
 
-  const allowedType = (value: string) => entity.certificateTypes.find((type) => type === value)
+  const allowedType = (value: string) => profile.certificateTypes.find((type) => type === value)
+
+  const selectedType = allowedType(watch('type'))
+  const duplicate = selectedType ? findActiveDuplicate(certificates, worker.id, selectedType, todayIso) : null
 
   const submit = (values: IssueFormValues) => {
+    if (duplicate) return
     const type = allowedType(values.type)
     if (!type) return
     onSubmit({ type, issuedAt: values.issuedAt, validUntil: values.validUntil })
@@ -70,9 +78,6 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
     const values = getValues()
     onChangeWorker({ type: allowedType(values.type) ?? '', issuedAt: values.issuedAt, validUntil: values.validUntil })
   }
-
-  const selectedType = allowedType(watch('type'))
-  const duplicate = selectedType ? findActiveDuplicate(certificates, worker.id, selectedType, todayIso) : null
 
   return (
     <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
@@ -128,7 +133,7 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
           {(control) => (
             <Select {...control} {...register('type')}>
               <option value="">Elige un tipo</option>
-              {entity.certificateTypes.map((type) => (
+              {profile.certificateTypes.map((type) => (
                 <option key={type} value={type}>
                   {certificateTypeLabel(type)}
                 </option>
@@ -138,9 +143,19 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
         </Field>
 
         {duplicate && (
-          <Alert tone="warning" title={`${worker.fullName} ya tiene este certificado habilitado`}>
-            {`Su certificado de ${certificateTypeLabel(duplicate.type)} está vigente hasta el ${formatLongDate(duplicate.validUntil)}. Si emites otro, los dos seguirán habilitados.`}
-          </Alert>
+          <div id={DUPLICATE_ID}>
+            <Alert
+              tone="warning"
+              title="Ya tiene este certificado"
+              action={
+                <Link to="/emisor/certificados" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+                  Ver certificados
+                </Link>
+              }
+            >
+              {`${worker.fullName} ya tiene este certificado habilitado hasta el ${formatLongDate(duplicate.validUntil)}. Podrás emitir otro cuando venza, o si lo anulas.`}
+            </Alert>
+          </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -176,7 +191,9 @@ export const DetailsStep = ({ worker, entity, certificates, initialValues, onCha
           <Button variant="ghost" onClick={changeWorker}>
             Volver
           </Button>
-          <Button type="submit">Revisar resumen</Button>
+          <Button type="submit" disabled={duplicate !== null} aria-describedby={duplicate ? DUPLICATE_ID : undefined}>
+            Revisar resumen
+          </Button>
         </div>
       </form>
     </section>

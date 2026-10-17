@@ -145,4 +145,15 @@ describe('filterRows', () => {
     expect(filterRows(rows, 'nino', new Set<CertificateStatus>(['annulled'])).map((row) => row.id)).toEqual(['HAB-2026-004655'])
     expect(filterRows(rows, 'ramirez', new Set<CertificateStatus>(['annulled']))).toEqual([])
   })
+
+  it('searches by the visible code, not by the uuid', () => {
+    const uuidRow = rowFor({ id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c', number: 4801, issuedAt: '2026-10-05', validUntil: '2027-10-05' })
+    const none = new Set<CertificateStatus>()
+
+    expect(uuidRow.code).toBe('HAB-2026-004801')
+    expect(uuidRow.id).toBe('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+    expect(filterRows([uuidRow], '004801', none)).toHaveLength(1)
+    expect(filterRows([uuidRow], 'HAB-2026-004801', none)).toHaveLength(1)
+    expect(filterRows([uuidRow], '9d4a', none)).toHaveLength(0)
+  })
 })

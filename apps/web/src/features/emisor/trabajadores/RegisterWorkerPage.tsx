@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input } from '@/components/ui/field'
 import { Select } from '@/components/ui/select'
 import { useToast } from '@/components/ui/toast-context'
-import type { IssuerSession, Session } from '@/data'
+import type { Session } from '@/data'
 import { useRegisterWorker } from '@/features/emisor/trabajadores/useRegisterWorker'
 import { DOCUMENT_TYPE_OPTIONS, workerSchema, type WorkerFormValues } from '@/features/emisor/trabajadores/workerSchema'
 
@@ -24,12 +24,12 @@ const FIELD_LABELS: Record<keyof WorkerFormValues, string> = {
   dataConsent: 'Autorización',
 }
 
-const RegisterWorkerForm = ({ session }: { session: IssuerSession }) => {
+const RegisterWorkerForm = () => {
   const navigate = useNavigate()
   const toast = useToast()
   const [params] = useSearchParams()
   const comesFromIssue = params.get('volver') === 'emitir'
-  const { blocked, submitting, error, register, clearError } = useRegisterWorker(session)
+  const { submitting, error, register, clearError } = useRegisterWorker()
 
   const summaryRef = useRef<HTMLDivElement>(null)
   const focusSummaryAfterRender = useRef(false)
@@ -57,7 +57,6 @@ const RegisterWorkerForm = ({ session }: { session: IssuerSession }) => {
   const errorKeys = (Object.keys(FIELD_LABELS) as (keyof WorkerFormValues)[]).filter((key) => errors[key])
 
   const submit = async (values: WorkerFormValues) => {
-    if (blocked) return
     const worker = await register(values)
     if (!worker) return
     if (comesFromIssue) {
@@ -78,12 +77,6 @@ const RegisterWorkerForm = ({ session }: { session: IssuerSession }) => {
           Solo pedimos lo necesario para identificarlo. Nunca pedimos resultados médicos, restricciones ni diagnósticos.
         </p>
       </div>
-
-      {blocked && (
-        <Alert tone="danger" title="Tu entidad está revocada">
-          Por eso no puedes registrar trabajadores nuevos.
-        </Alert>
-      )}
 
       {error === 'duplicate' && (
         <Alert tone="warning" title="Ya registraste a esta persona">
@@ -184,7 +177,7 @@ const RegisterWorkerForm = ({ session }: { session: IssuerSession }) => {
           <Link to={ISSUE_PATH} className={buttonVariants({ variant: 'ghost' })}>
             Cancelar
           </Link>
-          <Button type="submit" disabled={blocked || submitting}>
+          <Button type="submit" disabled={submitting}>
             Registrar trabajador
           </Button>
         </div>
@@ -195,5 +188,5 @@ const RegisterWorkerForm = ({ session }: { session: IssuerSession }) => {
 
 export const RegisterWorkerPage = () => {
   const session = useOutletContext<Session>()
-  return session.role === 'issuer' ? <RegisterWorkerForm session={session} /> : null
+  return session.role === 'issuer' ? <RegisterWorkerForm /> : null
 }

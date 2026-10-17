@@ -1,35 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { DataError, getEntity, registerWorker, type DocumentType, type IssuerSession, type Worker } from '@/data'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useRef, useState } from 'react'
+import { registerWorker } from '@/api/workers'
+import { DataError, type DocumentType, type NewWorkerInput, type Worker } from '@/data'
+import { WORKERS_KEY } from '@/features/emisor/trabajadores/useWorkers'
 import type { WorkerFormValues } from '@/features/emisor/trabajadores/workerSchema'
 
 export type RegisterError = 'duplicate' | 'failed' | null
 
-export const useRegisterWorker = ({ entityId }: IssuerSession) => {
-  const [blocked, setBlocked] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+export const useRegisterWorker = () => {
+  const queryClient = useQueryClient()
   const [error, setError] = useState<RegisterError>(null)
   const submittingRef = useRef(false)
-
-  useEffect(() => {
-    let cancelled = false
-    getEntity(entityId)
-      .then((entity) => {
-        if (!cancelled && entity?.revokedAt) setBlocked(true)
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [entityId])
+  const mutation = useMutation({
+    mutationFn: (input: NewWorkerInput) => registerWorker(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: WORKERS_KEY }),
+  })
+  const { mutateAsync } = mutation
 
   const register = useCallback(
     async (values: WorkerFormValues): Promise<Worker | null> => {
       if (submittingRef.current) return null
       submittingRef.current = true
-      setSubmitting(true)
       setError(null)
       try {
-        return await registerWorker(entityId, {
+        return await mutateAsync({
           fullName: values.fullName,
           documentType: values.documentType as DocumentType,
           documentNumber: values.documentNumber,
@@ -40,13 +34,12 @@ export const useRegisterWorker = ({ entityId }: IssuerSession) => {
         return null
       } finally {
         submittingRef.current = false
-        setSubmitting(false)
       }
     },
-    [entityId],
+    [mutateAsync],
   )
 
   const clearError = useCallback(() => setError(null), [])
 
-  return { blocked, submitting, error, register, clearError }
+  return { submitting: mutation.isPending, error, register, clearError }
 }
