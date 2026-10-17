@@ -213,7 +213,7 @@ describe('routes', () => {
 
     it.each([
       ['/admin/emisores/nuevo', 'Registrar emisor'],
-      ['/admin/emisores/salud-laboral-rio-claro', 'Detalle del emisor'],
+      ['/admin/emisores/salud-laboral-rio-claro', 'Salud Laboral Río Claro'],
     ])('renders %s when signed in', async (path, title) => {
       await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
       renderAt(path)

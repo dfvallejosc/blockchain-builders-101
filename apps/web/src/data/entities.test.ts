@@ -70,6 +70,13 @@ describe('entities', () => {
     expect((await getEntity('salud-laboral-rio-claro'))?.revokedAt).toBe('2026-10-09')
   })
 
+  it('keeps the original date when the entity was already revoked', async () => {
+    const revoked = await revokeEntity('consultorio-medico-bahia-norte')
+
+    expect(revoked.revokedAt).toBe('2026-08-19')
+    expect((await getEntity('consultorio-medico-bahia-norte'))?.revokedAt).toBe('2026-08-19')
+  })
+
   it('fails to revoke an entity that does not exist', async () => {
     await expect(revokeEntity('nope')).rejects.toEqual(new DataError('not-found'))
   })
