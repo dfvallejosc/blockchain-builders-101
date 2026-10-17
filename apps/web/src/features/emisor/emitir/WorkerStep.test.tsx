@@ -42,7 +42,6 @@ const renderStep = (props: Partial<ComponentProps<typeof WorkerStep>> = {}) => {
         workers={WORKERS}
         certificates={CERTIFICATES}
         selectedId={null}
-        blockedReason={null}
         onSelect={onSelect}
         onContinue={onContinue}
         {...props}
@@ -135,17 +134,6 @@ describe('WorkerStep', () => {
     expect(screen.getByRole('link', { name: /Registrar trabajador/ })).toHaveAttribute(
       'href',
       '/emisor/trabajadores/nuevo?volver=emitir',
-    )
-  })
-
-  it('blocks Continuar and registering with the reason when the entity is revoked', () => {
-    renderStep({ selectedId: 'w-carlos', blockedReason: 'No disponible: tu entidad está revocada.' })
-
-    expect(screen.getByRole('button', { name: 'Continuar' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Registrar trabajador nuevo/ })).toBeDisabled()
-    expect(screen.queryByRole('link', { name: /Registrar trabajador nuevo/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continuar' })).toHaveAccessibleDescription(
-      'No disponible: tu entidad está revocada.',
     )
   })
 })

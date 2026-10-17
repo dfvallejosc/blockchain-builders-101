@@ -1,11 +1,59 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
+import { getMe, type IssuerProfile } from '@/api/me'
 import { resetState, signIn } from '@/data'
 import { appRoutes } from '@/routes'
+import { clerkSession } from '@/test/clerk'
+import { createQueryWrapper } from '@/test/query'
 import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
+
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/workers', () => ({
+  listWorkers: async () => [
+    {
+      id: 'w-carlos',
+      entityId: 'e-1',
+      fullName: 'Carlos Andrés Ramírez Pineda',
+      documentType: 'cc',
+      documentNumber: '1020345678',
+      registeredAt: '2026-09-01',
+      consentedAt: '2026-09-01',
+    },
+  ],
+  registerWorker: vi.fn(),
+}))
+vi.mock('@/api/certificates', () => ({
+  listCertificates: async () => [
+    {
+      number: 4718,
+      id: SHEET_ID,
+      entityId: 'e-1',
+      workerId: 'w-carlos',
+      type: 'height-work',
+      issuedAt: '2026-10-02',
+      validUntil: '2027-10-02',
+      annulledAt: null,
+    },
+  ],
+}))
+
+const { SHEET_ID } = vi.hoisted(() => ({ SHEET_ID: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c' }))
+
+const PROFILE: IssuerProfile = {
+  id: 'e-1',
+  name: 'Centro de Entrenamiento Cumbre Firme',
+  certificateTypes: ['height-work'],
+  nit: '901.482.317-5',
+  city: 'Bogotá',
+}
+
+const signInIssuer = () => {
+  clerkSession.signedIn = true
+}
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -13,6 +61,7 @@ const renderAt = (path: string) => {
     <ToastProvider>
       <RouterProvider router={router} />
     </ToastProvider>,
+    { wrapper: createQueryWrapper() },
   )
   return router
 }
@@ -21,12 +70,16 @@ describe('routes', () => {
   let api: VerificationApiStub
 
   beforeEach(() => {
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
+    clerkSession.signedIn = false
+    vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
     api = installVerificationApi()
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     api.restore()
   })
 
@@ -65,6 +118,13 @@ describe('routes', () => {
       expect(await screen.findByRole('heading', { level: 1, name: 'Panel del emisor' })).toBeInTheDocument()
     })
 
+    it('shows a configuration notice instead of the issuer login when there is no Clerk key', async () => {
+      vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', '')
+      renderAt('/emisor/ingresar')
+
+      expect(await screen.findByRole('heading', { name: 'El ingreso no está configurado' })).toBeInTheDocument()
+    })
+
     it('shows the admin login without a session', async () => {
       renderAt('/admin/ingresar')
       expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
@@ -98,7 +158,7 @@ describe('routes', () => {
     })
 
     it('shows the pages with the panel layout when signed in', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       renderAt('/emisor/emitir')
 
       expect(await screen.findByRole('heading', { name: 'Emitir certificado' })).toBeInTheDocument()
@@ -110,7 +170,7 @@ describe('routes', () => {
     })
 
     it('lists the certificates at /emisor/certificados, with no menu item to issue or register (they are reached from the lists)', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       renderAt('/emisor/certificados')
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Certificados' })).toBeInTheDocument()
@@ -120,7 +180,7 @@ describe('routes', () => {
     })
 
     it('lists the workers at /emisor/trabajadores, with its menu item marked as current', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       renderAt('/emisor/trabajadores')
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Trabajadores' })).toBeInTheDocument()
@@ -130,7 +190,7 @@ describe('routes', () => {
     })
 
     it('shows the HabilitApp logo next to the name in the side bar', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       renderAt('/emisor/emitir')
 
       const brand = (await screen.findByRole('complementary')).querySelector('p')
@@ -139,7 +199,7 @@ describe('routes', () => {
     })
 
     it('redirects /emisor to the issue page', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       const router = renderAt('/emisor')
 
       expect(await screen.findByRole('heading', { name: 'Emitir certificado' })).toBeInTheDocument()
@@ -148,24 +208,27 @@ describe('routes', () => {
 
     it.each([
       ['/emisor/trabajadores/nuevo', 'Registrar trabajador'],
-      ['/emisor/certificados/HAB-2026-004718/hoja', 'Hoja del certificado HAB-2026-004718'],
+      [`/emisor/certificados/${SHEET_ID}/hoja`, 'Hoja del certificado HAB-2026-004718'],
     ])('renders %s when signed in', async (path, title) => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       renderAt(path)
 
       expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument()
     })
 
-    it('does not let an admin session in', async () => {
-      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+    it('does not let an admin account in: it ends the session and says the account is not an issuer', async () => {
+      signInIssuer()
+      vi.mocked(getMe).mockResolvedValue({ role: 'admin', issuer: null })
       const router = renderAt('/emisor/emitir')
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Panel del emisor' })).toBeInTheDocument()
       expect(router.state.location.pathname).toBe('/emisor/ingresar')
+      expect(screen.getByRole('alert')).toHaveTextContent('Esta cuenta no es de una entidad emisora')
+      expect(clerkSession.signedIn).toBe(false)
     })
 
     it('signs out and goes back to the login', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+      signInIssuer()
       const router = renderAt('/emisor/emitir')
 
       await screen.findByRole('button', { name: 'Cerrar sesión' })

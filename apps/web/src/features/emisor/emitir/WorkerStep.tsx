@@ -16,7 +16,6 @@ interface WorkerStepProps {
   workers: Worker[]
   certificates: Certificate[]
   selectedId: string | null
-  blockedReason: string | null
   onSelect: (id: string) => void
   onContinue: () => void
 }
@@ -35,7 +34,7 @@ const matchesQuery = (worker: Worker, query: string): boolean => {
   return normalize(worker.fullName).includes(normalized) || (digits !== '' && worker.documentNumber.toLowerCase().includes(digits))
 }
 
-export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, onSelect, onContinue }: WorkerStepProps) => {
+export const WorkerStep = ({ workers, certificates, selectedId, onSelect, onContinue }: WorkerStepProps) => {
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => workers.filter((worker) => matchesQuery(worker, query)), [workers, query])
@@ -73,12 +72,7 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
     [selectedId, onSelect, countsByWorker],
   )
 
-  const registerAction = blockedReason ? (
-    <Button variant="secondary" disabled aria-describedby={HELP_ID}>
-      <Plus aria-hidden="true" className="size-5" />
-      Registrar trabajador nuevo
-    </Button>
-  ) : (
+  const registerAction = (
     <Link to={REGISTER_WORKER_PATH} className={buttonVariants({ variant: 'secondary' })}>
       <Plus aria-hidden="true" className="size-5" />
       Registrar trabajador nuevo
@@ -95,32 +89,19 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
           variant="empty"
           title="Registra al primer trabajador"
           action={
-            blockedReason ? (
-              <Button variant="primary" disabled aria-describedby={HELP_ID}>
-                Registrar trabajador
-              </Button>
-            ) : (
-              <Link to={REGISTER_WORKER_PATH} className={buttonVariants({ variant: 'primary' })}>
-                Registrar trabajador
-              </Link>
-            )
+            <Link to={REGISTER_WORKER_PATH} className={buttonVariants({ variant: 'primary' })}>
+              Registrar trabajador
+            </Link>
           }
         >
           Registra al trabajador para poder emitirle su primer certificado.
         </EmptyState>
-        {blockedReason && (
-          <p id={HELP_ID} className="text-sm text-ha-text-muted">
-            {blockedReason}
-          </p>
-        )}
       </section>
     )
   }
 
   const selectedWorker = workers.find((worker) => worker.id === selectedId)
-  const help =
-    blockedReason ??
-    (selectedWorker ? `Elegiste a ${selectedWorker.fullName}.` : 'Elige a un trabajador para continuar.')
+  const help = selectedWorker ? `Elegiste a ${selectedWorker.fullName}.` : 'Elige a un trabajador para continuar.'
 
   return (
     <div className="grid gap-5">
@@ -186,14 +167,12 @@ export const WorkerStep = ({ workers, certificates, selectedId, blockedReason, o
         </p>
       </section>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {help && (
-          <p id={HELP_ID} className="mr-auto text-sm text-ha-text-muted">
-            {help}
-          </p>
-        )}
+        <p id={HELP_ID} className="mr-auto text-sm text-ha-text-muted">
+          {help}
+        </p>
         <Button
-          disabled={selectedId === null || blockedReason !== null}
-          aria-describedby={help ? HELP_ID : undefined}
+          disabled={selectedId === null}
+          aria-describedby={HELP_ID}
           onClick={onContinue}
         >
           Continuar

@@ -10,7 +10,7 @@ Lo decidió Diego Vallejos, responsable de TA-20, en la sesión de brainstorming
 | --- | --- | --- |
 | Proveedor | **Clerk** | Es lo más rápido de poner en marcha, el plan gratis cubre de sobra a nuestros usuarios y no custodiamos contraseñas. Clerk envía él mismo las invitaciones por correo. |
 | Conexión con NestJS | **Guard propio** | Un módulo `auth/` con un guard global que verifica el token de Clerk con `@clerk/backend`, y decoradores propios `@Public()`, `@Roles()` y `@CurrentIssuer()`. Se descartó un paquete de la comunidad. |
-| Alcance de TA-20 | **Solo la base** | El guard, los roles, los decoradores, el vínculo cuenta ↔ emisor y `GET /me` (rol y entidad de la sesión). Las rutas de administración de entidades son de TA-21. |
+| Alcance de TA-20 | **Solo la base** | El guard, los roles, los decoradores, el vínculo cuenta ↔ emisor y `GET /me` (rol y entidad de la sesión: `id`, `name`, `certificateTypes`, `nit` y `city`; nunca datos de contacto). Las rutas de administración de entidades son de TA-21. |
 
 Se descartó Better Auth. Lo que se averiguó de él está al final, por si se vuelve a evaluar.
 
@@ -66,7 +66,7 @@ Prueba manual del 2026-10-17 en una instancia de **desarrollo** de Clerk (tipo d
 | Verificar un token real con `CLERK_SECRET_KEY` | Funciona |
 | `azp` del token contra `CORS_ORIGIN`, y la petición con `Authorization` desde el navegador | Funciona, sin problemas de CORS |
 | Usuario con `{ "role": "admin" }` | `200 { "role": "admin", "issuer": null }` |
-| Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id` y `name` de la entidad, sin correo ni teléfono |
+| Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id`, `name`, `certificateTypes`, `nit` y `city` de la entidad, sin correo, teléfono, contacto ni registro del Ministerio |
 | Entidad con `revoked_at` marcado y la misma sesión de Clerk | `403` con `code: "issuer-revoked"` |
 | Token inválido con llaves configuradas | `401` |
 | Invitación creada con `AccountsService.inviteIssuer(issuerId, correo)` | Funciona: Clerk envía el correo (en inglés) |
@@ -92,6 +92,17 @@ Lo que hace el código, comprobado con las pruebas unitarias y e2e, y en parte c
 - **Producción:** `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` y `CORS_ORIGIN` son obligatorias, pero solo cuando `NODE_ENV=production`. Si falta alguna, la API no arranca. `CLERK_JWT_KEY` sigue siendo opcional.
 - `CLERK_PUBLISHABLE_KEY` se exige en producción, pero la API todavía no la lee. La van a necesitar el front y TA-21.
 - Con `CLERK_SECRET_KEY` y sin `CLERK_JWT_KEY`, si Clerk se cae, cada petición espera unos segundos (el reintento con espera de Clerk) antes de responder 503.
+
+## Ingreso del emisor en el front (TA-26)
+
+Lo que hace el código, comprobado con pruebas de Vitest que simulan `@clerk/react` y la API. **No se comprobó contra una instancia real de Clerk**: falta (1) que `signIn.status` ya sea `complete` justo después de `signIn.password(...)`, y (2) que el motivo del cierre de sesión sobreviva a un `signOut()` real.
+
+- **SDK:** `@clerk/react` 6.17.8. `ClerkProvider` se monta solo bajo `/emisor/*`, así que la administración y la consulta pública no dependen de Clerk. Sin `VITE_CLERK_PUBLISHABLE_KEY` (pública, se fija al construir el front), `/emisor/*` muestra "El ingreso no está configurado".
+- **Ingreso:** formulario propio con `useSignIn` (la API de señales: `signIn.password` y `signIn.finalize`). Credenciales rechazadas solo se reconocen por los códigos `form_identifier_not_found` y `form_password_incorrect`; cualquier otro fallo muestra un mensaje genérico, nunca el texto de Clerk.
+- **Sesión:** el rol y la entidad salen de `GET /me`, no de los metadatos de Clerk. El token se envía con `Authorization: Bearer` por el cliente de TA-25 (`setTokenProvider`). El front ya no tiene modo de demostración para el emisor.
+- **Cierre de sesión por la API:** `unauthorized` (sesión vencida) y `entity-revoked` en cualquier consulta o mutación cierran la sesión de Clerk, vacían la caché y llevan a `/emisor/ingresar` con el motivo (`expired`, `revoked`, `no-role` o `not-issuer`). Que la API esté dormida o sin red (`unavailable`) no cierra la sesión.
+- **`forbidden`:** `mapApiError` convierte un 403 sin `code` en `forbidden`; `unauthorized` queda solo para el 401. Emitir convierte `forbidden` en "tipo no permitido".
+- **Origen del token:** el `azp` del token es el origen del front, y la API lo compara con `CORS_ORIGIN`, que debe incluir `http://localhost:5173` y `https://habilitapp-web.onrender.com`.
 
 ## Reglas que ya fijan el criterio de aceptación
 

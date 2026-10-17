@@ -32,7 +32,8 @@ No hay producción todavía. Todo lo que está desplegado es staging, en Render.
 - **Front y API son sitios distintos para el navegador.** Los dos viven bajo `onrender.com`, que está en la Public Suffix List (línea 15568 de la lista, comprobada el 2026-10-16), así que `habilitapp-web.onrender.com` y `habilitapp-api.onrender.com` no comparten sitio. Una cookie de la API sería de terceros. Ver [autenticación](autenticacion.md).
 - **La API en plan free se duerme** cuando no recibe tráfico, y la primera petición después tarda. Es el comportamiento del plan free de Render y no se midió aquí.
 - **Falta confirmar si Render fija `NODE_ENV=production` en `habilitapp-api`.** Con esa variable la API exige `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` y `CORS_ORIGIN` y no arranca si falta alguna (ver [autenticación](autenticacion.md)). Está sin resolver. Como fusionar a `main` despliega solo, `habilitapp-api` debe tener esas tres variables antes de fusionar la rama de autenticación; si no, el despliegue falla al arrancar.
-- El front en staging todavía usa datos de ejemplo en `localStorage` y no llama a la API.
+- El panel del emisor ya llama a la API (TA-26) y no tiene modo de demostración. `habilitapp-web` necesita `VITE_API_URL` y `VITE_CLERK_PUBLISHABLE_KEY` en el momento de construir, y `habilitapp-api` necesita `CORS_ORIGIN` con `https://habilitapp-web.onrender.com`. Sin la clave de Clerk, `/emisor/*` muestra "El ingreso no está configurado". No se comprobó si esas variables ya están puestas en Render.
+- La administración (`/admin/*`) y la consulta pública (`/c/:id`) siguen con datos de ejemplo en `localStorage` hasta TA-27.
 
 ## Render CLI
 

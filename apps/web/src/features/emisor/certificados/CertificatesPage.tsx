@@ -1,14 +1,14 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { Plus } from 'lucide-react'
-import { Alert } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FilterChip } from '@/components/ui/filter-chip'
 import { SearchField } from '@/components/ui/search-field'
 import { StatusChip } from '@/components/ui/status-chip'
-import type { CertificateStatus, IssuerSession, Session } from '@/data'
+import type { Certificate, CertificateStatus, Session } from '@/data'
+import { AnnulDialog } from '@/features/emisor/certificados/AnnulDialog'
 import {
   filterRows,
   STATUS_LABEL,
@@ -17,7 +17,7 @@ import {
   type NoteTone,
 } from '@/features/emisor/certificados/certificateRows'
 import { useCertificates } from '@/features/emisor/certificados/useCertificates'
-import { formatLongDate, formatShortDate } from '@/features/verificar/format'
+import { formatShortDate } from '@/features/verificar/format'
 import { cn } from '@/lib/utils'
 
 const ISSUE_PATH = '/emisor/emitir'
@@ -29,7 +29,7 @@ const NOTE_CLASS: Record<NoteTone, string> = {
   danger: 'font-semibold text-ha-danger',
 }
 
-const COLUMNS: Column<CertificateRow>[] = [
+const buildColumns = (onAnnul: (row: CertificateRow) => void): Column<CertificateRow>[] => [
   {
     key: 'worker',
     header: 'Trabajador',
@@ -50,7 +50,7 @@ const COLUMNS: Column<CertificateRow>[] = [
     cell: (row) => (
       <>
         <span className="block">{row.typeLabel}</span>
-        <span className="block text-sm tracking-wide text-ha-text-muted">{row.id}</span>
+        <span className="block text-sm tracking-wide text-ha-text-muted">{row.code}</span>
       </>
     ),
   },
@@ -84,48 +84,57 @@ const COLUMNS: Column<CertificateRow>[] = [
     header: 'Acciones',
     className: 'text-right',
     cell: (row) => (
-      <Button variant="ghost" size="sm" disabled aria-label={`Ver la hoja del certificado ${row.id}`}>
-        Ver hoja
-      </Button>
+      <div className="flex flex-wrap justify-end gap-1">
+        <Link
+          to={`/emisor/certificados/${row.id}/hoja`}
+          aria-label={`Ver la hoja del certificado ${row.code}`}
+          className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+        >
+          Ver hoja
+        </Link>
+        {row.status !== 'annulled' && (
+          <Button variant="ghost" size="sm" aria-label={`Anular el certificado ${row.code}`} onClick={() => onAnnul(row)}>
+            Anular
+          </Button>
+        )}
+      </div>
     ),
   },
 ]
 
-const EmitAction = ({ blocked }: { blocked: boolean }) => {
-  const reasonId = useId()
+const EmitAction = () => (
+  <Link to={ISSUE_PATH} className={buttonVariants({ variant: 'primary' })}>
+    <Plus aria-hidden="true" className="size-5" />
+    Emitir certificado
+  </Link>
+)
 
-  if (!blocked) {
-    return (
-      <Link to={ISSUE_PATH} className={buttonVariants({ variant: 'primary' })}>
-        <Plus aria-hidden="true" className="size-5" />
-        Emitir certificado
-      </Link>
-    )
-  }
-
-  return (
-    <div className="grid justify-items-start gap-1 sm:justify-items-end">
-      <Button disabled aria-describedby={reasonId}>
-        <Plus aria-hidden="true" className="size-5" />
-        Emitir certificado
-      </Button>
-      <p id={reasonId} className="max-w-[30ch] text-sm text-ha-text-muted sm:text-right">
-        No disponible: tu entidad está revocada.
-      </p>
-    </div>
-  )
+interface AnnulTarget {
+  certificate: Certificate
+  code: string
 }
 
-const CertificatesView = ({ session }: { session: IssuerSession }) => {
-  const { load, retry } = useCertificates(session.entityId)
+const CertificatesView = () => {
+  const { load, retry } = useCertificates()
   const [query, setQuery] = useState('')
   const [statuses, setStatuses] = useState<ReadonlySet<CertificateStatus>>(new Set())
+  const [annulTarget, setAnnulTarget] = useState<AnnulTarget | null>(null)
+  const [annulOpen, setAnnulOpen] = useState(false)
   const controlsRef = useRef<HTMLDivElement>(null)
 
   const ready = load.phase === 'ready'
-  const revokedAt = ready ? load.entity.revokedAt : null
   const allRows = useMemo(() => (ready ? toRows(load.certificates, load.workers) : []), [load, ready])
   const rows = useMemo(() => filterRows(allRows, query, statuses), [allRows, query, statuses])
+  const columns = useMemo(
+    () =>
+      buildColumns((row) => {
+        const certificate = ready ? load.certificates.find((candidate) => candidate.id === row.id) : undefined
+        if (!certificate) return
+        setAnnulTarget({ certificate, code: row.code })
+        setAnnulOpen(true)
+      }),
+    [load, ready],
+  )
   const hasCertificates = ready && allRows.length > 0
   const filtering = query.trim() !== '' || statuses.size > 0
 
@@ -145,7 +154,7 @@ const CertificatesView = ({ session }: { session: IssuerSession }) => {
   }
 
   const emptyState = !hasCertificates ? (
-    <EmptyState variant="empty" title="Aún no has emitido certificados" action={<EmitAction blocked={revokedAt !== null} />}>
+    <EmptyState variant="empty" title="Aún no has emitido certificados" action={<EmitAction />}>
       Cuando emitas el primero, aparecerá aquí con su estado y su vigencia.
     </EmptyState>
   ) : (
@@ -173,14 +182,8 @@ const CertificatesView = ({ session }: { session: IssuerSession }) => {
             Los certificados que ha emitido tu entidad. Busca uno por trabajador, documento o número.
           </p>
         </div>
-        {hasCertificates && <EmitAction blocked={revokedAt !== null} />}
+        {hasCertificates && <EmitAction />}
       </div>
-
-      {revokedAt !== null && (
-        <Alert tone="danger" title={`Tu entidad está revocada desde el ${formatLongDate(revokedAt)}`}>
-          No puedes emitir certificados nuevos. Tu historial de certificados y trabajadores sigue disponible para consultarlo.
-        </Alert>
-      )}
 
       {hasCertificates && (
         <div ref={controlsRef} className="grid gap-3">
@@ -213,7 +216,7 @@ const CertificatesView = ({ session }: { session: IssuerSession }) => {
 
       <DataTable
         caption="Tabla de certificados"
-        columns={COLUMNS}
+        columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
         loading={load.phase === 'loading'}
@@ -226,11 +229,21 @@ const CertificatesView = ({ session }: { session: IssuerSession }) => {
           Mostrando {rows.length} de {allRows.length} {allRows.length === 1 ? 'certificado' : 'certificados'}
         </p>
       )}
+
+      {annulTarget !== null && (
+        <AnnulDialog
+          key={annulTarget.certificate.id}
+          certificate={annulTarget.certificate}
+          code={annulTarget.code}
+          open={annulOpen}
+          onClose={() => setAnnulOpen(false)}
+        />
+      )}
     </section>
   )
 }
 
 export const CertificatesPage = () => {
   const session = useOutletContext<Session>()
-  return session.role === 'issuer' ? <CertificatesView session={session} /> : null
+  return session.role === 'issuer' ? <CertificatesView /> : null
 }

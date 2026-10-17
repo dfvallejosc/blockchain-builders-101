@@ -1,57 +1,33 @@
-import { useId, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router'
 import { Plus } from 'lucide-react'
-import { Alert } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SearchField } from '@/components/ui/search-field'
-import type { IssuerSession, Session } from '@/data'
+import type { Session } from '@/data'
 import { useWorkers } from '@/features/emisor/trabajadores/useWorkers'
 import {
   filterWorkerRows,
   toWorkerRows,
   type WorkerRow,
 } from '@/features/emisor/trabajadores/workerRows'
-import { formatLongDate } from '@/features/verificar/format'
 
 const REGISTER_PATH = '/emisor/trabajadores/nuevo'
 const ISSUE_PATH = '/emisor/emitir'
-const BLOCKED_REASON = 'No disponible: tu entidad está revocada.'
 
-const RegisterAction = ({ blocked, variant = 'primary' }: { blocked: boolean; variant?: 'primary' | 'secondary' }) => {
-  const reasonId = useId()
+const RegisterAction = ({ variant = 'primary' }: { variant?: 'primary' | 'secondary' }) => (
+  <Link to={REGISTER_PATH} className={buttonVariants({ variant })}>
+    <Plus aria-hidden="true" className="size-5" />
+    Registrar trabajador
+  </Link>
+)
 
-  if (!blocked) {
-    return (
-      <Link to={REGISTER_PATH} className={buttonVariants({ variant })}>
-        <Plus aria-hidden="true" className="size-5" />
-        Registrar trabajador
-      </Link>
-    )
-  }
-
-  return (
-    <div className="grid justify-items-start gap-1 sm:justify-items-end">
-      <Button variant={variant} disabled aria-describedby={reasonId}>
-        <Plus aria-hidden="true" className="size-5" />
-        Registrar trabajador
-      </Button>
-      <p id={reasonId} className="max-w-[30ch] text-sm text-ha-text-muted sm:text-right">
-        {BLOCKED_REASON}
-      </p>
-    </div>
-  )
-}
-
-const WorkersView = ({ session }: { session: IssuerSession }) => {
-  const { load, retry } = useWorkers(session.entityId)
+const WorkersView = () => {
+  const { load, retry } = useWorkers()
   const [query, setQuery] = useState('')
-  const reasonId = useId()
 
   const ready = load.phase === 'ready'
-  const revokedAt = ready ? load.entity.revokedAt : null
-  const blocked = revokedAt !== null
   const allRows = useMemo(() => (ready ? toWorkerRows(load.workers) : []), [load, ready])
   const rows = useMemo(() => filterWorkerRows(allRows, query), [allRows, query])
   const hasWorkers = ready && allRows.length > 0
@@ -79,37 +55,22 @@ const WorkersView = ({ session }: { session: IssuerSession }) => {
         key: 'actions',
         header: 'Acciones',
         className: 'text-right',
-        cell: (row) =>
-          blocked ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled
-              aria-label={`Emitir certificado a ${row.fullName}`}
-              aria-describedby={reasonId}
-            >
-              Emitir certificado
-            </Button>
-          ) : (
-            <Link
-              to={`${ISSUE_PATH}?trabajador=${encodeURIComponent(row.id)}`}
-              aria-label={`Emitir certificado a ${row.fullName}`}
-              className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-            >
-              Emitir certificado
-            </Link>
-          ),
+        cell: (row) => (
+          <Link
+            to={`${ISSUE_PATH}?trabajador=${encodeURIComponent(row.id)}`}
+            aria-label={`Emitir certificado a ${row.fullName}`}
+            className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+          >
+            Emitir certificado
+          </Link>
+        ),
       },
     ],
-    [blocked, reasonId],
+    [],
   )
 
   const emptyState = !hasWorkers ? (
-    <EmptyState
-      variant="empty"
-      title="Aún no has registrado trabajadores"
-      action={<RegisterAction blocked={blocked} />}
-    >
+    <EmptyState variant="empty" title="Aún no has registrado trabajadores" action={<RegisterAction />}>
       Cuando registres el primero, aparecerá aquí para emitirle certificados sin volver a escribir sus datos.
     </EmptyState>
   ) : (
@@ -135,18 +96,8 @@ const WorkersView = ({ session }: { session: IssuerSession }) => {
             Los trabajadores que ha registrado tu entidad. Busca uno por nombre o documento y emítele un certificado.
           </p>
         </div>
-        {hasWorkers && <RegisterAction blocked={blocked} />}
+        {hasWorkers && <RegisterAction />}
       </div>
-
-      {blocked && (
-        <Alert tone="danger" title={`Tu entidad está revocada desde el ${formatLongDate(revokedAt)}`}>
-          No puedes emitir certificados nuevos ni registrar trabajadores. Tu lista de trabajadores sigue disponible para
-          consultarla.
-          <span id={reasonId} className="sr-only">
-            {BLOCKED_REASON}
-          </span>
-        </Alert>
-      )}
 
       {hasWorkers && (
         <SearchField
@@ -179,5 +130,5 @@ const WorkersView = ({ session }: { session: IssuerSession }) => {
 
 export const WorkersPage = () => {
   const session = useOutletContext<Session>()
-  return session.role === 'issuer' ? <WorkersView session={session} /> : null
+  return session.role === 'issuer' ? <WorkersView /> : null
 }

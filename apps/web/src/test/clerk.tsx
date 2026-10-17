@@ -1,0 +1,45 @@
+import type { ReactNode } from 'react'
+import { vi } from 'vitest'
+
+// Controls what the Clerk sign-in hook does in the login screen tests.
+export const signInControl = {
+  password: vi.fn(async (_params: { identifier: string; password: string }): Promise<{ error: unknown }> => ({ error: null })),
+  finalize: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+  status: 'complete',
+}
+
+// What the Clerk session looks like to the mocked hooks, for the tests that sign in and out.
+export const clerkSession = { signedIn: false }
+
+const ISSUER_EMAIL = 'emisor@example.co'
+
+const createClerkModule = (isSignedIn: () => boolean, signOut: () => Promise<void> = async () => undefined) => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: isSignedIn(),
+    getToken: async () => (isSignedIn() ? 'test-token' : null),
+    signOut,
+  }),
+  useSignIn: () => ({
+    errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
+    fetchStatus: 'idle',
+    signIn: signInControl,
+  }),
+  useUser: () => {
+    if (!isSignedIn()) return { isLoaded: true, isSignedIn: false, user: null }
+    return { isLoaded: true, isSignedIn: true, user: { primaryEmailAddress: { emailAddress: ISSUER_EMAIL } } }
+  },
+})
+
+// For tests that mock `@/api/*` themselves: a signed-in Clerk user, whatever the page does.
+export const signedInClerkModule = () => createClerkModule(() => true)
+
+// Follows `clerkSession`: signing out closes it, and the test opens it to sign in.
+export const sessionClerkModule = () =>
+  createClerkModule(
+    () => clerkSession.signedIn,
+    async () => {
+      clerkSession.signedIn = false
+    },
+  )
