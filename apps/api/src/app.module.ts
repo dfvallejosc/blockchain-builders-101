@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.validation.js';
 import { postgresConnection } from './database/connection.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
 import { HealthModule } from './health/health.module.js';
+import { IssuersModule } from './issuers/issuers.module.js';
 import { WorkersModule } from './workers/workers.module.js';
 
 @Module({
@@ -28,6 +29,7 @@ import { WorkersModule } from './workers/workers.module.js';
       },
     }),
     AuthModule,
+    IssuersModule,
     WorkersModule,
     CertificatesModule,
     HealthModule,
