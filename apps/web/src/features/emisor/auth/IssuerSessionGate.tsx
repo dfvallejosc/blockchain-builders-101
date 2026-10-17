@@ -83,9 +83,16 @@ interface ActiveGateProps {
 const ActiveGate = ({ end }: ActiveGateProps) => {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const { user } = useUser()
+  const queryClient = useQueryClient()
   useTokenProvider(getToken)
   const profile = useIssuerProfile()
   const actions = useMemo<SessionActions>(() => ({ signOut: () => end() }), [end])
+  const signedOut = isLoaded && !isSignedIn
+
+  // Clerk can end the session by itself: the next issuer must not see the previous entity's data.
+  useEffect(() => {
+    if (signedOut) queryClient.clear()
+  }, [signedOut, queryClient])
 
   if (!isLoaded) return <GateSkeleton />
   if (!isSignedIn) return <Navigate to={LOGIN_PATH.issuer} replace />

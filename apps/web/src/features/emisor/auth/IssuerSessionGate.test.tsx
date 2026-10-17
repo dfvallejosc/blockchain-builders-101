@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, useMutation, useQuery } from '@tanstack/react-query'
-import { useContext } from 'react'
+import { useContext, useSyncExternalStore } from 'react'
 import { createMemoryRouter, useLocation, useOutletContext } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,22 +18,40 @@ const clerk = vi.hoisted(() => ({
   email: 'coordinacion@cumbrefirme.co' as string | null,
   getToken: vi.fn(async () => 'clerk-token'),
   signOut: vi.fn(async () => undefined),
+  listeners: new Set<() => void>(),
 }))
 
+// Clerk ends the session by itself (for example a cookie that expires): the hooks re-render.
+const endClerkSession = () => {
+  clerk.isSignedIn = false
+  clerk.listeners.forEach((listener) => listener())
+}
+
+const subscribeToClerk = (listener: () => void) => {
+  clerk.listeners.add(listener)
+  return () => void clerk.listeners.delete(listener)
+}
+
 vi.mock('@clerk/react', () => ({
-  useAuth: () => ({
-    isLoaded: clerk.isLoaded,
-    isSignedIn: clerk.isLoaded ? clerk.isSignedIn : undefined,
-    getToken: clerk.getToken,
-    signOut: clerk.signOut,
-  }),
-  useUser: () => ({
-    isLoaded: true,
-    isSignedIn: clerk.isSignedIn,
-    user: clerk.isSignedIn
-      ? { primaryEmailAddress: clerk.email === null ? null : { emailAddress: clerk.email } }
-      : null,
-  }),
+  useAuth: () => {
+    const isSignedIn = useSyncExternalStore(subscribeToClerk, () => clerk.isSignedIn)
+    return {
+      isLoaded: clerk.isLoaded,
+      isSignedIn: clerk.isLoaded ? isSignedIn : undefined,
+      getToken: clerk.getToken,
+      signOut: clerk.signOut,
+    }
+  },
+  useUser: () => {
+    const isSignedIn = useSyncExternalStore(subscribeToClerk, () => clerk.isSignedIn)
+    return {
+      isLoaded: true,
+      isSignedIn,
+      user: isSignedIn
+        ? { primaryEmailAddress: clerk.email === null ? null : { emailAddress: clerk.email } }
+        : null,
+    }
+  },
 }))
 
 vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
@@ -107,6 +125,7 @@ describe('IssuerSessionGate', () => {
     vi.mocked(setTokenProvider).mockClear()
     clerk.isLoaded = true
     clerk.isSignedIn = true
+    clerk.listeners.clear()
     clerk.email = 'coordinacion@cumbrefirme.co'
     clerk.getToken.mockClear()
     clerk.signOut.mockClear()
@@ -241,6 +260,24 @@ describe('IssuerSessionGate', () => {
     expect(clerk.signOut).toHaveBeenCalledTimes(1)
     expect(client.getQueryData(['issuer', 'workers'])).toBeUndefined()
     expect(client.getQueryData(['issuer', 'me'])).toBeUndefined()
+  })
+
+  it('empties the cache when Clerk ends the session by itself', async () => {
+    vi.mocked(getMe).mockResolvedValue({ role: 'issuer', issuer: PROFILE })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } } })
+
+    renderGate(<WorkersAndMutation error={new DataError('unavailable')} />, client)
+    await screen.findByText('Trabajadores cargados')
+    expect(client.getQueryData(['issuer', 'workers'])).toEqual(['w1'])
+    expect(client.getQueryData(['issuer', 'me'])).toEqual(PROFILE)
+    const callsBefore = vi.mocked(getMe).mock.calls.length
+
+    act(() => endClerkSession())
+
+    expect(await screen.findByText('Ingreso')).toBeInTheDocument()
+    expect(client.getQueryData(['issuer', 'workers'])).toBeUndefined()
+    expect(client.getQueryData(['issuer', 'me'])).toBeUndefined()
+    expect(getMe).toHaveBeenCalledTimes(callsBefore)
   })
 
   it('keeps the session open when a later query fails with forbidden', async () => {
