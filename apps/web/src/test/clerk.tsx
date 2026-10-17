@@ -1,11 +1,5 @@
 import type { ReactNode } from 'react'
 import { vi } from 'vitest'
-import type { MeResponse } from '@/api/me'
-import { DataError, getEntity, getSession, signOut } from '@/data'
-import { readState } from '@/data/storage'
-
-// Until the issuer pages read the API, their tests drive the issuer session with the demo
-// sign-in: these mocks make Clerk and GET /me mirror that demo session.
 
 // Controls what the Clerk sign-in hook does in the login screen tests.
 export const signInControl = {
@@ -14,15 +8,18 @@ export const signInControl = {
   status: 'complete',
 }
 
-const demoIssuerSession = () => readState().sessions.issuer
+// What the Clerk session looks like to the mocked hooks, for the tests that sign in and out.
+export const clerkSession = { signedIn: false }
 
-export const demoClerkModule = () => ({
+const ISSUER_EMAIL = 'emisor@example.co'
+
+const createClerkModule = (isSignedIn: () => boolean, signOut: () => Promise<void> = async () => undefined) => ({
   ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
   useAuth: () => ({
     isLoaded: true,
-    isSignedIn: demoIssuerSession() !== null,
-    getToken: async () => (demoIssuerSession() === null ? null : 'demo-token'),
-    signOut: async () => signOut('issuer'),
+    isSignedIn: isSignedIn(),
+    getToken: async () => (isSignedIn() ? 'test-token' : null),
+    signOut,
   }),
   useSignIn: () => ({
     errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
@@ -30,40 +27,19 @@ export const demoClerkModule = () => ({
     signIn: signInControl,
   }),
   useUser: () => {
-    const session = demoIssuerSession()
-    if (session === null) return { isLoaded: true, isSignedIn: false, user: null }
-    return { isLoaded: true, isSignedIn: true, user: { primaryEmailAddress: { emailAddress: session.email } } }
+    if (!isSignedIn()) return { isLoaded: true, isSignedIn: false, user: null }
+    return { isLoaded: true, isSignedIn: true, user: { primaryEmailAddress: { emailAddress: ISSUER_EMAIL } } }
   },
 })
 
-const getDemoMe = async (): Promise<MeResponse> => {
-  const session = await getSession('issuer')
-  if (session?.role !== 'issuer') throw new DataError('unauthorized')
-  const entity = await getEntity(session.entityId)
-  if (entity === null) throw new DataError('unauthorized')
-  const { id, name, certificateTypes, nit, city } = entity
-  return { role: 'issuer', issuer: { id, name, certificateTypes, nit, city } }
-}
+// For tests that mock `@/api/*` themselves: a signed-in Clerk user, whatever the page does.
+export const signedInClerkModule = () => createClerkModule(() => true)
 
-export const demoMeModule = () => ({ getMe: getDemoMe })
-
-// For tests that mock `@/api/*` themselves: a signed-in Clerk user, independent of the demo data.
-export const signedInClerkModule = () => ({
-  ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    getToken: async () => 'test-token',
-    signOut: async () => undefined,
-  }),
-  useSignIn: () => ({
-    errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
-    fetchStatus: 'idle',
-    signIn: signInControl,
-  }),
-  useUser: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    user: { primaryEmailAddress: { emailAddress: 'emisor@example.co' } },
-  }),
-})
+// Follows `clerkSession`: signing out closes it, and the test opens it to sign in.
+export const sessionClerkModule = () =>
+  createClerkModule(
+    () => clerkSession.signedIn,
+    async () => {
+      clerkSession.signedIn = false
+    },
+  )

@@ -3,9 +3,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState, signIn } from '@/data'
+import { getMe, type IssuerProfile } from '@/api/me'
 import { issuerRoutes } from '@/features/emisor/routes'
-import { signInControl } from '@/test/clerk'
+import { clerkSession, signInControl } from '@/test/clerk'
 import { createQueryWrapper } from '@/test/query'
 
 const renderLogin = (entry: string | { pathname: string; state: unknown } = '/emisor/ingresar') => {
@@ -21,8 +21,18 @@ const fill = (email: string, password: string) => {
 
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
 
-vi.mock('@clerk/react', async () => (await import('@/test/clerk')).demoClerkModule())
-vi.mock('@/api/me', async () => (await import('@/test/clerk')).demoMeModule())
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(async () => []), registerWorker: vi.fn() }))
+vi.mock('@/api/certificates', () => ({ listCertificates: vi.fn(async () => []), issueCertificate: vi.fn() }))
+
+const PROFILE: IssuerProfile = {
+  id: 'e-1',
+  name: 'Centro de Entrenamiento Cumbre Firme',
+  certificateTypes: ['height-work'],
+  nit: '901.482.317-5',
+  city: 'Bogotá',
+}
 
 const clerkError = (code: string) =>
   new ClerkAPIResponseError('Request failed', {
@@ -30,10 +40,10 @@ const clerkError = (code: string) =>
     status: 422,
   })
 
-// A successful sign-in also opens the demo session that the mocked Clerk hooks mirror.
-const signinOk = () =>
-  signInControl.password.mockImplementation(async ({ identifier, password }) => {
-    await signIn('issuer', identifier, password)
+// Finalizing the sign-in is what opens the Clerk session that the mocked hooks report.
+const finalizeOpensSession = () =>
+  signInControl.finalize.mockImplementation(async () => {
+    clerkSession.signedIn = true
     return { error: null }
   })
 
@@ -42,13 +52,12 @@ const ISSUER_EMAIL = 'coordinacion@cumbrefirme.co'
 describe('LoginPage', () => {
   beforeEach(() => {
     signInControl.status = 'complete'
-    signInControl.password.mockReset()
-    signinOk()
+    signInControl.password.mockReset().mockResolvedValue({ error: null })
     signInControl.finalize.mockReset()
-    signInControl.finalize.mockResolvedValue({ error: null })
+    finalizeOpensSession()
+    clerkSession.signedIn = false
+    vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
-    window.localStorage.clear()
-    resetState()
   })
 
   afterEach(() => {
@@ -253,7 +262,7 @@ describe('LoginPage', () => {
   })
 
   it('sends an issuer already signed in to Clerk straight to the panel', async () => {
-    await signIn('issuer', ISSUER_EMAIL, 'x')
+    clerkSession.signedIn = true
     const router = renderLogin()
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
@@ -261,7 +270,7 @@ describe('LoginPage', () => {
   })
 
   it('keeps the login open when a session ended with a reason, even if Clerk still has a session', async () => {
-    await signIn('issuer', ISSUER_EMAIL, 'x')
+    clerkSession.signedIn = true
     const router = renderLogin({ pathname: '/emisor/ingresar', state: { reason: 'revoked' } })
 
     expect(await screen.findByLabelText(/Usuario/)).toBeInTheDocument()
