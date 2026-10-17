@@ -51,7 +51,7 @@ const SheetNotice = ({ certificate, status }: { certificate: Certificate; status
   return null
 }
 
-const useDocumentTitle = (id: string, certificate: Certificate | null, worker: Worker | null) => {
+const useDocumentTitle = (certificate: Certificate | null, worker: Worker | null) => {
   const previousTitle = useRef(document.title)
 
   useEffect(() => {
@@ -63,8 +63,8 @@ const useDocumentTitle = (id: string, certificate: Certificate | null, worker: W
   useEffect(() => {
     document.title = certificate && worker
       ? `Certificado ${formatCertificateId(certificate.number, certificate.issuedAt)} · ${worker.fullName}`
-      : `Certificado ${id}`
-  }, [id, certificate, worker])
+      : 'Hoja del certificado'
+  }, [certificate, worker])
 }
 
 export const CertificateSheetPage = () => {
@@ -72,7 +72,7 @@ export const CertificateSheetPage = () => {
   const queryClient = useQueryClient()
   const data = useSheetData(id)
   const ready = data.status === 'ready' ? data : null
-  useDocumentTitle(id, ready?.certificate ?? null, ready?.worker ?? null)
+  useDocumentTitle(ready?.certificate ?? null, ready?.worker ?? null)
 
   if (data.status === 'loading') {
     return (

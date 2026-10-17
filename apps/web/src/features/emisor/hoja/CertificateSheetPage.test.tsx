@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -167,7 +167,16 @@ describe('CertificateSheetPage', () => {
     await router.navigate(`/emisor/certificados/${UNKNOWN_ID}/hoja`)
 
     expect(await screen.findByText('No encontramos este certificado')).toBeInTheDocument()
-    expect(document.title).toBe(`Certificado ${UNKNOWN_ID}`)
+    expect(document.title).toBe('Hoja del certificado')
+    expect(document.title).not.toContain(UNKNOWN_ID)
+  })
+
+  it('uses a title without the id while the sheet loads', async () => {
+    vi.mocked(listCertificates).mockReturnValue(new Promise(() => undefined))
+    renderSheet(VALID_ID)
+
+    await waitFor(() => expect(document.title).toBe('Hoja del certificado'))
+    expect(document.title).not.toContain(VALID_ID)
   })
 
   it('shows an error with a retry when the data fails to load, and recovers', async () => {
