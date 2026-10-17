@@ -18,8 +18,10 @@ export const useSheetData = (certificateId: string): SheetData => {
   const workers = useWorkersQuery()
   const profile = useIssuerProfile()
 
-  if (certificates.isError || workers.isError || profile.isError) return { status: 'error' }
-  if (!certificates.data || !workers.data || !profile.data) return { status: 'loading' }
+  if (!certificates.data || !workers.data || !profile.data) {
+    const failed = [certificates, workers, profile].some((query) => query.isError && !query.isFetching)
+    return { status: failed ? 'error' : 'loading' }
+  }
   if (!UUID.test(certificateId)) return { status: 'not-found' }
 
   const certificate = certificates.data.find((candidate) => candidate.id === certificateId)

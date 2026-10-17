@@ -5,7 +5,7 @@ import { listCertificates } from '@/api/certificates'
 import { listWorkers } from '@/api/workers'
 import type { Certificate, Worker } from '@/data/types'
 import { useSheetData } from '@/features/emisor/hoja/useSheetData'
-import { createQueryWrapper } from '@/test/query'
+import { createQueryWrapper, createTestQueryClient } from '@/test/query'
 
 vi.mock('@clerk/react', () => ({ useAuth: () => ({ isSignedIn: true }) }))
 vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
@@ -40,8 +40,8 @@ const CERTIFICATE: Certificate = {
   annulledAt: null,
 }
 
-const render = (certificateId: string) =>
-  renderHook(({ id }) => useSheetData(id), { initialProps: { id: certificateId }, wrapper: createQueryWrapper() })
+const render = (certificateId: string, client = createTestQueryClient()) =>
+  renderHook(({ id }) => useSheetData(id), { initialProps: { id: certificateId }, wrapper: createQueryWrapper(client) })
 
 describe('useSheetData', () => {
   beforeEach(() => {
@@ -90,6 +90,32 @@ describe('useSheetData', () => {
     const { result } = render(CERTIFICATE_ID)
 
     await waitFor(() => expect(result.current.status).toBe('error'))
+  })
+
+  it('shows loading again while the data is refetched after an error', async () => {
+    vi.mocked(listCertificates).mockRejectedValueOnce(new Error('boom'))
+    const client = createTestQueryClient()
+    const { result } = render(CERTIFICATE_ID, client)
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    vi.mocked(listCertificates).mockReturnValue(new Promise(() => undefined))
+
+    await act(async () => {
+      void client.invalidateQueries({ queryKey: ['issuer'] })
+    })
+
+    await waitFor(() => expect(result.current.status).toBe('loading'))
+  })
+
+  it('keeps the sheet when a refetch fails but the data is already there', async () => {
+    const client = createTestQueryClient()
+    const { result } = render(CERTIFICATE_ID, client)
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    vi.mocked(listCertificates).mockRejectedValue(new Error('boom'))
+
+    await act(() => client.invalidateQueries({ queryKey: ['issuer'] }))
+
+    await waitFor(() => expect(client.getQueryState(['issuer', 'certificates'])?.status).toBe('error'))
+    expect(result.current.status).toBe('ready')
   })
 
   it('looks the new id up in the same list when it changes', async () => {
