@@ -207,11 +207,14 @@ describe('Workers (e2e)', () => {
     it('treats the underscore and the percent sign as plain characters', async () => {
       const underscore = await list(issuerToken(issuerAId), `?documentNumber=${doc('LAB_')}`).expect(200);
       const percent = await list(issuerToken(issuerAId), '?documentNumber=%25').expect(200);
+      // A lone backslash is an invalid LIKE pattern unless it is escaped.
+      const backslash = await list(issuerToken(issuerAId), '?documentNumber=%5C').expect(200);
 
       expect((underscore.body as Array<{ documentNumber: string }>).map((worker) => worker.documentNumber)).toEqual([
         doc('LAB_1'),
       ]);
       expect(percent.body).toEqual([]);
+      expect(backslash.body).toEqual([]);
     });
 
     it.each([
