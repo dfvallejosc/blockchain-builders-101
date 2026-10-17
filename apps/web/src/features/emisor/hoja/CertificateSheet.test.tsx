@@ -77,4 +77,23 @@ describe('CertificateSheet', () => {
     ).toBeInTheDocument()
     expect(sheet.textContent).not.toMatch(/restricci|apto|no apto/i)
   })
+
+  it('shows the formatted code and never the uuid', () => {
+    const { container } = render(
+      <CertificateSheet
+        certificate={{ ...CERTIFICATE, id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c', number: 4801, issuedAt: '2026-10-05' }}
+        entity={ENTITY}
+        worker={WORKER}
+        verifyUrl="https://verifica.example.co/c/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c"
+      />,
+    )
+
+    const sheet = screen.getByRole('group', { name: 'Certificado HAB-2026-004801' })
+    expect(within(sheet).getByText('HAB-2026-004801')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Código QR del certificado HAB-2026-004801' })).toBeInTheDocument()
+    container.querySelectorAll('[aria-label]').forEach((element) => {
+      expect(element.getAttribute('aria-label')).not.toContain('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+    })
+    expect(screen.getByTestId('qr')).toHaveAttribute('data-value', 'https://verifica.example.co/c/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+  })
 })

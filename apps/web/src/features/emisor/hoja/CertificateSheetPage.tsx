@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { certificateStatus, type Certificate, type Session, type Worker } from '@/data'
 import { CertificateSheet } from '@/features/emisor/hoja/CertificateSheet'
 import { useSheetData } from '@/features/emisor/hoja/useSheetData'
+import { formatCertificateId } from '@/data/certificate-id'
 import { formatLongDate } from '@/features/verificar/format'
 import { cn } from '@/lib/utils'
 
@@ -60,7 +61,7 @@ const useDocumentTitle = (id: string, certificate: Certificate | null, worker: W
 
   useEffect(() => {
     document.title = certificate && worker
-      ? `Certificado ${certificate.id} · ${worker.fullName}`
+      ? `Certificado ${formatCertificateId(certificate.number, certificate.issuedAt)} · ${worker.fullName}`
       : `Certificado ${id}`
   }, [id, certificate, worker])
 }
@@ -104,7 +105,7 @@ export const CertificateSheetPage = () => {
 
   return (
     <main className={PAGE_CLASS}>
-      <h1 className="sr-only">{`Hoja del certificado ${certificate.id}`}</h1>
+      <h1 className="sr-only">{`Hoja del certificado ${formatCertificateId(certificate.number, certificate.issuedAt)}`}</h1>
       <SheetBar annulled={annulled} />
       <SheetNotice certificate={certificate} status={status} />
       <div className={cn(annulled && 'print:hidden')}>

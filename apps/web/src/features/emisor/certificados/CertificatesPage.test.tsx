@@ -217,4 +217,21 @@ describe('CertificatesPage', () => {
 
     expect(screen.queryByText(/diagnóstic|restricci|resultado/i)).not.toBeInTheDocument()
   })
+
+  it('shows the formatted code in each row and never the uuid', async () => {
+    const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
+    const real = await actual.listCertificates(CUMBRE)
+    const withUuid = real.map((certificate) =>
+      certificate.number === 4718 ? { ...certificate, id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c' } : certificate,
+    )
+    vi.mocked(certificatesModule.listCertificates).mockResolvedValueOnce(withUuid)
+    await renderPage()
+    await waitForRows()
+
+    const row = rowOf('HAB-2026-004718')
+    expect(row).toHaveTextContent('HAB-2026-004718')
+    expect(within(row).getByRole('button', { name: 'Ver la hoja del certificado HAB-2026-004718' })).toBeDisabled()
+    expect(table().textContent).not.toContain('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+    expect(table().querySelector('[aria-label*="3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c"]')).toBeNull()
+  })
 })

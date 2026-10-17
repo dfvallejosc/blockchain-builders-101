@@ -97,4 +97,32 @@ describe('IssuedStep', () => {
 
     expect(onIssueAnother).toHaveBeenCalledTimes(1)
   })
+
+  it('shows the formatted code and keeps the uuid only in the URLs', () => {
+    const apiCertificate: Certificate = {
+      ...CERTIFICATE,
+      id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c',
+      number: 4801,
+      issuedAt: '2026-10-05',
+    }
+    const { container } = render(
+      <IssuedStep certificate={apiCertificate} entity={ENTITY} worker={WORKER} onIssueAnother={vi.fn()} />,
+    )
+
+    expect(screen.getByText(/El certificado HAB-2026-004801 de Sandra/)).toBeInTheDocument()
+    expect(screen.getAllByText('HAB-2026-004801').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('img', { name: 'Código QR del certificado HAB-2026-004801' })).toHaveLength(2)
+    container.querySelectorAll('.sheet__url').forEach((url) => url.remove())
+    expect(container.textContent).not.toContain('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+    container.querySelectorAll('[aria-label]').forEach((element) => {
+      expect(element.getAttribute('aria-label')).not.toContain('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+    })
+    screen.getAllByTestId('qr').forEach((code) => {
+      expect(code).toHaveAttribute('data-value', `${window.location.origin}/c/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c`)
+    })
+    expect(screen.getByRole('link', { name: /Descargar o imprimir/ })).toHaveAttribute(
+      'href',
+      '/emisor/certificados/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c/hoja',
+    )
+  })
 })

@@ -3,7 +3,13 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetState, signIn } from '@/data'
+import * as certificatesModule from '@/data/certificates'
 import { issuerRoutes } from '@/features/emisor/routes'
+
+vi.mock('@/data/certificates', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/certificates')>()
+  return { ...actual, getCertificate: vi.fn(actual.getCertificate) }
+})
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
@@ -100,5 +106,20 @@ describe('CertificateSheetPage', () => {
 
     expect(await screen.findByText('No encontramos este certificado')).toBeInTheDocument()
     expect(document.title).toBe('Certificado HAB-2026-999999')
+  })
+
+  it('shows the formatted code in the heading and title while the URLs keep the uuid', async () => {
+    const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
+    const real = await actual.getCertificate('HAB-2026-004718')
+    if (!real) throw new Error('expected the seeded certificate')
+    vi.mocked(certificatesModule.getCertificate).mockResolvedValueOnce({ ...real, id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c' })
+    await renderSheet('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
+
+    expect(await screen.findByRole('group', { name: 'Certificado HAB-2026-004718' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Hoja del certificado HAB-2026-004718' })).toBeInTheDocument()
+    expect(screen.getByTestId('qr')).toHaveAttribute('data-value', `${window.location.origin}/c/3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c`)
+    expect(document.title).toBe('Certificado HAB-2026-004718 · Carlos Andrés Ramírez Pineda')
+    document.querySelectorAll('.sheet__url').forEach((url) => url.remove())
+    expect(document.body.textContent).not.toContain('3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c')
   })
 })

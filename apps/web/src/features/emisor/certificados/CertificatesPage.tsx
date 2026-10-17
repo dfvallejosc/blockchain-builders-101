@@ -50,7 +50,7 @@ const COLUMNS: Column<CertificateRow>[] = [
     cell: (row) => (
       <>
         <span className="block">{row.typeLabel}</span>
-        <span className="block text-sm tracking-wide text-ha-text-muted">{row.id}</span>
+        <span className="block text-sm tracking-wide text-ha-text-muted">{row.code}</span>
       </>
     ),
   },
@@ -84,7 +84,7 @@ const COLUMNS: Column<CertificateRow>[] = [
     header: 'Acciones',
     className: 'text-right',
     cell: (row) => (
-      <Button variant="ghost" size="sm" disabled aria-label={`Ver la hoja del certificado ${row.id}`}>
+      <Button variant="ghost" size="sm" disabled aria-label={`Ver la hoja del certificado ${row.code}`}>
         Ver hoja
       </Button>
     ),
