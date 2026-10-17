@@ -11,7 +11,8 @@ export const signInControl = {
 // What the Clerk session looks like to the mocked hooks, for the tests that sign in and out.
 export const clerkSession = { signedIn: false }
 
-const ISSUER_EMAIL = 'emisor@example.co'
+// Who the mocked Clerk user is. `fullName` is null when the account has no name.
+export const clerkUser = { email: 'emisor@example.co', fullName: null as string | null }
 
 const createClerkModule = (isSignedIn: () => boolean, signOut: () => Promise<void> = async () => undefined) => ({
   ClerkProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -28,7 +29,11 @@ const createClerkModule = (isSignedIn: () => boolean, signOut: () => Promise<voi
   }),
   useUser: () => {
     if (!isSignedIn()) return { isLoaded: true, isSignedIn: false, user: null }
-    return { isLoaded: true, isSignedIn: true, user: { primaryEmailAddress: { emailAddress: ISSUER_EMAIL } } }
+    return {
+      isLoaded: true,
+      isSignedIn: true,
+      user: { primaryEmailAddress: { emailAddress: clerkUser.email }, fullName: clerkUser.fullName },
+    }
   },
 })
 
