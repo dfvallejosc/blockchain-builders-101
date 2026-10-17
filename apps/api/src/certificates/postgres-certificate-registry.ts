@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, type Repository } from 'typeorm';
 import { Certificate } from './certificate.entity.js';
-import type { CertificateRegistry, RegistryEntry, RegistryStatus } from './certificate-registry.js';
+import {
+  CertificateAlreadyAnnulledError,
+  type CertificateRegistry,
+  type RegistryEntry,
+  type RegistryStatus,
+} from './certificate-registry.js';
 
 @Injectable()
 export class PostgresCertificateRegistry implements CertificateRegistry {
@@ -31,9 +36,12 @@ export class PostgresCertificateRegistry implements CertificateRegistry {
   }
 
   async annul(certificateId: string): Promise<void> {
-    await this.certificates.update(
+    const result = await this.certificates.update(
       { id: certificateId, annulledAt: IsNull() },
       { annulledAt: new Date() },
     );
+    if (result.affected !== 1) {
+      throw new CertificateAlreadyAnnulledError();
+    }
   }
 }

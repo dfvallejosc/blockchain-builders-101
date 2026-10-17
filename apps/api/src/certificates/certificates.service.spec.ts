@@ -12,7 +12,10 @@ import { Certificate } from './certificate.entity.js';
 import { CertificateType } from './certificate-type.js';
 import type { IssueCertificateDto } from './dto/issue-certificate.dto.js';
 import type { FingerprintService } from './fingerprint/fingerprint.service.js';
-import type { CertificateRegistry } from './certificate-registry.js';
+import {
+  CertificateAlreadyAnnulledError,
+  type CertificateRegistry,
+} from './certificate-registry.js';
 import { toCertificateResponse } from './certificate-response.js';
 import { CertificatesService } from './certificates.service.js';
 
@@ -307,10 +310,8 @@ describe('CertificatesService', () => {
       expect(annul).not.toHaveBeenCalled();
     });
 
-    it('annuls a certificate and returns its updated response', async () => {
+    it('annuls through the registry and returns the updated certificate', async () => {
       const { service, certificates, annul } = buildHarness();
-      certificates.findOne.mockResolvedValue(buildCertificate());
-      certificates.update.mockResolvedValue({ affected: 1 });
       const updated = buildCertificate({
         annulledAt: new Date('2026-10-17T17:00:00.000Z'),
       });
@@ -321,40 +322,28 @@ describe('CertificatesService', () => {
       await expect(
         service.annul(buildIssuer(), CERTIFICATE_ID),
       ).resolves.toEqual(toCertificateResponse(updated));
-      expect(certificates.update).toHaveBeenCalledWith(
-        { id: CERTIFICATE_ID, issuerId: ISSUER_ID, annulledAt: IsNull() },
-        { annulledAt: expect.any(Date) },
-      );
       expect(annul).toHaveBeenCalledWith(CERTIFICATE_ID);
+      expect(certificates.update).not.toHaveBeenCalled();
     });
 
-    it('returns a conflict when another annulment wins the conditional update', async () => {
-      const { service, certificates } = buildHarness();
-      const certificate = buildCertificate();
-      const updated = buildCertificate({
-        annulledAt: new Date('2026-10-17T17:00:00.000Z'),
-      });
-      certificates.findOne
-        .mockResolvedValueOnce(certificate)
-        .mockResolvedValueOnce(certificate)
-        .mockResolvedValueOnce(updated);
-      certificates.update
-        .mockResolvedValueOnce({ affected: 1 })
-        .mockResolvedValueOnce({ affected: 0 });
+    it('returns a conflict when the registry reports the certificate was annulled meanwhile', async () => {
+      const { service, certificates, annul } = buildHarness();
+      certificates.findOne.mockResolvedValue(buildCertificate());
+      annul.mockRejectedValue(new CertificateAlreadyAnnulledError());
 
-      const results = await Promise.allSettled([
+      await expect(
         service.annul(buildIssuer(), CERTIFICATE_ID),
-        service.annul(buildIssuer(), CERTIFICATE_ID),
-      ]);
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
 
-      expect(
-        results.filter((result) => result.status === 'fulfilled'),
-      ).toHaveLength(1);
-      const rejected = results.find((result) => result.status === 'rejected');
-      expect(rejected?.status).toBe('rejected');
-      if (rejected?.status === 'rejected') {
-        expect(rejected.reason).toBeInstanceOf(ConflictException);
-      }
+    it('lets unexpected registry errors through', async () => {
+      const { service, certificates, annul } = buildHarness();
+      certificates.findOne.mockResolvedValue(buildCertificate());
+      annul.mockRejectedValue(new Error('registry down'));
+
+      await expect(
+        service.annul(buildIssuer(), CERTIFICATE_ID),
+      ).rejects.toThrow('registry down');
     });
   });
 });

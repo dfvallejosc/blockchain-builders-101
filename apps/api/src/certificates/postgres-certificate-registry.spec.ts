@@ -1,7 +1,7 @@
 import { IsNull, type Repository } from 'typeorm';
 import { Certificate } from './certificate.entity.js';
 import { PostgresCertificateRegistry } from './postgres-certificate-registry.js';
-import type { RegistryEntry } from './certificate-registry.js';
+import { CertificateAlreadyAnnulledError, type RegistryEntry } from './certificate-registry.js';
 
 const entry: RegistryEntry = {
   certificateId: 'certificate-123',
@@ -53,6 +53,7 @@ describe('PostgresCertificateRegistry', () => {
 
   it('marks the certificate as annulled only when it has not already been annulled', async () => {
     const repository = buildRepository();
+    repository.update.mockResolvedValue({ affected: 1 });
     const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
 
     await registry.annul(entry.certificateId);
@@ -61,6 +62,14 @@ describe('PostgresCertificateRegistry', () => {
       { id: entry.certificateId, annulledAt: IsNull() },
       { annulledAt: expect.any(Date) },
     );
+  });
+
+  it('rejects with CertificateAlreadyAnnulledError when no row changed', async () => {
+    const repository = buildRepository();
+    repository.update.mockResolvedValue({ affected: 0 });
+    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+
+    await expect(registry.annul(entry.certificateId)).rejects.toBeInstanceOf(CertificateAlreadyAnnulledError);
   });
 
   it('reports a certificate as not annulled when annulledAt is null', async () => {

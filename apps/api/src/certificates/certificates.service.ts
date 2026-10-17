@@ -12,8 +12,11 @@ import { DataSource, IsNull, MoreThanOrEqual, type Repository } from 'typeorm';
 import type { Issuer } from '../issuers/issuer.entity.js';
 import { Worker } from '../workers/worker.entity.js';
 import { Certificate } from './certificate.entity.js';
-import type { CertificateRegistry } from './certificate-registry.js';
-import { CERTIFICATE_REGISTRY } from './certificate-registry.js';
+import {
+  CERTIFICATE_REGISTRY,
+  CertificateAlreadyAnnulledError,
+  type CertificateRegistry,
+} from './certificate-registry.js';
 import {
   toCertificateResponse,
   type CertificateResponse,
@@ -150,15 +153,14 @@ export class CertificatesService {
       throw new ConflictException(CERTIFICATE_ALREADY_ANNULLED_MESSAGE);
     }
 
-    const update = await this.certificates.update(
-      { id, issuerId: issuer.id, annulledAt: IsNull() },
-      { annulledAt: new Date() },
-    );
-    if (update.affected !== 1) {
-      throw new ConflictException(CERTIFICATE_ALREADY_ANNULLED_MESSAGE);
+    try {
+      await this.registry.annul(id);
+    } catch (error) {
+      if (error instanceof CertificateAlreadyAnnulledError) {
+        throw new ConflictException(CERTIFICATE_ALREADY_ANNULLED_MESSAGE);
+      }
+      throw error;
     }
-
-    await this.registry.annul(id);
     const annulledCertificate = await this.certificates.findOne({
       where: { id, issuerId: issuer.id },
     });
