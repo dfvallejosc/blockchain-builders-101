@@ -1,4 +1,4 @@
-import { AxiosError, type AxiosResponse } from 'axios'
+import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios'
 import { describe, expect, it } from 'vitest'
 import { DataError } from '@/data/errors'
 import { mapApiError } from '@/lib/api-errors'
@@ -8,7 +8,7 @@ const axiosError = (status?: number, data?: unknown, code?: string): AxiosError 
     ? undefined
     : { status, data } as AxiosResponse
 
-  return new AxiosError('request failed', code, { headers: {} }, undefined, response)
+  return new AxiosError('request failed', code, { headers: new AxiosHeaders() }, undefined, response)
 }
 
 describe('mapApiError', () => {
@@ -25,6 +25,7 @@ describe('mapApiError', () => {
     [400, 'invalid-input'],
     [401, 'unauthorized'],
     [500, 'unavailable'],
+    [502, 'unavailable'],
     [503, 'unavailable'],
     [418, 'unknown'],
   ] as const)('maps HTTP %i to %s', (status, expectedCode) => {
