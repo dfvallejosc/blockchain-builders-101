@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { listCertificates, resetState, revokeEntity, verifyCertificate, type IssuerSession } from '@/data'
+import { certificateStatus, getCertificate, listCertificates, resetState, revokeEntity, type IssuerSession } from '@/data'
 import * as certificatesModule from '@/data/certificates'
 import { useIssueFlow } from '@/features/emisor/emitir/useIssueFlow'
 
@@ -105,7 +105,7 @@ describe('useIssueFlow', () => {
     expect(result.current.draft).toMatchObject({ workerId: 'w-sandra', type: '', issuedAt: '2026-10-01' })
   })
 
-  it('issues the certificate so it can be verified, and refreshes the data', async () => {
+  it('issues the certificate as valid, and refreshes the data', async () => {
     const { result } = await renderFlow()
     act(() => result.current.selectWorker('w-sandra'))
     act(() => result.current.continueToDetails())
@@ -116,8 +116,9 @@ describe('useIssueFlow', () => {
 
     expect(result.current.step).toBe('issued')
     expect(result.current.issued).not.toBeNull()
-    const verification = await verifyCertificate(result.current.issued?.id ?? '')
-    expect(verification.status).toBe('valid')
+    const stored = await getCertificate(result.current.issued?.id ?? '')
+    expect(stored).not.toBeNull()
+    expect(certificateStatus(stored!)).toBe('valid')
     expect(result.current.load.phase === 'ready' && result.current.load.certificates.length).toBe(before + 1)
   })
 

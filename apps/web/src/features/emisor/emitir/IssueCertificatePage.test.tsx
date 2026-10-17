@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState, revokeEntity, signIn, verifyCertificate } from '@/data'
+import { certificateStatus, getCertificate, resetState, revokeEntity, signIn } from '@/data'
 import { issuerRoutes } from '@/features/emisor/routes'
 
 vi.mock('qrcode.react', () => ({
@@ -41,7 +41,7 @@ describe('IssueCertificatePage', () => {
     vi.restoreAllMocks()
   })
 
-  it('issues a certificate through the four steps and it can be verified', async () => {
+  it('issues a certificate through the four steps and it is saved as valid', async () => {
     await renderAt('/emisor/emitir')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Emitir certificado' })).toBeInTheDocument()
@@ -55,7 +55,9 @@ describe('IssueCertificatePage', () => {
       expect(code).toHaveAttribute('data-value', `${window.location.origin}/c/HAB-2026-004719`),
     )
     expect(screen.getByRole('heading', { name: 'Vista previa del certificado' })).toBeInTheDocument()
-    expect((await verifyCertificate('HAB-2026-004719')).status).toBe('valid')
+    const stored = await getCertificate('HAB-2026-004719')
+    expect(stored).not.toBeNull()
+    expect(certificateStatus(stored!)).toBe('valid')
   })
 
   it('marks the current step and moves the focus to its heading', async () => {

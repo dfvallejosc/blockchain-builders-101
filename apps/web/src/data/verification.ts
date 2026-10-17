@@ -1,33 +1,46 @@
-import { certificateStatus } from '@/data/certificates'
-import { selectCertificates, selectEntities, selectWorkers } from '@/data/selectors'
-import { readState } from '@/data/storage'
-import type { VerificationResult } from '@/data/types'
+import { z } from 'zod'
+import { DataError } from '@/data/errors'
+import type { CertificateStatus, CertificateType, DocumentType, VerificationResult } from '@/data/types'
+import { apiClient } from '@/lib/api-client'
+
+const UNKNOWN_CERTIFICATE: VerificationResult = { status: 'invalid', reason: 'unknown-certificate' }
+
+const certificateTypes = ['height-work', 'confined-spaces', 'crane-operation', 'occupational-medical'] as const satisfies readonly CertificateType[]
+const documentTypes = ['cc', 'ce', 'ppt', 'passport'] as const satisfies readonly DocumentType[]
+const statuses = ['valid', 'expired', 'annulled'] as const satisfies readonly CertificateStatus[]
+
+// The answer is public and goes straight to the screen, so it is checked before it is used. Fields the screen
+// does not know are dropped, and a body that does not fit becomes an error instead of an invented result.
+const verificationResultSchema: z.ZodType<VerificationResult> = z.union([
+  z.object({
+    status: z.enum(statuses),
+    certificate: z.object({
+      id: z.string(),
+      type: z.enum(certificateTypes),
+      issuedAt: z.string(),
+      validUntil: z.string(),
+    }),
+    worker: z.object({
+      fullName: z.string(),
+      documentType: z.enum(documentTypes),
+      documentNumber: z.string(),
+    }),
+    entity: z.object({ name: z.string() }),
+  }),
+  z.object({ status: z.literal('invalid'), reason: z.literal('unknown-certificate') }),
+  z.object({
+    status: z.literal('invalid'),
+    reason: z.literal('entity-revoked'),
+    entity: z.object({ name: z.string() }),
+  }),
+])
 
 export const verifyCertificate = async (id: string): Promise<VerificationResult> => {
-  const state = readState()
-  const certificate = selectCertificates(state).find((candidate) => candidate.id === id)
-  if (!certificate) return { status: 'invalid', reason: 'unknown-certificate' }
+  const trimmed = id.trim()
+  if (trimmed === '') return UNKNOWN_CERTIFICATE
 
-  const entity = selectEntities(state).find((candidate) => candidate.id === certificate.entityId)
-  const worker = selectWorkers(state).find((candidate) => candidate.id === certificate.workerId)
-  if (!entity || !worker) return { status: 'invalid', reason: 'unknown-certificate' }
-  if (entity.revokedAt !== null) {
-    return { status: 'invalid', reason: 'entity-revoked', entity: { name: entity.name } }
-  }
-
-  return {
-    status: certificateStatus(certificate),
-    certificate: {
-      id: certificate.id,
-      type: certificate.type,
-      issuedAt: certificate.issuedAt,
-      validUntil: certificate.validUntil,
-    },
-    worker: {
-      fullName: worker.fullName,
-      documentType: worker.documentType,
-      documentNumber: worker.documentNumber,
-    },
-    entity: { name: entity.name },
-  }
+  const response = await apiClient.get<unknown>(`/verification/${encodeURIComponent(trimmed)}`)
+  const parsed = verificationResultSchema.safeParse(response.data)
+  if (!parsed.success) throw new DataError('unknown')
+  return parsed.data
 }

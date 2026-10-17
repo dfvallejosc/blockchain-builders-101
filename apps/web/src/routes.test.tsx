@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { resetState, signIn } from '@/data'
 import { appRoutes } from '@/routes'
+import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -17,9 +18,16 @@ const renderAt = (path: string) => {
 }
 
 describe('routes', () => {
+  let api: VerificationApiStub
+
   beforeEach(() => {
     window.localStorage.clear()
     resetState()
+    api = installVerificationApi()
+  })
+
+  afterEach(() => {
+    api.restore()
   })
 
   describe('public pages', () => {
@@ -63,7 +71,7 @@ describe('routes', () => {
     })
 
     it('shows the verification page without any session, with the id in the address', async () => {
-      renderAt('/c/HAB-2026-004718')
+      renderAt(`/c/${VALID_ID}`)
 
       expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
     })

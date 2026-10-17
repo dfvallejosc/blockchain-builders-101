@@ -1,42 +1,43 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState } from '@/data'
-import { verifyCertificate } from '@/data/verification'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useVerification } from '@/features/verificar/useVerification'
-
-vi.mock('@/data/verification', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/verification')>()
-  return { verifyCertificate: vi.fn(actual.verifyCertificate) }
-})
+import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
 
 describe('useVerification', () => {
+  let api: VerificationApiStub
+
   beforeEach(() => {
-    window.localStorage.clear()
-    resetState()
+    api = installVerificationApi()
+  })
+
+  afterEach(() => {
+    api.restore()
   })
 
   it('starts loading and then returns the result', async () => {
-    const { result } = renderHook(() => useVerification('HAB-2026-004718'))
+    const { result } = renderHook(() => useVerification(VALID_ID))
 
     expect(result.current.state).toEqual({ phase: 'loading' })
     await waitFor(() => expect(result.current.state.phase).toBe('done'))
+    expect(result.current.state).toMatchObject({ phase: 'done', result: { status: 'valid' } })
   })
 
   it('returns the error phase, not an invalid result, when the query fails', async () => {
-    vi.mocked(verifyCertificate).mockRejectedValueOnce(new Error('network'))
-    const { result } = renderHook(() => useVerification('HAB-2026-004718'))
+    api.failNext()
+    const { result } = renderHook(() => useVerification(VALID_ID))
 
     await waitFor(() => expect(result.current.state).toEqual({ phase: 'error' }))
   })
 
   it('queries again on retry', async () => {
-    vi.mocked(verifyCertificate).mockRejectedValueOnce(new Error('network'))
-    const { result } = renderHook(() => useVerification('HAB-2026-004718'))
+    api.failNext()
+    const { result } = renderHook(() => useVerification(VALID_ID))
     await waitFor(() => expect(result.current.state.phase).toBe('error'))
 
     act(() => result.current.retry())
 
     expect(result.current.state).toEqual({ phase: 'loading' })
     await waitFor(() => expect(result.current.state.phase).toBe('done'))
+    expect(api.calls).toEqual([VALID_ID, VALID_ID])
   })
 })
