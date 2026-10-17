@@ -3,6 +3,7 @@ import { listCertificates } from '@/api/certificates'
 import type { IssuerProfile } from '@/api/me'
 import type { Certificate, Worker } from '@/data'
 import { useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
+import { CERTIFICATES_KEY } from '@/features/emisor/certificados/useCertificates'
 import { useWorkersQuery } from '@/features/emisor/trabajadores/useWorkers'
 
 export type SheetData =
@@ -14,7 +15,7 @@ export type SheetData =
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const useSheetData = (certificateId: string): SheetData => {
-  const certificates = useQuery({ queryKey: ['issuer', 'certificates'], queryFn: listCertificates })
+  const certificates = useQuery({ queryKey: CERTIFICATES_KEY, queryFn: listCertificates })
   const workers = useWorkersQuery()
   const profile = useIssuerProfile()
 

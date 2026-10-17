@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { listCertificates } from '@/api/certificates'
 import { listWorkers } from '@/api/workers'
 import type { Certificate, Worker } from '@/data'
+import { WORKERS_KEY } from '@/features/emisor/trabajadores/useWorkers'
 
 export const CERTIFICATES_KEY = ['issuer', 'certificates'] as const
-const WORKERS_KEY = ['issuer', 'workers'] as const
 
 export type CertificatesState =
   | { phase: 'loading' }

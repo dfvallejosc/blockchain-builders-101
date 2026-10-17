@@ -6,6 +6,7 @@ import { DataError, type Certificate, type CertificateType, type Worker } from '
 import { today } from '@/data/clock'
 import type { IssueCertificateInput } from '@/data/types'
 import { useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
+import { CERTIFICATES_KEY } from '@/features/emisor/certificados/useCertificates'
 import { useWorkersQuery } from '@/features/emisor/trabajadores/useWorkers'
 
 export type IssueStep = 'worker' | 'details' | 'review' | 'issued'
@@ -26,8 +27,6 @@ export type LoadState =
   | { phase: 'ready'; profile: IssuerProfile; workers: Worker[]; certificates: Certificate[] }
 
 export type IssueFailure = 'duplicate' | 'failed' | null
-
-const CERTIFICATES_KEY = ['issuer', 'certificates'] as const
 
 const emptyDraft = (): IssueDraft => ({ workerId: null, type: '', issuedAt: today(), validUntil: '' })
 
