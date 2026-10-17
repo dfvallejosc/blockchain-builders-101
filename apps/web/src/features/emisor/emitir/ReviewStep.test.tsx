@@ -73,14 +73,14 @@ describe('ReviewStep', () => {
 
     expect(screen.getByText('No pudimos emitir el certificado')).toBeInTheDocument()
     expect(screen.getByText('Revisa los datos e inténtalo de nuevo.')).toBeInTheDocument()
-    expect(screen.queryByText(/ya tiene un certificado habilitado/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/ya tiene este certificado habilitado/)).not.toBeInTheDocument()
   })
 
   it('explains the duplicate and keeps Volver a editar available', () => {
     const { onBack } = renderStep({ failure: 'duplicate' })
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Esta persona ya tiene un certificado habilitado de este tipo. Podrás emitir otro cuando venza, o si lo anulas.',
+      'Carlos Andrés Ramírez Pineda ya tiene este certificado habilitado. Podrás emitir otro cuando venza, o si lo anulas.',
     )
     expect(screen.queryByText('No pudimos emitir el certificado')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Volver a editar' }))

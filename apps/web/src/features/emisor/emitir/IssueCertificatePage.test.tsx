@@ -196,10 +196,28 @@ describe('IssueCertificatePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Emitir certificado' }))
 
-    expect(await screen.findByText(/Esta persona ya tiene un certificado habilitado de este tipo/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        'Sandra Milena Lozano Pardo ya tiene este certificado habilitado. Podrás emitir otro cuando venza, o si lo anulas.',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Revisa antes de emitir' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Volver a editar' }))
     expect(await screen.findByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
+  })
+
+  it('blocks the duplicate in the details step after the API rejected it on issue', async () => {
+    vi.mocked(issueCertificate).mockRejectedValue(new DataError('duplicate'))
+    renderAt('/emisor/emitir')
+    await goToReview()
+    vi.mocked(listCertificates).mockResolvedValue([CARLOS_VALID, { ...CREATED, validUntil: '2027-03-01' }])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Emitir certificado' }))
+    await screen.findByText(/ya tiene este certificado habilitado\. Podrás/)
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a editar' }))
+
+    expect(await screen.findByText(/ya tiene este certificado habilitado hasta el 1 de marzo de 2027/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Revisar resumen' })).toBeDisabled()
   })
 
   it.each([

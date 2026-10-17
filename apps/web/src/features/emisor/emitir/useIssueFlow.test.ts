@@ -207,6 +207,17 @@ describe('useIssueFlow', () => {
     expect(result.current.issued).toBeNull()
   })
 
+  it('refreshes the certificates after a duplicate (409)', async () => {
+    vi.mocked(issueCertificate).mockRejectedValue(new DataError('duplicate'))
+    const { result } = await renderFlow()
+    toReview(result)
+    expect(listCertificates).toHaveBeenCalledTimes(1)
+
+    await act(() => result.current.issue())
+
+    await waitFor(() => expect(listCertificates).toHaveBeenCalledTimes(2))
+  })
+
   it.each<DataErrorCode>(['invalid-input', 'not-found', 'type-not-allowed', 'unavailable'])(
     'reports a generic failure for %s and stays on review',
     async (code) => {

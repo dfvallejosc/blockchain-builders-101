@@ -109,7 +109,10 @@ export const useIssueFlow = (initialWorkerId: string | null) => {
       setStep('issued')
       void queryClient.invalidateQueries({ queryKey: CERTIFICATES_KEY })
     } catch (error) {
-      setFailure(failureOf(error))
+      const reason = failureOf(error)
+      setFailure(reason)
+      // The details step reads the certificates to block a duplicate, so a 409 means they are stale.
+      if (reason === 'duplicate') void queryClient.invalidateQueries({ queryKey: CERTIFICATES_KEY })
     } finally {
       issuingRef.current = false
       setIssuing(false)

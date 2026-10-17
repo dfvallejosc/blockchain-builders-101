@@ -54,7 +54,7 @@ export const ReviewStep = ({ worker, profile, values, issuing, failure, onBack, 
 
     {failure === 'duplicate' && (
       <Alert tone="danger" title="Esta persona ya tiene este certificado">
-        Esta persona ya tiene un certificado habilitado de este tipo. Podrás emitir otro cuando venza, o si lo anulas.
+        {`${worker.fullName} ya tiene este certificado habilitado. Podrás emitir otro cuando venza, o si lo anulas.`}
       </Alert>
     )}
 
