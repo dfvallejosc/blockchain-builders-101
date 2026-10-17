@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { IssuerSession } from '@/data/types'
-import { endIssuerSession, sessionEndReasonFor, type SessionEndReason } from '@/features/emisor/auth/sessionEnd'
+import { LOGIN_PATH } from '@/features/auth/loginPaths'
+import { endSession, sessionEndReasonFor, type SessionEndReason } from '@/features/auth/sessionEnd'
 import { ISSUER_PROFILE_KEY, useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
-import { LOGIN_PATH } from '@/layouts/RequireSession'
 import { SessionActionsContext, type SessionActions } from '@/layouts/SessionActionsContext'
 import { setTokenProvider, type TokenProvider } from '@/lib/api-client'
 
@@ -29,7 +29,7 @@ const useEndSession = (): { ending: boolean; end: EndSession } => {
       if (endingRef.current) return
       endingRef.current = true
       setEnding(true)
-      await endIssuerSession({ signOut: (options) => signOut(options), queryClient, navigate }, reason)
+      await endSession({ signOut: (options) => signOut(options), queryClient, navigate }, LOGIN_PATH.issuer, reason)
     },
     [signOut, queryClient, navigate],
   )

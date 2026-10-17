@@ -2,15 +2,9 @@ import { useAuth } from '@clerk/react'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { getMe, type IssuerProfile } from '@/api/me'
 import type { DataError } from '@/data/errors'
+import { NotIssuerError } from '@/features/auth/errors'
 
 export const ISSUER_PROFILE_KEY = ['issuer', 'me'] as const
-
-export class NotIssuerError extends Error {
-  constructor() {
-    super('not-issuer')
-    this.name = 'NotIssuerError'
-  }
-}
 
 const fetchIssuerProfile = async (): Promise<IssuerProfile> => {
   const me = await getMe()

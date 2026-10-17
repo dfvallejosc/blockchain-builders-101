@@ -1,11 +1,7 @@
 import { Navigate, Outlet } from 'react-router'
+import { LOGIN_PATH } from '@/features/auth/loginPaths'
 import { useSession } from '@/hooks/useSession'
 import type { Role, Session } from '@/data'
-
-export const LOGIN_PATH: Record<Role, string> = {
-  issuer: '/emisor/ingresar',
-  admin: '/admin/ingresar',
-}
 
 interface RequireSessionProps {
   role: Role

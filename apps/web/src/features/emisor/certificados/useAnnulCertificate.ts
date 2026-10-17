@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react'
 import { annulCertificate } from '@/api/certificates'
 import { DataError } from '@/data'
 import { CERTIFICATES_KEY } from '@/features/emisor/certificados/useCertificates'
-import { sessionEndReasonFor } from '@/features/emisor/auth/sessionEnd'
+import { sessionEndReasonFor } from '@/features/auth/sessionEnd'
 
 export type AnnulResult = 'annulled' | 'already-annulled' | 'failed'
 

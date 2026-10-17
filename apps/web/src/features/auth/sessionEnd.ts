@@ -1,8 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { NavigateFunction } from 'react-router'
 import { DataError } from '@/data/errors'
-import { NotIssuerError } from '@/features/emisor/auth/useIssuerProfile'
-import { LOGIN_PATH } from '@/layouts/RequireSession'
+import { NotIssuerError } from '@/features/auth/errors'
 
 export type SessionEndReason = 'expired' | 'revoked' | 'no-role' | 'not-issuer'
 
@@ -23,11 +22,12 @@ export const sessionEndReasonFor = (error: unknown, fromProfile: boolean): Sessi
 }
 
 // Without a reason it is a plain sign out. A failed Clerk sign out still leaves the panel.
-export const endIssuerSession = async (
+export const endSession = async (
   { signOut, queryClient, navigate }: SessionEndDeps,
+  loginPath: string,
   reason?: SessionEndReason,
 ): Promise<void> => {
-  await signOut({ redirectUrl: LOGIN_PATH.issuer }).catch(() => undefined)
+  await signOut({ redirectUrl: loginPath }).catch(() => undefined)
   queryClient.clear()
-  await navigate(LOGIN_PATH.issuer, { replace: true, state: reason ? { reason } : undefined })
+  await navigate(loginPath, { replace: true, state: reason ? { reason } : undefined })
 }
