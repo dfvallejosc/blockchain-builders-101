@@ -10,7 +10,7 @@ Lo decidió Diego Vallejos, responsable de TA-20, en la sesión de brainstorming
 | --- | --- | --- |
 | Proveedor | **Clerk** | Es lo más rápido de poner en marcha, el plan gratis cubre de sobra a nuestros usuarios y no custodiamos contraseñas. Clerk envía él mismo las invitaciones por correo. |
 | Conexión con NestJS | **Guard propio** | Un módulo `auth/` con un guard global que verifica el token de Clerk con `@clerk/backend`, y decoradores propios `@Public()`, `@Roles()` y `@CurrentIssuer()`. Se descartó un paquete de la comunidad. |
-| Alcance de TA-20 | **Solo la base** | El guard, los roles, los decoradores, el vínculo cuenta ↔ emisor y `GET /me` (rol y entidad de la sesión). Las rutas de administración de entidades son de TA-21. |
+| Alcance de TA-20 | **Solo la base** | El guard, los roles, los decoradores, el vínculo cuenta ↔ emisor y `GET /me` (rol y entidad de la sesión: `id`, `name`, `certificateTypes`, `nit` y `city`; nunca datos de contacto). Las rutas de administración de entidades son de TA-21. |
 
 Se descartó Better Auth. Lo que se averiguó de él está al final, por si se vuelve a evaluar.
 
@@ -66,7 +66,7 @@ Prueba manual del 2026-10-17 en una instancia de **desarrollo** de Clerk (tipo d
 | Verificar un token real con `CLERK_SECRET_KEY` | Funciona |
 | `azp` del token contra `CORS_ORIGIN`, y la petición con `Authorization` desde el navegador | Funciona, sin problemas de CORS |
 | Usuario con `{ "role": "admin" }` | `200 { "role": "admin", "issuer": null }` |
-| Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id` y `name` de la entidad, sin correo ni teléfono |
+| Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id`, `name`, `certificateTypes`, `nit` y `city` de la entidad, sin correo, teléfono, contacto ni registro del Ministerio |
 | Entidad con `revoked_at` marcado y la misma sesión de Clerk | `403` con `code: "issuer-revoked"` |
 | Token inválido con llaves configuradas | `401` |
 | Invitación creada con `AccountsService.inviteIssuer(issuerId, correo)` | Funciona: Clerk envía el correo (en inglés) |
