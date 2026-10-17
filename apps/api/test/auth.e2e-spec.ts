@@ -44,6 +44,7 @@ describe('Auth (e2e)', () => {
   let revokedId: string;
   let deletedId: string;
   let activeName: string;
+  const activeNit = `auth-e2e-${runId}-active`;
 
   const insertedIds = (): string[] => [activeId, revokedId, deletedId].filter(Boolean);
 
@@ -150,16 +151,27 @@ describe('Auth (e2e)', () => {
       expect(response.body).toEqual({ role: 'admin', issuer: null });
     });
 
-    it('returns the issuer id and name and no contact data', async () => {
+    it('returns the issuer profile fields and no contact data', async () => {
       const response = await request(app.getHttpServer())
         .get('/me')
         .set('Authorization', bearer(issuerToken(activeId)))
         .expect(200);
 
-      expect(response.body).toEqual({ role: 'issuer', issuer: { id: activeId, name: activeName } });
+      expect(response.body).toEqual({
+        role: 'issuer',
+        issuer: {
+          id: activeId,
+          name: activeName,
+          certificateTypes: [CertificateType.HeightWork],
+          nit: activeNit,
+          city: 'Medellín',
+        },
+      });
       const body = JSON.stringify(response.body);
       expect(body).not.toContain(ISSUER_EMAIL);
       expect(body).not.toContain(ISSUER_PHONE);
+      expect(body).not.toContain('Contacto de prueba');
+      expect(body).not.toContain(`REG-${runId}-active`);
     });
 
     it('answers 403 issuer-revoked for a revoked issuer', async () => {
