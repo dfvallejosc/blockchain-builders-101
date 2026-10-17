@@ -1,6 +1,6 @@
 # Autenticación y roles (TA-20)
 
-Estado de las decisiones de autenticación. Es la base de TA-20 (issue #63). Revisado el 2026-10-16.
+Estado de las decisiones de autenticación. Es la base de TA-20 (issue #63). Revisado el 2026-10-17, con una prueba contra una instancia de desarrollo de Clerk (ver "Comprobado contra Clerk real").
 
 ## Decidido
 
@@ -19,13 +19,13 @@ Se descartó Better Auth. Lo que se averiguó de él está al final, por si se v
 Diego aprobó estas seis el 2026-10-16. Las marcadas con "por verificar" dependen de algo que la documentación de Clerk no confirmó, y se comprueban en una instancia de desarrollo antes de contar con ellas.
 
 1. **Primer acceso del emisor:** invitación por correo de Clerk. Por verificar que el plan gratis la permita. Si no, se crea la cuenta con una contraseña temporal.
-2. **Vínculo cuenta ↔ emisor:** `role` e `issuerId` van en los metadatos públicos del usuario en Clerk, y la API los pone al invitar. El guard los lee del token como `metadata: { role, issuerId }`. Que el plan gratis deje añadir esos datos al token y que lleguen con esa forma está por verificar en una instancia real de Clerk. Si no se puede, hará falta una tarea nueva (por ejemplo, consultar a Clerk con una caché corta en memoria); hoy eso no está implementado. No hay tabla de cuentas propia. Si el `issuerId` no existe en nuestra base, el guard responde 403.
+2. **Vínculo cuenta ↔ emisor:** `role` e `issuerId` van en los metadatos públicos del usuario en Clerk, y la API los pone al invitar. El guard los lee del token como `metadata: { role, issuerId }`. En una instancia de desarrollo de Clerk el token real trae esa forma (ver "Comprobado contra Clerk real"). Falta confirmar que el plan gratis la incluya en producción; si no, hará falta una tarea nueva (por ejemplo, consultar a Clerk con una caché corta en memoria), y hoy eso no está implementado. No hay tabla de cuentas propia. Si el `issuerId` no existe en nuestra base, el guard responde 403.
 3. **Entidad revocada: no se permite el acceso.** Como el plan gratis no incluye `banUser`, lo aplica el guard: si `issuer.revokedAt` está marcado, responde 403 en cualquier ruta, incluido `GET /me`, con un código que el front usa para mostrar el motivo. `issuer.revokedAt` es la única fuente de verdad. Clerk puede dejarla autenticarse, pero la API no le da nada.
 4. **Sesión:** el front manda el token de Clerk en el encabezado `Authorization`. No hace falta cookie ni proxy en Render. `authorizedParties` usa `CORS_ORIGIN`.
 5. **Primer administrador:** se crea a mano en el panel de Clerk con `role: admin` en sus metadatos. No hay código ni contraseña en variables de entorno.
 6. **Registro libre:** se cierra en el panel de Clerk con el modo solo por invitación (por verificar que el plan gratis lo permita). Además, el guard rechaza con 403 a cualquier usuario sin rol en sus metadatos. Solo correo y contraseña por ahora. Entrar con Google se puede activar después en el panel, sin cambiar la API.
 
-**Pruebas:** unitarias del guard con un verificador falso, y e2e con tokens firmados en local usando `jwtKey` (verificación sin red), para que el CI no necesite llaves de Clerk. Las suites unitaria y e2e ya demuestran que la verificación sin red funciona con tokens firmados en local. Lo que no prueban es el comportamiento de una instancia real de Clerk.
+**Pruebas:** unitarias del guard con un verificador falso, y e2e con tokens firmados en local usando `jwtKey` (verificación sin red), para que el CI no necesite llaves de Clerk. Las suites unitaria y e2e ya demuestran que la verificación sin red funciona con tokens firmados en local. Lo que no prueban es el comportamiento de una instancia real de Clerk; eso se comprobó a mano el 2026-10-17 (ver "Comprobado contra Clerk real").
 
 ## Lo que se sabe de Clerk
 
@@ -43,7 +43,7 @@ Comprobado en su documentación el 2026-10-16. Lo que la documentación no confi
 - Con `jwtKey` el token se verifica sin red. Con solo `secretKey`, Clerk descarga sus llaves por red.
 - `CLERK_JWT_KEY` debe ser la llave pública en PEM (SPKI, `BEGIN PUBLIC KEY`, RSA de 2048 bits). Se acepta en varias líneas (entre comillas en el `.env`) o en una sola. Una llave en formato PKCS#1 (`BEGIN RSA PUBLIC KEY`) o de otro tipo se rechaza al usarla por primera vez y se responde 503.
 - Entre orígenes distintos, el token llega por el encabezado `Authorization`. En el mismo origen llega por la cookie `__session`.
-- Se pueden añadir datos al token de sesión (por ejemplo el rol) desde el panel, en Sessions. El límite es 1,2 KB. No se confirmó que esté en el plan gratis ni la sintaxis para metadatos públicos. La forma `metadata: { role, issuerId }` que lee el verificador sigue sin confirmarse contra un token real de Clerk.
+- Se pueden añadir datos al token de sesión (por ejemplo el rol) desde el panel, en *Configure → Sessions → Customize session token*. El límite es 1,2 KB. Para los metadatos públicos del usuario, el claim es `{ "metadata": "{{user.public_metadata}}" }`. Funcionó en la instancia de desarrollo y el editor no lleva la etiqueta *Pro*; no se confirmó que el plan gratis lo incluya en producción.
 
 **Invitaciones**
 - `POST /v1/invitations` (límite de 100 por hora) acepta `emailAddress`, `redirectUrl` y `publicMetadata`. Clerk envía el correo con un enlace único. El correo del invitado queda verificado y la invitación vence al mes. Se pueden revocar.
@@ -53,9 +53,31 @@ Comprobado en su documentación el 2026-10-16. Lo que la documentación no confi
 **Bloqueo**
 - `banUser()` revoca sus sesiones y le impide volver a entrar, pero el plan gratis lo excluye. `lockUser()` bloquea solo hasta que pasa un tiempo (por defecto 1 hora). No se confirmó si está en el plan gratis.
 
+## Comprobado contra Clerk real
+
+Prueba manual del 2026-10-17 en una instancia de **desarrollo** de Clerk (tipo de aplicación *Consumer*, solo la API local en `localhost:3001` y una página desechable en `http://localhost:5173`, fuera del repositorio, que inicia sesión con Clerk y llama a `GET /me` con el token). Se pusieron `CLERK_SECRET_KEY` y `CLERK_PUBLISHABLE_KEY`, y `CORS_ORIGIN=http://localhost:5173`. Según las instrucciones dadas, no se puso `CLERK_JWT_KEY`, así que la verificación fue con la llave secreta (no se comprobó el `.env`).
+
+| Comprobación | Resultado |
+| --- | --- |
+| Claim `metadata` con los metadatos públicos del usuario, en el token | Funciona. El token real trae `metadata.role` |
+| Verificar un token real con `CLERK_SECRET_KEY` | Funciona |
+| `azp` del token contra `CORS_ORIGIN`, y la petición con `Authorization` desde el navegador | Funciona, sin problemas de CORS |
+| Usuario con `{ "role": "admin" }` | `200 { "role": "admin", "issuer": null }` |
+| Usuario con `{ "role": "issuer", "issuerId": "<uuid de una entidad>" }` | `200` con `id` y `name` de la entidad, sin correo ni teléfono |
+| Entidad con `revoked_at` marcado y la misma sesión de Clerk | `403` con `code: "issuer-revoked"` |
+| Token inválido con llaves configuradas | `401` |
+
+Quedó **sin comprobar**:
+- Las invitaciones (`inviteIssuer`): que existan en el plan gratis y que el `publicMetadata` de la invitación llegue al usuario.
+- El modo solo por invitación, para cerrar el registro libre. En la instancia de prueba el registro sigue abierto.
+- Entrar con Google: viene encendido por defecto en la instancia y hay que apagarlo en *Configure → User & authentication → SSO connections*. Si alguien entra con Google, Clerk puede crear un usuario sin rol y la API le responde 403.
+- Un token real con `CLERK_JWT_KEY` (verificación sin red).
+- Un fallo real de Clerk (503): solo lo cubren las pruebas unitarias.
+- Que el plan gratis incluya el claim personalizado en producción (la prueba fue en desarrollo).
+
 ## Cómo responde la API hoy
 
-Lo que hace el código, comprobado con las pruebas unitarias y e2e. Nada de esto se ha probado contra una instancia real de Clerk.
+Lo que hace el código, comprobado con las pruebas unitarias y e2e, y en parte con la prueba contra Clerk real de arriba.
 
 - **401:** no hay token, o el token es malo (vencido, mal firmado, de un origen no autorizado o sin usuario).
 - **503:** la verificación no puede hacerse. Es el caso de una llave mal configurada, de Clerk inalcanzable o de que Clerk rechace la llave secreta. Responde `El servicio no está disponible.` y no expone detalles.
