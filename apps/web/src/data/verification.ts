@@ -9,6 +9,8 @@ const certificateTypes = ['height-work', 'confined-spaces', 'crane-operation', '
 const documentTypes = ['cc', 'ce', 'ppt', 'passport'] as const satisfies readonly DocumentType[]
 const statuses = ['valid', 'expired', 'annulled'] as const satisfies readonly CertificateStatus[]
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
 // The answer is public and goes straight to the screen, so it is checked before it is used. Fields the screen
 // does not know are dropped, and a body that does not fit becomes an error instead of an invented result.
 const verificationResultSchema: z.ZodType<VerificationResult> = z.union([
@@ -17,8 +19,8 @@ const verificationResultSchema: z.ZodType<VerificationResult> = z.union([
     certificate: z.object({
       id: z.string(),
       type: z.enum(certificateTypes),
-      issuedAt: z.string(),
-      validUntil: z.string(),
+      issuedAt: z.string().regex(ISO_DATE),
+      validUntil: z.string().regex(ISO_DATE),
     }),
     worker: z.object({
       fullName: z.string(),
@@ -37,7 +39,8 @@ const verificationResultSchema: z.ZodType<VerificationResult> = z.union([
 
 export const verifyCertificate = async (id: string): Promise<VerificationResult> => {
   const trimmed = id.trim()
-  if (trimmed === '') return UNKNOWN_CERTIFICATE
+  // A dot segment is not an id, and in a URL it would climb out of /verification/ to the API root.
+  if (trimmed === '' || trimmed === '.' || trimmed === '..') return UNKNOWN_CERTIFICATE
 
   const response = await apiClient.get<unknown>(`/verification/${encodeURIComponent(trimmed)}`)
   const parsed = verificationResultSchema.safeParse(response.data)

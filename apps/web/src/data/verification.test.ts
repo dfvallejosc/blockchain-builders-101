@@ -96,6 +96,16 @@ describe('verifyCertificate', () => {
       expect(requests).toHaveLength(0)
     })
 
+    it.each(['.', '..', '  ..  '])(
+      'answers not valid for the id %j, which would otherwise climb out of the verification path',
+      async (id) => {
+        useAdapter(respondWith(validBody))
+
+        await expect(verifyCertificate(id)).resolves.toEqual({ status: 'invalid', reason: 'unknown-certificate' })
+        expect(requests).toHaveLength(0)
+      },
+    )
+
     it('trims the id', async () => {
       useAdapter(respondWith(validBody))
 
@@ -121,6 +131,8 @@ describe('verifyCertificate', () => {
       ['a valid result without the worker', { status: 'valid', certificate: validBody.certificate, entity: validBody.entity }],
       ['an unknown certificate type', { ...validBody, certificate: { ...validBody.certificate, type: 'diving' } }],
       ['an invalid result with an unknown reason', { status: 'invalid', reason: 'because' }],
+      ['a validity date that is not YYYY-MM-DD', { ...validBody, certificate: { ...validBody.certificate, validUntil: '2 de octubre' } }],
+      ['an issue date that is not a date', { ...validBody, certificate: { ...validBody.certificate, issuedAt: '' } }],
     ])('fails instead of drawing %s', async (_name, body) => {
       useAdapter(respondWith(body))
 

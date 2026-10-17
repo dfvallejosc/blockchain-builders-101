@@ -22,7 +22,6 @@ const PREVIEW_STATE: VerificationState = {
 
 const PhonePreview = () => {
   const [queriedAt] = useState(() => new Date())
-  const previewState = PREVIEW_STATE
 
   return (
     <div
@@ -35,9 +34,9 @@ const PhonePreview = () => {
         <Logo className="size-6" />
         HabilitApp
       </div>
-      <VerdictBanner state={previewState} />
+      <VerdictBanner state={PREVIEW_STATE} />
       <div className="pb-4">
-        <CertificateDetails state={previewState} queriedAt={queriedAt} />
+        <CertificateDetails state={PREVIEW_STATE} queriedAt={queriedAt} />
       </div>
     </div>
   )
