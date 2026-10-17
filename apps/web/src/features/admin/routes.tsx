@@ -1,6 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router'
-import { PlaceholderPage } from '@/components/PlaceholderPage'
 import { EntitiesPage } from '@/features/admin/emisores/EntitiesPage'
+import { EntityDetailPage } from '@/features/admin/emisores/EntityDetailPage'
 import { RegisterEntityPage } from '@/features/admin/emisores/RegisterEntityPage'
 import { LoginPage } from '@/features/admin/ingreso/LoginPage'
 import { PanelLayout } from '@/layouts/PanelLayout'
@@ -18,7 +18,7 @@ export const adminRoutes: RouteObject[] = [
           { index: true, element: <Navigate to="/admin/emisores" replace /> },
           { path: 'emisores', element: <EntitiesPage /> },
           { path: 'emisores/nuevo', element: <RegisterEntityPage /> },
-          { path: 'emisores/:id', element: <PlaceholderPage title="Detalle del emisor" /> },
+          { path: 'emisores/:id', element: <EntityDetailPage /> },
         ],
       },
     ],

@@ -18,7 +18,7 @@ export interface EntityFilters {
   statuses: EntityStatus[]
 }
 
-const TYPE_LABEL: Record<EntityType, string> = {
+export const TYPE_LABEL: Record<EntityType, string> = {
   clinic: 'Consultorio',
   'training-center': 'Centro de entrenamiento',
 }

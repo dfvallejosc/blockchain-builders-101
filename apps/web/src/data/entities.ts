@@ -49,6 +49,7 @@ export const revokeEntity = async (id: string): Promise<Entity> => {
   const state = readState()
   const entity = selectEntities(state).find((candidate) => candidate.id === id)
   if (!entity) throw new DataError('not-found')
+  if (entity.revokedAt !== null) return entity
 
   const revokedAt = today()
   writeState({ ...state, revokedEntities: { ...state.revokedEntities, [id]: revokedAt } })
