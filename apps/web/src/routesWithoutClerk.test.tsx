@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { resetState } from '@/data'
 import { appRoutes } from '@/routes'
+import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
 
 const renderAt = (path: string) => {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
@@ -16,14 +17,18 @@ const renderAt = (path: string) => {
 }
 
 describe('routes that do not need Clerk', () => {
+  let api: VerificationApiStub
+
   beforeEach(() => {
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', '')
     window.localStorage.clear()
     resetState()
+    api = installVerificationApi()
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    api.restore()
   })
 
   it('shows the admin login without a Clerk key', async () => {
@@ -33,7 +38,7 @@ describe('routes that do not need Clerk', () => {
   })
 
   it('shows the public verification page without a Clerk key', async () => {
-    renderAt('/c/HAB-2026-004718')
+    renderAt(`/c/${VALID_ID}`)
 
     expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
   })

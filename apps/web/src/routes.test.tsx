@@ -8,6 +8,7 @@ import { resetState, signIn } from '@/data'
 import { appRoutes } from '@/routes'
 import { clerkSession } from '@/test/clerk'
 import { createQueryWrapper } from '@/test/query'
+import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
 
 vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
 vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
@@ -66,16 +67,20 @@ const renderAt = (path: string) => {
 }
 
 describe('routes', () => {
+  let api: VerificationApiStub
+
   beforeEach(() => {
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     window.localStorage.clear()
     resetState()
     clerkSession.signedIn = false
     vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
+    api = installVerificationApi()
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    api.restore()
   })
 
   describe('public pages', () => {
@@ -126,7 +131,7 @@ describe('routes', () => {
     })
 
     it('shows the verification page without any session, with the id in the address', async () => {
-      renderAt('/c/HAB-2026-004718')
+      renderAt(`/c/${VALID_ID}`)
 
       expect(await screen.findByText('Carlos Andrés Ramírez Pineda')).toBeInTheDocument()
     })

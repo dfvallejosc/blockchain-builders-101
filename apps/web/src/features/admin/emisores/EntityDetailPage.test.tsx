@@ -3,7 +3,7 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
-import { listEntities, resetState, signIn, verifyCertificate } from '@/data'
+import { listEntities, resetState, signIn } from '@/data'
 import * as entitiesModule from '@/data/entities'
 import { today } from '@/data/clock'
 import { formatLongDate } from '@/features/verificar/format'
@@ -211,7 +211,7 @@ describe('EntityDetailPage', () => {
       expect(openDialogsWhenFocused).toEqual([0])
     })
 
-    it('leaves the issuer revoked for the list and for the public verification', async () => {
+    it('leaves the issuer revoked in the list', async () => {
       await renderPage(ACTIVE_ID)
       await screen.findByRole('heading', { level: 1, name: ACTIVE_NAME })
       openDialog()
@@ -221,7 +221,6 @@ describe('EntityDetailPage', () => {
 
       const entity = (await listEntities()).find((candidate) => candidate.id === ACTIVE_ID)
       expect(entity?.revokedAt).toBe(today())
-      expect(await verifyCertificate('HAB-2026-004711')).toMatchObject({ status: 'invalid', reason: 'entity-revoked' })
     })
 
     it('keeps the issuer active and warns the admin when revoking fails', async () => {
