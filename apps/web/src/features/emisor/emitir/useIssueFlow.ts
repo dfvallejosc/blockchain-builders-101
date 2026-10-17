@@ -1,17 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  DataError,
-  getEntity,
-  issueCertificate,
-  listCertificates,
-  listWorkers,
-  type Certificate,
-  type CertificateType,
-  type Entity,
-  type IssuerSession,
-  type Worker,
-} from '@/data'
+import { useCallback, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { issueCertificate, listCertificates } from '@/api/certificates'
+import type { IssuerProfile } from '@/api/me'
+import { DataError, type Certificate, type CertificateType, type Worker } from '@/data'
 import { today } from '@/data/clock'
+import { useIssuerProfile } from '@/features/emisor/auth/useIssuerProfile'
+import { useWorkersQuery } from '@/features/emisor/trabajadores/useWorkers'
 
 export type IssueStep = 'worker' | 'details' | 'review' | 'issued'
 
@@ -28,88 +22,71 @@ export interface IssueDraft extends DetailsFormValues {
 export type LoadState =
   | { phase: 'loading' }
   | { phase: 'error' }
-  | { phase: 'ready'; entity: Entity; workers: Worker[]; certificates: Certificate[] }
+  | { phase: 'ready'; profile: IssuerProfile; workers: Worker[]; certificates: Certificate[] }
 
-interface LoadedData {
-  entity: Entity
-  workers: Worker[]
-  certificates: Certificate[]
-}
+export type IssueFailure = 'duplicate' | 'failed' | null
+
+const CERTIFICATES_KEY = ['issuer', 'certificates'] as const
 
 const emptyDraft = (): IssueDraft => ({ workerId: null, type: '', issuedAt: today(), validUntil: '' })
 
-const fetchAll = async (entityId: string): Promise<LoadedData> => {
-  const [entity, workers, certificates] = await Promise.all([
-    getEntity(entityId),
-    listWorkers(entityId),
-    listCertificates(entityId),
-  ])
-  if (!entity) throw new DataError('not-found')
-  return { entity, workers, certificates }
+const failureOf = (error: unknown): IssueFailure => {
+  if (!(error instanceof DataError)) return 'failed'
+  if (error.code === 'duplicate') return 'duplicate'
+  if (error.code === 'unauthorized' || error.code === 'entity-revoked') return null
+  return 'failed'
 }
 
-export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | null) => {
-  const { entityId } = session
-  const [load, setLoad] = useState<LoadState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
+export const useIssueFlow = (initialWorkerId: string | null) => {
+  const queryClient = useQueryClient()
+  const profile = useIssuerProfile()
+  const workers = useWorkersQuery()
+  const certificates = useQuery({ queryKey: CERTIFICATES_KEY, queryFn: listCertificates })
   const [step, setStep] = useState<IssueStep>('worker')
   const [draft, setDraft] = useState<IssueDraft>(emptyDraft)
   const [issued, setIssued] = useState<Certificate | null>(null)
   const [issuing, setIssuing] = useState(false)
-  const [failed, setFailed] = useState(false)
-  const [revokedMeanwhile, setRevokedMeanwhile] = useState(false)
-  const seeded = useRef(false)
+  const [failure, setFailure] = useState<IssueFailure>(null)
+  const [seeded, setSeeded] = useState(false)
   const issuingRef = useRef(false)
 
-  useEffect(() => {
-    let cancelled = false
-    fetchAll(entityId)
-      .then((data) => {
-        if (cancelled) return
-        setLoad({ phase: 'ready', ...data })
-        const canSeed =
-          !seeded.current &&
-          initialWorkerId !== null &&
-          data.entity.revokedAt === null &&
-          data.workers.some((worker) => worker.id === initialWorkerId)
-        if (!canSeed) return
-        seeded.current = true
-        setDraft((current) => ({ ...current, workerId: initialWorkerId }))
-        setStep('details')
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ phase: 'error' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [entityId, initialWorkerId, attempt])
+  const queries = [profile, workers, certificates]
+  const load: LoadState =
+    profile.data && workers.data && certificates.data
+      ? { phase: 'ready', profile: profile.data, workers: workers.data, certificates: certificates.data }
+      : queries.some((query) => query.isError && !query.isFetching)
+        ? { phase: 'error' }
+        : { phase: 'loading' }
 
-  const blocked = revokedMeanwhile || (load.phase === 'ready' && load.entity.revokedAt !== null)
+  if (!seeded && initialWorkerId !== null && workers.data?.some((worker) => worker.id === initialWorkerId)) {
+    setSeeded(true)
+    setDraft((current) => ({ ...current, workerId: initialWorkerId }))
+    setStep('details')
+  }
 
   const selectWorker = useCallback((id: string) => {
     setDraft((current) => ({ ...current, workerId: id }))
   }, [])
 
   const continueToDetails = useCallback(() => {
-    if (draft.workerId === null || blocked) return
+    if (draft.workerId === null) return
     setStep('details')
-  }, [draft.workerId, blocked])
+  }, [draft.workerId])
 
   const saveDetails = useCallback((values: DetailsFormValues) => {
     setDraft((current) => ({ ...current, ...values }))
-    setFailed(false)
+    setFailure(null)
     setStep('review')
   }, [])
 
   const backToWorker = useCallback((values?: DetailsFormValues) => {
     if (values) setDraft((current) => ({ ...current, ...values }))
-    setFailed(false)
+    setFailure(null)
     setStep('worker')
   }, [])
 
   const backToDetails = useCallback(() => {
-    setFailed(false)
+    setFailure(null)
     setStep('details')
   }, [])
 
@@ -117,39 +94,37 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
     if (issuingRef.current || draft.workerId === null || draft.type === '') return
     issuingRef.current = true
     setIssuing(true)
-    setFailed(false)
+    setFailure(null)
     try {
-      const certificate = await issueCertificate(entityId, {
+      const certificate = await issueCertificate({
         workerId: draft.workerId,
         type: draft.type,
         issuedAt: draft.issuedAt,
         validUntil: draft.validUntil,
       })
       setIssued(certificate)
-      setLoad((current) =>
-        current.phase === 'ready' ? { ...current, certificates: [certificate, ...current.certificates] } : current,
-      )
       setStep('issued')
+      void queryClient.invalidateQueries({ queryKey: CERTIFICATES_KEY })
     } catch (error) {
-      if (error instanceof DataError && error.code === 'entity-revoked') setRevokedMeanwhile(true)
-      else setFailed(true)
+      setFailure(failureOf(error))
     } finally {
       issuingRef.current = false
       setIssuing(false)
     }
-  }, [draft, entityId])
+  }, [draft, queryClient])
 
   const issueAnother = useCallback(() => {
     setDraft(emptyDraft())
     setIssued(null)
-    setFailed(false)
+    setFailure(null)
     setStep('worker')
   }, [])
 
   const retry = useCallback(() => {
-    setLoad({ phase: 'loading' })
-    setAttempt((current) => current + 1)
-  }, [])
+    for (const query of [profile, workers, certificates]) {
+      if (query.isError) void query.refetch()
+    }
+  }, [profile, workers, certificates])
 
   return {
     load,
@@ -157,8 +132,7 @@ export const useIssueFlow = (session: IssuerSession, initialWorkerId: string | n
     draft,
     issued,
     issuing,
-    failed,
-    blocked,
+    failure,
     selectWorker,
     continueToDetails,
     saveDetails,

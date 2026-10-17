@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Steps } from '@/components/ui/steps'
-import type { IssuerSession, Session } from '@/data'
 import { DetailsStep } from '@/features/emisor/emitir/DetailsStep'
 import { IssuedStep } from '@/features/emisor/emitir/IssuedStep'
 import { ReviewStep } from '@/features/emisor/emitir/ReviewStep'
@@ -14,11 +13,10 @@ import { WorkerStep } from '@/features/emisor/emitir/WorkerStep'
 
 const STEP_LABELS = ['Trabajador', 'Datos del certificado', 'Revisión', 'Emitido']
 const STEP_ORDER: IssueStep[] = ['worker', 'details', 'review', 'issued']
-const BLOCKED_REASON = 'No disponible: tu entidad está revocada.'
 
-const IssueFlow = ({ session }: { session: IssuerSession }) => {
+export const IssueCertificatePage = () => {
   const [params] = useSearchParams()
-  const flow = useIssueFlow(session, params.get('trabajador'))
+  const flow = useIssueFlow(params.get('trabajador'))
   const [registeredDismissed, setRegisteredDismissed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const previousStep = useRef(flow.step)
@@ -56,9 +54,8 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
       )
     }
 
-    const { entity, workers, certificates } = load
+    const { profile, workers, certificates } = load
     const worker = workers.find((candidate) => candidate.id === draft.workerId) ?? null
-    const blockedReason = flow.blocked ? BLOCKED_REASON : null
 
     if (flow.step === 'details' && worker) {
       return (
@@ -70,7 +67,7 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
           )}
           <DetailsStep
             worker={worker}
-            entity={entity}
+            profile={profile}
             certificates={certificates}
             initialValues={{ type: draft.type, issuedAt: draft.issuedAt, validUntil: draft.validUntil }}
             onChangeWorker={flow.backToWorker}
@@ -83,11 +80,10 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
       return (
         <ReviewStep
           worker={worker}
-          entity={entity}
+          profile={profile}
           values={{ type: draft.type, issuedAt: draft.issuedAt, validUntil: draft.validUntil }}
-          blockedReason={blockedReason}
           issuing={flow.issuing}
-          failed={flow.failed}
+          failure={flow.failure}
           onBack={flow.backToDetails}
           onConfirm={flow.issue}
         />
@@ -95,14 +91,13 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
     }
     if (flow.step === 'issued' && flow.issued) {
       const issuedWorker = workers.find((candidate) => candidate.id === flow.issued?.workerId)
-      if (issuedWorker) return <IssuedStep certificate={flow.issued} entity={entity} worker={issuedWorker} onIssueAnother={flow.issueAnother} />
+      if (issuedWorker) return <IssuedStep certificate={flow.issued} profile={profile} worker={issuedWorker} onIssueAnother={flow.issueAnother} />
     }
     return (
       <WorkerStep
         workers={workers}
         certificates={certificates}
         selectedId={draft.workerId}
-        blockedReason={blockedReason}
         onSelect={flow.selectWorker}
         onContinue={flow.continueToDetails}
       />
@@ -116,17 +111,7 @@ const IssueFlow = ({ session }: { session: IssuerSession }) => {
         <p className="mt-1 text-ha-text-muted">Elige al trabajador, completa los datos del certificado y confirma.</p>
       </div>
       <Steps steps={STEP_LABELS} current={STEP_ORDER.indexOf(flow.step)} />
-      {flow.blocked && (
-        <Alert tone="danger" title="Tu entidad está revocada">
-          Por eso no puedes emitir certificados nuevos.
-        </Alert>
-      )}
       {renderBody()}
     </section>
   )
-}
-
-export const IssueCertificatePage = () => {
-  const session = useOutletContext<Session>()
-  return session.role === 'issuer' ? <IssueFlow session={session} /> : null
 }

@@ -1,20 +1,21 @@
 import { Download } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
+import type { IssuerProfile } from '@/api/me'
 import { Alert } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
-import type { Certificate, Entity, Worker } from '@/data'
+import type { Certificate, Worker } from '@/data'
 import { formatCertificateId } from '@/data/certificate-id'
 import { CertificateSheet } from '@/features/emisor/hoja/CertificateSheet'
 import { cn } from '@/lib/utils'
 
 interface IssuedStepProps {
   certificate: Certificate
-  entity: Entity
+  profile: IssuerProfile
   worker: Worker
   onIssueAnother: () => void
 }
 
-export const IssuedStep = ({ certificate, entity, worker, onIssueAnother }: IssuedStepProps) => {
+export const IssuedStep = ({ certificate, profile, worker, onIssueAnother }: IssuedStepProps) => {
   const code = formatCertificateId(certificate.number, certificate.issuedAt)
   const verifyUrl = `${window.location.origin}/c/${certificate.id}`
 
@@ -61,7 +62,7 @@ export const IssuedStep = ({ certificate, entity, worker, onIssueAnother }: Issu
             Vista previa del certificado
           </h2>
           <div className="mx-auto w-full max-w-105">
-            <CertificateSheet certificate={certificate} profile={entity} worker={worker} verifyUrl={verifyUrl} />
+            <CertificateSheet certificate={certificate} profile={profile} worker={worker} verifyUrl={verifyUrl} />
           </div>
         </section>
       </div>

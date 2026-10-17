@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { getMe, type IssuerProfile } from '@/api/me'
+import { listCertificates } from '@/api/certificates'
 import { listWorkers, registerWorker } from '@/api/workers'
 import { DataError } from '@/data/errors'
 import type { Worker } from '@/data/types'
@@ -13,6 +14,7 @@ import { createQueryWrapper } from '@/test/query'
 vi.mock('@clerk/react', async () => (await import('@/test/clerk')).signedInClerkModule())
 vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
 vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(), registerWorker: vi.fn() }))
+vi.mock('@/api/certificates', () => ({ listCertificates: vi.fn(), issueCertificate: vi.fn() }))
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="qr" data-value={value} />,
@@ -61,6 +63,7 @@ describe('RegisterWorkerPage', () => {
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
     vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
     vi.mocked(listWorkers).mockReset().mockResolvedValue([])
+    vi.mocked(listCertificates).mockReset().mockResolvedValue([])
     vi.mocked(registerWorker).mockReset().mockResolvedValue(CREATED)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 9, 12))
@@ -144,6 +147,7 @@ describe('RegisterWorkerPage', () => {
   })
 
   it('returns to step 2 of "Emitir certificado" with the worker already chosen', async () => {
+    vi.mocked(listWorkers).mockResolvedValue([CREATED])
     const router = await renderAt('/emisor/trabajadores/nuevo?volver=emitir')
     await screen.findByLabelText(/Nombre completo/)
     fillForm()
@@ -152,6 +156,8 @@ describe('RegisterWorkerPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
     expect(router.state.location.search).toBe('?trabajador=w-marta&nuevo=1')
+    expect(await screen.findByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
+    expect(screen.getByText('Ahora completa los datos del certificado.')).toBeInTheDocument()
   })
 
   it('warns when the worker is already registered in the entity', async () => {

@@ -1,23 +1,17 @@
 import type { ComponentProps } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Certificate, Entity, Worker } from '@/data'
+import { MemoryRouter } from 'react-router'
+import type { IssuerProfile } from '@/api/me'
+import type { Certificate, Worker } from '@/data'
 import { DetailsStep } from '@/features/emisor/emitir/DetailsStep'
 
-const ENTITY: Entity = {
+const PROFILE: IssuerProfile = {
   id: 'e',
   name: 'Centro',
-  type: 'training-center',
-  city: 'Bogotá',
-  registeredAt: '2025-01-01',
-  revokedAt: null,
   certificateTypes: ['height-work', 'confined-spaces'],
-  nit: '',
-  contactName: '',
-  email: '',
-  phone: '',
-  ministryRegistration: '',
-  issuedThisMonth: 0,
+  nit: '901.456.223-8',
+  city: 'Bogotá',
 }
 const WORKER: Worker = {
   id: 'w-carlos',
@@ -34,15 +28,17 @@ const renderStep = (props: Partial<ComponentProps<typeof DetailsStep>> = {}) => 
   const onSubmit = vi.fn()
   const onChangeWorker = vi.fn()
   render(
-    <DetailsStep
-      worker={WORKER}
-      entity={ENTITY}
-      certificates={[]}
-      initialValues={EMPTY}
-      onChangeWorker={onChangeWorker}
-      onSubmit={onSubmit}
-      {...props}
-    />,
+    <MemoryRouter>
+      <DetailsStep
+        worker={WORKER}
+        profile={PROFILE}
+        certificates={[]}
+        initialValues={EMPTY}
+        onChangeWorker={onChangeWorker}
+        onSubmit={onSubmit}
+        {...props}
+      />
+    </MemoryRouter>,
   )
   return { onSubmit, onChangeWorker }
 }
@@ -62,7 +58,7 @@ describe('DetailsStep', () => {
     vi.useRealTimers()
   })
 
-  it('shows the chosen worker and only the types the entity can issue', () => {
+  it('shows the chosen worker and only the types of the profile', () => {
     renderStep()
 
     expect(screen.getByRole('heading', { name: 'Datos del certificado' })).toBeInTheDocument()
@@ -131,50 +127,71 @@ describe('DetailsStep', () => {
     expect(await screen.findByText('Elige el tipo de certificado.')).toBeInTheDocument()
   })
 
-  it('warns, without blocking, when the worker already has that certificate valid', async () => {
-    const duplicate: Certificate = {
-      number: 1,
-      id: 'HAB-2026-000001',
-      entityId: 'e',
-      workerId: 'w-carlos',
-      type: 'height-work',
-      issuedAt: '2026-01-01',
-      validUntil: '2027-10-05',
-      annulledAt: null,
-    }
-    const { onSubmit } = renderStep({ certificates: [duplicate] })
+  const certificate = (overrides: Partial<Certificate>): Certificate => ({
+    number: 1,
+    id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c',
+    entityId: 'e',
+    workerId: 'w-carlos',
+    type: 'height-work',
+    issuedAt: '2026-01-01',
+    validUntil: '2027-10-05',
+    annulledAt: null,
+    ...overrides,
+  })
+
+  it('blocks Revisar resumen when the worker already has that certificate valid', async () => {
+    const { onSubmit } = renderStep({ certificates: [certificate({})] })
+
+    fill('height-work', '2027-10-09')
+
+    const alert = await screen.findByRole('status')
+    expect(alert).toHaveTextContent(
+      'Carlos Andrés Ramírez Pineda ya tiene este certificado habilitado hasta el 5 de octubre de 2027. Podrás emitir otro cuando venza, o si lo anulas.',
+    )
+    expect(within(alert).getByRole('link', { name: 'Ver certificados' })).toHaveAttribute('href', '/emisor/certificados')
+    const button = screen.getByRole('button', { name: 'Revisar resumen' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAccessibleDescription(/ya tiene este certificado habilitado/)
+    fireEvent.click(button)
+    fireEvent.submit(button.closest('form') as HTMLFormElement)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('still blocks on the last day of validity', async () => {
+    renderStep({ certificates: [certificate({ validUntil: '2026-10-09' })] })
 
     fireEvent.change(screen.getByLabelText(/Tipo de certificado/), { target: { value: 'height-work' } })
 
-    const warning = await screen.findByText('Carlos Andrés Ramírez Pineda ya tiene este certificado habilitado')
-    expect(warning).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Su certificado de Trabajo en alturas está vigente hasta el 5 de octubre de 2027. Si emites otro, los dos seguirán habilitados.',
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/hasta el 9 de octubre de 2026/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Revisar resumen' })).toBeDisabled()
+  })
 
-    fireEvent.change(screen.getByLabelText(/Vigente hasta/), { target: { value: '2027-10-09' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar resumen' }))
+  it.each([
+    ['expired', certificate({ validUntil: '2026-10-08' })],
+    ['annulled', certificate({ annulledAt: '2026-05-01' })],
+    ['of another type', certificate({ type: 'confined-spaces' })],
+    ['of another worker', certificate({ workerId: 'w-other' })],
+  ])('does not block for a certificate that is %s', async (_label, other) => {
+    const { onSubmit } = renderStep({ certificates: [other] })
+
+    fill('height-work', '2027-10-09')
+
+    expect(screen.queryByText(/ya tiene este certificado habilitado/)).not.toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Revisar resumen' })
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
   })
 
-  it('does not warn for another type or for an expired certificate', () => {
-    const expired: Certificate = {
-      number: 1,
-      id: 'HAB-2025-000001',
-      entityId: 'e',
-      workerId: 'w-carlos',
-      type: 'height-work',
-      issuedAt: '2025-01-01',
-      validUntil: '2026-01-01',
-      annulledAt: null,
-    }
-    renderStep({ certificates: [expired] })
-
+  it('unblocks when the type changes to one the worker does not have', async () => {
+    renderStep({ certificates: [certificate({})] })
     fireEvent.change(screen.getByLabelText(/Tipo de certificado/), { target: { value: 'height-work' } })
+    expect(await screen.findByRole('button', { name: 'Revisar resumen' })).toBeDisabled()
 
-    expect(screen.queryByText(/ya tiene este certificado habilitado/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/Tipo de certificado/), { target: { value: 'confined-spaces' } })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Revisar resumen' })).toBeEnabled())
   })
 
   it('keeps what was typed when changing the worker', () => {

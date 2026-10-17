@@ -1,17 +1,16 @@
+import type { IssuerProfile } from '@/api/me'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import type { CertificateType, Entity, Worker } from '@/data'
+import type { CertificateType, Worker } from '@/data'
+import type { IssueFailure } from '@/features/emisor/emitir/useIssueFlow'
 import { certificateTypeLabel, formatDocument, formatLongDate } from '@/features/verificar/format'
-
-const BLOCKED_ID = 'review-blocked-reason'
 
 interface ReviewStepProps {
   worker: Worker
-  entity: Entity
+  profile: IssuerProfile
   values: { type: CertificateType; issuedAt: string; validUntil: string }
-  blockedReason: string | null
   issuing: boolean
-  failed: boolean
+  failure: IssueFailure
   onBack: () => void
   onConfirm: () => void
 }
@@ -29,7 +28,7 @@ const Row = ({ label, value, mono = false }: RowProps) => (
   </div>
 )
 
-export const ReviewStep = ({ worker, entity, values, blockedReason, issuing, failed, onBack, onConfirm }: ReviewStepProps) => (
+export const ReviewStep = ({ worker, profile, values, issuing, failure, onBack, onConfirm }: ReviewStepProps) => (
   <div className="grid gap-5">
     <section className="rounded-lg border border-ha-border bg-ha-surface p-5">
       <h2 tabIndex={-1} className="text-lg font-semibold">
@@ -42,7 +41,7 @@ export const ReviewStep = ({ worker, entity, values, blockedReason, issuing, fai
         <Row label="Trabajador" value={worker.fullName} />
         <Row label="Documento" value={formatDocument(worker.documentType, worker.documentNumber)} mono />
         <Row label="Tipo de certificado" value={certificateTypeLabel(values.type)} />
-        <Row label="Entidad emisora" value={entity.name} />
+        <Row label="Entidad emisora" value={profile.name} />
         <Row label="Fecha de emisión" value={formatLongDate(values.issuedAt)} />
         <Row label="Vigente hasta" value={formatLongDate(values.validUntil)} />
       </dl>
@@ -53,7 +52,13 @@ export const ReviewStep = ({ worker, entity, values, blockedReason, issuing, fai
       emitir uno nuevo.
     </Alert>
 
-    {failed && (
+    {failure === 'duplicate' && (
+      <Alert tone="danger" title="Esta persona ya tiene este certificado">
+        Esta persona ya tiene un certificado habilitado de este tipo. Podrás emitir otro cuando venza, o si lo anulas.
+      </Alert>
+    )}
+
+    {failure === 'failed' && (
       <Alert tone="danger" title="No pudimos emitir el certificado">
         Revisa los datos e inténtalo de nuevo.
       </Alert>
@@ -64,16 +69,9 @@ export const ReviewStep = ({ worker, entity, values, blockedReason, issuing, fai
         Volver a editar
       </Button>
       <div className="flex flex-wrap items-center justify-end gap-3">
-        {blockedReason && (
-          <p id={BLOCKED_ID} className="text-sm text-ha-text-muted">
-            {blockedReason}
-          </p>
-        )}
         <Button
           loading={issuing}
           loadingText="Emitiendo…"
-          disabled={blockedReason !== null}
-          aria-describedby={blockedReason ? BLOCKED_ID : undefined}
           onClick={onConfirm}
         >
           Emitir certificado

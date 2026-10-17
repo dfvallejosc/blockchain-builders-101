@@ -1,10 +1,11 @@
 import type { ComponentProps } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { Entity, Worker } from '@/data'
+import type { IssuerProfile } from '@/api/me'
+import type { Worker } from '@/data'
 import { ReviewStep } from '@/features/emisor/emitir/ReviewStep'
 
-const ENTITY = { id: 'e', name: 'Centro de Entrenamiento Cumbre Firme' } as Entity
+const PROFILE = { id: 'e', name: 'Centro de Entrenamiento Cumbre Firme' } as IssuerProfile
 const WORKER = {
   id: 'w',
   fullName: 'Carlos Andrés Ramírez Pineda',
@@ -19,11 +20,10 @@ const renderStep = (props: Partial<ComponentProps<typeof ReviewStep>> = {}) => {
   render(
     <ReviewStep
       worker={WORKER}
-      entity={ENTITY}
+      profile={PROFILE}
       values={VALUES}
-      blockedReason={null}
       issuing={false}
-      failed={false}
+      failure={null}
       onBack={onBack}
       onConfirm={onConfirm}
       {...props}
@@ -69,17 +69,27 @@ describe('ReviewStep', () => {
   })
 
   it('shows a generic error without internal details', () => {
-    renderStep({ failed: true })
+    renderStep({ failure: 'failed' })
 
     expect(screen.getByText('No pudimos emitir el certificado')).toBeInTheDocument()
     expect(screen.getByText('Revisa los datos e inténtalo de nuevo.')).toBeInTheDocument()
+    expect(screen.queryByText(/ya tiene un certificado habilitado/)).not.toBeInTheDocument()
   })
 
-  it('disables issuing with the reason when the entity is revoked', () => {
-    renderStep({ blockedReason: 'No disponible: tu entidad está revocada.' })
+  it('explains the duplicate and keeps Volver a editar available', () => {
+    const { onBack } = renderStep({ failure: 'duplicate' })
 
-    const button = screen.getByRole('button', { name: 'Emitir certificado' })
-    expect(button).toBeDisabled()
-    expect(button).toHaveAccessibleDescription('No disponible: tu entidad está revocada.')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Esta persona ya tiene un certificado habilitado de este tipo. Podrás emitir otro cuando venza, o si lo anulas.',
+    )
+    expect(screen.queryByText('No pudimos emitir el certificado')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a editar' }))
+    expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows no failure message by default', () => {
+    renderStep()
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

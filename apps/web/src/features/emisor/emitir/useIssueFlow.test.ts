@@ -1,35 +1,77 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { listCertificates, resetState, revokeEntity, verifyCertificate, type IssuerSession } from '@/data'
-import * as certificatesModule from '@/data/certificates'
+import { issueCertificate, listCertificates } from '@/api/certificates'
+import { getMe, type IssuerProfile } from '@/api/me'
+import { listWorkers } from '@/api/workers'
+import { DataError, type DataErrorCode } from '@/data/errors'
+import type { Certificate, Worker } from '@/data/types'
 import { useIssueFlow } from '@/features/emisor/emitir/useIssueFlow'
+import { createQueryWrapper } from '@/test/query'
 
-vi.mock('@/data/certificates', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/certificates')>()
-  return { ...actual, listCertificates: vi.fn(actual.listCertificates) }
-})
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).signedInClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/workers', () => ({ listWorkers: vi.fn(), registerWorker: vi.fn() }))
+vi.mock('@/api/certificates', () => ({ listCertificates: vi.fn(), issueCertificate: vi.fn() }))
 
-const CUMBRE = 'centro-entrenamiento-cumbre-firme'
-const session: IssuerSession = {
-  role: 'issuer',
-  entityId: CUMBRE,
-  entityName: 'Centro de Entrenamiento Cumbre Firme',
-  email: 'coordinacion@cumbrefirme.co',
+const PROFILE: IssuerProfile = {
+  id: 'e-1',
+  name: 'Centro de Entrenamiento Cumbre Firme',
+  certificateTypes: ['height-work', 'confined-spaces'],
+  nit: '901.482.317-5',
+  city: 'Bogotá',
+}
+const SANDRA: Worker = {
+  id: 'w-sandra',
+  entityId: 'e-1',
+  fullName: 'Sandra Milena Lozano Pardo',
+  documentType: 'cc',
+  documentNumber: '1032774019',
+  registeredAt: '2026-09-01',
+  consentedAt: '2026-09-01',
+}
+const CARLOS: Worker = { ...SANDRA, id: 'w-carlos', fullName: 'Carlos Andrés Ramírez Pineda', documentNumber: '1020345678' }
+const EXISTING: Certificate = {
+  number: 10,
+  id: '11111111-1111-4111-8111-111111111111',
+  entityId: 'e-1',
+  workerId: 'w-carlos',
+  type: 'height-work',
+  issuedAt: '2026-01-01',
+  validUntil: '2027-01-01',
+  annulledAt: null,
+}
+const CREATED: Certificate = {
+  number: 4801,
+  id: '3f2b7c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c',
+  entityId: 'e-1',
+  workerId: 'w-sandra',
+  type: 'height-work',
+  issuedAt: '2026-10-09',
+  validUntil: '2027-10-09',
+  annulledAt: null,
 }
 const DETAILS = { type: 'height-work', issuedAt: '2026-10-09', validUntil: '2027-10-09' } as const
 
 const renderFlow = async (initialWorkerId: string | null = null) => {
-  const view = renderHook(() => useIssueFlow(session, initialWorkerId))
+  const view = renderHook(() => useIssueFlow(initialWorkerId), { wrapper: createQueryWrapper() })
   await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
   return view
 }
 
+type FlowResult = Awaited<ReturnType<typeof renderFlow>>['result']
+
+const toReview = (result: FlowResult) => {
+  act(() => result.current.selectWorker('w-sandra'))
+  act(() => result.current.continueToDetails())
+  act(() => result.current.saveDetails(DETAILS))
+}
+
 describe('useIssueFlow', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
-    const actual = await vi.importActual<typeof import('@/data/certificates')>('@/data/certificates')
-    vi.mocked(certificatesModule.listCertificates).mockImplementation(actual.listCertificates)
+  beforeEach(() => {
+    vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
+    vi.mocked(listWorkers).mockReset().mockResolvedValue([SANDRA, CARLOS])
+    vi.mocked(listCertificates).mockReset().mockResolvedValue([EXISTING])
+    vi.mocked(issueCertificate).mockReset().mockResolvedValue(CREATED)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 9, 12))
   })
@@ -38,27 +80,41 @@ describe('useIssueFlow', () => {
     vi.useRealTimers()
   })
 
-  it('loads the entity, its workers and its certificates', async () => {
+  it('loads the profile, the workers and the certificates from the API', async () => {
     const { result } = await renderFlow()
 
-    if (result.current.load.phase !== 'ready') throw new Error('not ready')
-    expect(result.current.load.entity.id).toBe(CUMBRE)
-    expect(result.current.load.workers.length).toBeGreaterThan(0)
-    expect(result.current.load.certificates.length).toBeGreaterThan(0)
+    expect(result.current.load).toEqual({
+      phase: 'ready',
+      profile: PROFILE,
+      workers: [SANDRA, CARLOS],
+      certificates: [EXISTING],
+    })
   })
 
-  it('starts on the worker step with today as issue date and no validity', async () => {
-    const { result } = await renderFlow()
+  it('starts loading, on the worker step, with today as issue date and no validity', async () => {
+    const view = renderHook(() => useIssueFlow(null), { wrapper: createQueryWrapper() })
+    expect(view.result.current.load.phase).toBe('loading')
+    await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
 
-    expect(result.current.step).toBe('worker')
-    expect(result.current.draft).toEqual({ workerId: null, type: '', issuedAt: '2026-10-09', validUntil: '' })
-    expect(result.current.blocked).toBe(false)
+    expect(view.result.current.step).toBe('worker')
+    expect(view.result.current.draft).toEqual({ workerId: null, type: '', issuedAt: '2026-10-09', validUntil: '' })
+    expect(view.result.current.failure).toBeNull()
+  })
+
+  it('goes to error when loading fails and recovers on retry', async () => {
+    vi.mocked(listWorkers).mockRejectedValueOnce(new DataError('unavailable')).mockResolvedValue([SANDRA])
+    const view = renderHook(() => useIssueFlow(null), { wrapper: createQueryWrapper() })
+
+    await waitFor(() => expect(view.result.current.load.phase).toBe('error'))
+    act(() => view.result.current.retry())
+
+    await waitFor(() => expect(view.result.current.load.phase).toBe('ready'))
   })
 
   it('starts on the details step when the worker comes from the address', async () => {
     const { result } = await renderFlow('w-sandra')
 
-    expect(result.current.step).toBe('details')
+    await waitFor(() => expect(result.current.step).toBe('details'))
     expect(result.current.draft.workerId).toBe('w-sandra')
   })
 
@@ -69,15 +125,7 @@ describe('useIssueFlow', () => {
     expect(result.current.draft.workerId).toBeNull()
   })
 
-  it('ignores the worker from the address when the entity is revoked', async () => {
-    await revokeEntity(CUMBRE)
-    const { result } = await renderFlow('w-sandra')
-
-    expect(result.current.step).toBe('worker')
-    expect(result.current.blocked).toBe(true)
-  })
-
-  it('does not continue without a worker or when blocked', async () => {
+  it('does not continue without a worker', async () => {
     const { result } = await renderFlow()
 
     act(() => result.current.continueToDetails())
@@ -91,9 +139,7 @@ describe('useIssueFlow', () => {
   it('moves forward and back keeping what was typed', async () => {
     const { result } = await renderFlow()
 
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
+    toReview(result)
     expect(result.current.step).toBe('review')
 
     act(() => result.current.backToDetails())
@@ -105,110 +151,115 @@ describe('useIssueFlow', () => {
     expect(result.current.draft).toMatchObject({ workerId: 'w-sandra', type: '', issuedAt: '2026-10-01' })
   })
 
-  it('issues the certificate so it can be verified, and refreshes the data', async () => {
+  it('issues the certificate, keeps the returned one and refreshes the certificates', async () => {
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
-    const before = result.current.load.phase === 'ready' ? result.current.load.certificates.length : 0
+    toReview(result)
+    vi.mocked(listCertificates).mockResolvedValue([CREATED, EXISTING])
 
     await act(() => result.current.issue())
 
+    expect(issueCertificate).toHaveBeenCalledWith({ workerId: 'w-sandra', ...DETAILS })
     expect(result.current.step).toBe('issued')
-    expect(result.current.issued).not.toBeNull()
-    const verification = await verifyCertificate(result.current.issued?.id ?? '')
-    expect(verification.status).toBe('valid')
-    expect(result.current.load.phase === 'ready' && result.current.load.certificates.length).toBe(before + 1)
+    expect(result.current.issued).toEqual(CREATED)
+    expect(result.current.failure).toBeNull()
+    await waitFor(() => expect(listCertificates).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      const { load } = result.current
+      expect(load.phase === 'ready' && load.certificates).toEqual([CREATED, EXISTING])
+    })
   })
 
-  it('keeps the new certificate in the list even if reloading the data fails', async () => {
+  it('sends one request when issue is called twice in a row', async () => {
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
-    const before = result.current.load.phase === 'ready' ? result.current.load.certificates.length : 0
-    vi.mocked(listCertificates).mockRejectedValue(new Error('offline'))
+    toReview(result)
+    let release: (certificate: Certificate) => void = () => undefined
+    vi.mocked(issueCertificate).mockImplementation(
+      () =>
+        new Promise<Certificate>((resolve) => {
+          release = resolve
+        }),
+    )
 
-    await act(() => result.current.issue())
-
-    if (result.current.load.phase !== 'ready') throw new Error('not ready')
-    expect(result.current.load.certificates).toHaveLength(before + 1)
-    expect(result.current.load.certificates[0]?.id).toBe(result.current.issued?.id)
-  })
-
-  it('becomes blocked after the entity is revoked meanwhile even if reloading the data fails', async () => {
-    const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
-    await revokeEntity(CUMBRE)
-    vi.mocked(listCertificates).mockRejectedValue(new Error('offline'))
-
-    await act(() => result.current.issue())
-
-    expect(result.current.blocked).toBe(true)
-    expect(result.current.failed).toBe(false)
-    expect(result.current.step).toBe('review')
-  })
-
-  it('issues only once when issue is called twice in a row', async () => {
-    const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
-    const before = result.current.load.phase === 'ready' ? result.current.load.certificates.length : 0
-
+    let first: Promise<void> = Promise.resolve()
+    act(() => {
+      first = result.current.issue()
+      void result.current.issue()
+    })
     await act(async () => {
-      await Promise.all([result.current.issue(), result.current.issue()])
+      release(CREATED)
+      await first
     })
 
-    expect(result.current.load.phase === 'ready' && result.current.load.certificates.length).toBe(before + 1)
+    expect(issueCertificate).toHaveBeenCalledTimes(1)
+    expect(result.current.step).toBe('issued')
   })
 
-  it('stays on review and becomes blocked when the entity is revoked meanwhile', async () => {
+  it('reports a duplicate (409) and stays on review', async () => {
+    vi.mocked(issueCertificate).mockRejectedValue(new DataError('duplicate'))
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
-    await revokeEntity(CUMBRE)
+    toReview(result)
 
     await act(() => result.current.issue())
 
     expect(result.current.step).toBe('review')
-    expect(result.current.blocked).toBe(true)
-    expect(result.current.failed).toBe(false)
+    expect(result.current.failure).toBe('duplicate')
+    expect(result.current.issued).toBeNull()
   })
 
-  it('reports a generic failure and stays on review', async () => {
+  it.each<DataErrorCode>(['invalid-input', 'not-found', 'type-not-allowed', 'unavailable'])(
+    'reports a generic failure for %s and stays on review',
+    async (code) => {
+      vi.mocked(issueCertificate).mockRejectedValue(new DataError(code))
+      const { result } = await renderFlow()
+      toReview(result)
+
+      await act(() => result.current.issue())
+
+      expect(result.current.step).toBe('review')
+      expect(result.current.failure).toBe('failed')
+    },
+  )
+
+  it('reports a generic failure for an unexpected error', async () => {
+    vi.mocked(issueCertificate).mockRejectedValue(new Error('boom'))
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails({ ...DETAILS, type: 'occupational-medical' }))
+    toReview(result)
 
     await act(() => result.current.issue())
 
-    expect(result.current.step).toBe('review')
-    expect(result.current.failed).toBe(true)
+    expect(result.current.failure).toBe('failed')
   })
+
+  it.each<DataErrorCode>(['unauthorized', 'entity-revoked'])(
+    'leaves %s to the session gate without showing a failure',
+    async (code) => {
+      vi.mocked(issueCertificate).mockRejectedValue(new DataError(code))
+      const { result } = await renderFlow()
+      toReview(result)
+
+      await act(() => result.current.issue())
+
+      expect(result.current.failure).toBeNull()
+      expect(result.current.issuing).toBe(false)
+      expect(result.current.step).toBe('review')
+    },
+  )
 
   it('clears a previous failure when the user goes back to edit', async () => {
+    vi.mocked(issueCertificate).mockRejectedValue(new DataError('duplicate'))
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails({ ...DETAILS, type: 'occupational-medical' }))
+    toReview(result)
     await act(() => result.current.issue())
-    expect(result.current.failed).toBe(true)
+    expect(result.current.failure).toBe('duplicate')
 
     act(() => result.current.backToDetails())
 
-    expect(result.current.failed).toBe(false)
+    expect(result.current.failure).toBeNull()
   })
 
   it('starts over with issueAnother', async () => {
     const { result } = await renderFlow()
-    act(() => result.current.selectWorker('w-sandra'))
-    act(() => result.current.continueToDetails())
-    act(() => result.current.saveDetails(DETAILS))
+    toReview(result)
     await act(() => result.current.issue())
 
     act(() => result.current.issueAnother())
