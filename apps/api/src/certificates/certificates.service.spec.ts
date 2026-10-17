@@ -11,7 +11,10 @@ import { Worker } from '../workers/worker.entity.js';
 import { Certificate } from './certificate.entity.js';
 import { CertificateType } from './certificate-type.js';
 import type { IssueCertificateDto } from './dto/issue-certificate.dto.js';
-import type { FingerprintService } from './fingerprint/fingerprint.service.js';
+import {
+  FingerprintInputError,
+  type FingerprintService,
+} from '../fingerprint/fingerprint.service.js';
 import {
   CertificateAlreadyAnnulledError,
   type CertificateRegistry,
@@ -98,10 +101,10 @@ const buildHarness = () => {
     annul,
   };
   const compute = vi.fn().mockReturnValue('private-fingerprint');
-  const fingerprint: FingerprintService = {
+  const fingerprint = {
     generateSalt: vi.fn().mockReturnValue('private-salt'),
     compute,
-  };
+  } as unknown as FingerprintService;
   const service = new CertificatesService(
     dataSource as unknown as DataSource,
     certificates as unknown as Repository<Certificate>,
@@ -165,20 +168,37 @@ describe('CertificatesService', () => {
           fingerprint: 'private-fingerprint',
         }),
       );
-      expect(compute).toHaveBeenCalledWith(
-        expect.objectContaining({
-          issuerId: ISSUER_ID,
-          type: CertificateType.HeightWork,
-          issuedAt: TODAY,
-          validUntil: '2027-10-17',
-          documentType: 'cc',
-          documentNumber: 'AB12345',
-        }),
-        'private-salt',
-      );
+      expect(compute).toHaveBeenCalledWith({
+        id: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        ),
+        issuerId: ISSUER_ID,
+        type: CertificateType.HeightWork,
+        issuedAt: TODAY,
+        validUntil: '2027-10-17',
+        workerDocumentType: 'cc',
+        workerDocumentNumber: 'AB12345',
+        salt: 'private-salt',
+      });
       expect(response).toEqual(toCertificateResponse(buildCertificate()));
       expect(response).not.toHaveProperty('salt');
       expect(response).not.toHaveProperty('fingerprint');
+    });
+
+    it('does not save or register the certificate when the fingerprint module rejects the data', async () => {
+      const { service, manager, register, compute } = buildHarness();
+      manager.findOne
+        .mockResolvedValueOnce(buildWorker())
+        .mockResolvedValue(null);
+      compute.mockImplementation(() => {
+        throw new FingerprintInputError('workerDocumentNumber');
+      });
+
+      await expect(service.issue(buildIssuer(), input)).rejects.toBeInstanceOf(
+        FingerprintInputError,
+      );
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(register).not.toHaveBeenCalled();
     });
 
     it.each([
