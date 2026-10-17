@@ -7,6 +7,9 @@ export const mapApiError = (error: unknown): DataError => {
 
   const response = error.response
   if (!response) return new DataError('unavailable')
+  if (response.status >= 500 && response.status <= 599) {
+    return new DataError('unavailable')
+  }
 
   switch (response.status) {
     case 400:
@@ -29,9 +32,6 @@ export const mapApiError = (error: unknown): DataError => {
       return new DataError('not-found')
     case 409:
       return new DataError('duplicate')
-    case 500:
-    case 503:
-      return new DataError('unavailable')
     default:
       return new DataError('unknown')
   }
