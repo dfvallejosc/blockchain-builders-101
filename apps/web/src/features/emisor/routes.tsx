@@ -4,6 +4,7 @@ import { IssuerSessionGate } from '@/features/emisor/auth/IssuerSessionGate'
 import { CertificatesPage } from '@/features/emisor/certificados/CertificatesPage'
 import { IssueCertificatePage } from '@/features/emisor/emitir/IssueCertificatePage'
 import { CertificateSheetPage } from '@/features/emisor/hoja/CertificateSheetPage'
+import { AcceptInvitationPage } from '@/features/emisor/invitacion/AcceptInvitationPage'
 import { LoginPage } from '@/features/emisor/ingreso/LoginPage'
 import { RegisterWorkerPage } from '@/features/emisor/trabajadores/RegisterWorkerPage'
 import { WorkersPage } from '@/features/emisor/trabajadores/WorkersPage'
@@ -14,6 +15,7 @@ export const issuerRoutes: RouteObject[] = [
     element: <AuthLayout />,
     children: [
       { path: '/emisor/ingresar', element: <LoginPage /> },
+      { path: '/emisor/aceptar-invitacion', element: <AcceptInvitationPage /> },
       {
         path: '/emisor',
         element: <IssuerSessionGate />,

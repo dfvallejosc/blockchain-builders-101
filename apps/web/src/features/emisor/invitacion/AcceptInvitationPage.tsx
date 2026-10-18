@@ -1,5 +1,5 @@
 import { useAuth, useSignUp } from '@clerk/react'
-import { useCallback, useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router'
@@ -47,14 +47,6 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
   const navigate = useNavigate()
   const [failure, setFailure] = useState<InvitationFailure | null>(null)
   const summaryRef = useRef<HTMLDivElement>(null)
-  const focusSummaryAfterRender = useRef(false)
-  const attachSummary = useCallback((node: HTMLDivElement | null) => {
-    summaryRef.current = node
-    if (node && focusSummaryAfterRender.current) {
-      node.focus()
-      focusSummaryAfterRender.current = false
-    }
-  }, [])
   const {
     register,
     handleSubmit,
@@ -94,16 +86,21 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
     }
   }
 
-  if (failure === 'bad-link') return <BadLinkView />
-
   const errorKeys = (Object.keys(FIELD_LABELS) as (keyof AcceptInvitationValues)[]).filter((key) => errors[key])
+  const errorSummary = errorKeys.join(',')
+
+  useEffect(() => {
+    if (submitCount > 0 && errorSummary) summaryRef.current?.focus()
+  }, [submitCount, errorSummary])
+
+  if (failure === 'bad-link') return <BadLinkView />
 
   return (
     <main className="mx-auto grid min-h-svh w-full max-w-md content-center gap-6 p-4 sm:p-6">
       <InvitationHeader />
       {failure === 'generic' && <Alert tone="danger" title={GENERIC_FAILURE_TEXT} />}
       {submitCount > 0 && errorKeys.length > 0 && (
-        <div ref={attachSummary} tabIndex={-1}>
+        <div ref={summaryRef} tabIndex={-1}>
           <Alert tone="danger" title={`Revisa ${errorKeys.length} ${errorKeys.length === 1 ? 'campo' : 'campos'} antes de continuar`}>
             <ul className="mt-1 grid gap-1">
               {errorKeys.map((key) => (
@@ -117,10 +114,7 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
           </Alert>
         </div>
       )}
-      <form noValidate onSubmit={handleSubmit(submit, () => {
-        if (summaryRef.current) summaryRef.current.focus()
-        else focusSummaryAfterRender.current = true
-      })} className="grid gap-4">
+      <form noValidate onSubmit={handleSubmit(submit)} className="grid gap-4">
         <Field label="Contraseña" required error={errors.password?.message}>
           {(control) => <Input {...control} type="password" autoComplete="new-password" {...register('password', { onChange: () => setFailure(null) })} />}
         </Field>

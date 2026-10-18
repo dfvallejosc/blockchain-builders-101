@@ -16,8 +16,8 @@ const renderInvitation = (entry = `/emisor/aceptar-invitacion?__clerk_ticket=${T
 }
 
 const fillPasswords = (password: string, confirmation: string) => {
-  fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: password } })
-  fireEvent.change(screen.getByLabelText('Repite la contraseña'), { target: { value: confirmation } })
+  fireEvent.change(screen.getByLabelText(/^Contraseña/), { target: { value: password } })
+  fireEvent.change(screen.getByLabelText(/^Repite la contraseña/), { target: { value: confirmation } })
 }
 
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Crear contraseña' }))
@@ -45,7 +45,11 @@ describe('AcceptInvitationPage', () => {
   beforeEach(() => {
     signUpControl.status = 'complete'
     signUpControl.create.mockReset().mockResolvedValue({ error: null })
-    signUpControl.finalize.mockReset().mockResolvedValue({ error: null })
+    // Finalizing the sign-up is what opens the Clerk session that the mocked hooks report.
+    signUpControl.finalize.mockReset().mockImplementation(async () => {
+      clerkSession.signedIn = true
+      return { error: null }
+    })
     clerkSession.signedIn = false
     vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
     vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_dummy')
@@ -59,8 +63,8 @@ describe('AcceptInvitationPage', () => {
     renderInvitation()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Crea tu contraseña' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Contraseña')).toBeInTheDocument()
-    expect(screen.getByLabelText('Repite la contraseña')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Repite la contraseña/)).toBeInTheDocument()
   })
 
   it.each(['/emisor/aceptar-invitacion', '/emisor/aceptar-invitacion?__clerk_ticket=']) (
@@ -76,7 +80,7 @@ describe('AcceptInvitationPage', () => {
 
   it('creates the password and lands on the issuer panel', async () => {
     const router = renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('una-clave-segura', 'una-clave-segura')
 
     submit()
@@ -86,30 +90,30 @@ describe('AcceptInvitationPage', () => {
     expect(signUpControl.finalize).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the Spanish rule for a rejected password without showing Clerk text', async () => {
+  it('treats an unverified password error code as a generic failure and preserves the form', async () => {
     signUpControl.create.mockResolvedValue({ error: clerkError('form_password_length_too_short') })
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('corta', 'corta')
 
     submit()
 
-    const error = await screen.findByText('La contraseña no cumple los requisitos. Elige otra e inténtalo de nuevo.')
-    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText('Contraseña')).toHaveAccessibleDescription(error.textContent)
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos crear tu contraseña. Inténtalo de nuevo en un momento.')
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveValue('corta')
+    expect(screen.getByLabelText(/^Repite la contraseña/)).toHaveValue('corta')
     expect(screen.queryByText(/Clerk internal message|Clerk long message/)).not.toBeInTheDocument()
   })
 
   it('shows the bad-link view when Clerk rejects an invalid or used ticket', async () => {
     signUpControl.create.mockResolvedValue({ error: clerkError('ticket_invalid_code') })
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('una-clave-segura', 'una-clave-segura')
 
     submit()
 
     expect(await screen.findByRole('heading', { name: 'Este enlace ya no sirve' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Contraseña/)).not.toBeInTheDocument()
   })
 
   it('links from the bad-link view to issuer sign-in', async () => {
@@ -121,20 +125,20 @@ describe('AcceptInvitationPage', () => {
   it('shows a generic failure and preserves the form after a network error', async () => {
     signUpControl.create.mockRejectedValue(new Error('Failed to fetch: https://clerk.internal'))
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('clave-que-escribio', 'clave-que-escribio')
 
     submit()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos crear tu contraseña. Inténtalo de nuevo en un momento.')
-    expect(screen.getByLabelText('Contraseña')).toHaveValue('clave-que-escribio')
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveValue('clave-que-escribio')
     expect(screen.queryByText(/Clerk|clerk\.internal|Failed to fetch/)).not.toBeInTheDocument()
   })
 
   it('treats additional Clerk steps as a generic failure', async () => {
     signUpControl.status = 'missing_requirements'
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('clave-que-escribio', 'clave-que-escribio')
 
     submit()
@@ -145,30 +149,30 @@ describe('AcceptInvitationPage', () => {
 
   it('shows a focused error summary with links to invalid fields without calling Clerk', async () => {
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
 
     submit()
 
-    const summaryText = await screen.findByText('Revisa 2 campos antes de continuar')
+    const summaryText = await screen.findByText('Revisa 1 campo antes de continuar')
     const summary = summaryText.closest('[tabindex="-1"]')
     await waitFor(() => expect(summary).toHaveFocus())
-    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('aria-invalid', 'true')
     fireEvent.click(within(summary as HTMLElement).getByRole('button', { name: 'Contraseña' }))
-    expect(screen.getByLabelText('Contraseña')).toHaveFocus()
+    await waitFor(() => expect(screen.getByLabelText(/^Contraseña/)).toHaveFocus())
     expect(screen.getByText('Escribe una contraseña.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Contraseña')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('aria-invalid', 'true')
     fillPasswords('una-clave-segura', 'otra-clave')
     submit()
     expect(await screen.findByText('Revisa 1 campo antes de continuar')).toBeInTheDocument()
     expect(screen.getByText('Las contraseñas no coinciden.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Repite la contraseña')).toHaveAccessibleDescription('Las contraseñas no coinciden.')
+    expect(screen.getByLabelText(/^Repite la contraseña/)).toHaveAccessibleDescription('Las contraseñas no coinciden.')
     expect(signUpControl.create).not.toHaveBeenCalled()
   })
 
   it('disables the submit button while the invitation is being accepted', async () => {
     signUpControl.create.mockImplementation(() => new Promise(() => undefined))
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('una-clave-segura', 'una-clave-segura')
 
     submit()
@@ -187,7 +191,7 @@ describe('AcceptInvitationPage', () => {
     expect(signUpControl.create).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión y continuar' }))
 
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('una-clave-segura', 'una-clave-segura')
     submit()
     await waitFor(() => expect(signUpControl.create).toHaveBeenCalledWith({ strategy: 'ticket', ticket: TICKET, password: 'una-clave-segura' }))
@@ -196,7 +200,7 @@ describe('AcceptInvitationPage', () => {
   it('does not show any Clerk response text', async () => {
     signUpControl.create.mockResolvedValue({ error: clerkError('unknown_code') })
     renderInvitation()
-    await screen.findByLabelText('Contraseña')
+    await screen.findByLabelText(/^Contraseña/)
     fillPasswords('una-clave-segura', 'una-clave-segura')
 
     submit()

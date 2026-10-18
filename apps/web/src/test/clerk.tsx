@@ -8,6 +8,13 @@ export const signInControl = {
   status: 'complete',
 }
 
+// Controls what the Clerk sign-up hook does in invitation tests.
+export const signUpControl = {
+  create: vi.fn(async (_params: { strategy: 'ticket'; ticket: string; password: string }): Promise<{ error: unknown }> => ({ error: null })),
+  finalize: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+  status: 'complete',
+}
+
 // What the Clerk session looks like to the mocked hooks, for the tests that sign in and out.
 export const clerkSession = { signedIn: false }
 
@@ -26,6 +33,9 @@ const createClerkModule = (isSignedIn: () => boolean, signOut: () => Promise<voi
     errors: { fields: { identifier: null, password: null, code: null }, raw: null, global: null },
     fetchStatus: 'idle',
     signIn: signInControl,
+  }),
+  useSignUp: () => ({
+    signUp: signUpControl,
   }),
   useUser: () => {
     if (!isSignedIn()) return { isLoaded: true, isSignedIn: false, user: null }
