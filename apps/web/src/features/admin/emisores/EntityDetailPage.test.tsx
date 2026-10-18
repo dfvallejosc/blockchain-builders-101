@@ -1,33 +1,20 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { createMemoryRouter } from 'react-router'
-import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ToastProvider } from '@/components/ui/toast'
-import { listEntities, resetState, signIn } from '@/data'
-import * as entitiesModule from '@/data/entities'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { today } from '@/data/clock'
 import { formatLongDate } from '@/features/verificar/format'
-import { adminRoutes } from '@/features/admin/routes'
+import { DataError } from '@/data/errors'
+import { renderAdminAt, resetAdminTestState } from '@/test/admin'
+import { issuersApi } from '@/test/issuers-api'
 
-vi.mock('@/data/entities', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/entities')>()
-  return { ...actual, getEntity: vi.fn(actual.getEntity), revokeEntity: vi.fn(actual.revokeEntity) }
-})
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/issuers', async () => (await import('@/test/issuers-api')).issuersApi)
 
 const ACTIVE_ID = 'centro-entrenamiento-cumbre-firme'
 const ACTIVE_NAME = 'Centro de Entrenamiento Cumbre Firme'
 const REVOKED_ID = 'consultorio-medico-bahia-norte'
 
-const renderPage = async (id: string) => {
-  await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
-  const router = createMemoryRouter(adminRoutes, { initialEntries: [`/admin/emisores/${id}`] })
-  render(
-    <ToastProvider>
-      <RouterProvider router={router} />
-    </ToastProvider>,
-  )
-  return router
-}
+const renderPage = async (id: string) => renderAdminAt(`/admin/emisores/${id}`)
 
 const revokeButton = () => screen.queryByRole('button', { name: 'Revocar emisor' })
 const openDialog = () => fireEvent.click(screen.getByRole('button', { name: 'Revocar emisor' }))
@@ -36,14 +23,12 @@ const type = (text: string) => fireEvent.change(within(dialog()).getByLabelText(
 const confirm = () => within(dialog()).getByRole('button', { name: 'Revocar emisor' })
 
 describe('EntityDetailPage', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
-    const actual = await vi.importActual<typeof import('@/data/entities')>('@/data/entities')
-    vi.mocked(entitiesModule.getEntity).mockReset()
-    vi.mocked(entitiesModule.getEntity).mockImplementation(actual.getEntity)
-    vi.mocked(entitiesModule.revokeEntity).mockReset()
-    vi.mocked(entitiesModule.revokeEntity).mockImplementation(actual.revokeEntity)
+  beforeEach(() => {
+    resetAdminTestState()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('shows the name, the status and the summary line of an active issuer', async () => {
@@ -113,7 +98,7 @@ describe('EntityDetailPage', () => {
   })
 
   it('shows a loading state while the issuer is loading', async () => {
-    vi.mocked(entitiesModule.getEntity).mockImplementation(() => new Promise(() => undefined))
+    issuersApi.getIssuer.mockImplementation(() => new Promise(() => undefined))
     await renderPage(ACTIVE_ID)
 
     expect(await screen.findByRole('status', { name: 'Cargando emisor' })).toBeInTheDocument()
@@ -127,7 +112,7 @@ describe('EntityDetailPage', () => {
   })
 
   it('offers to retry when the issuer cannot be loaded', async () => {
-    vi.mocked(entitiesModule.getEntity).mockRejectedValueOnce(new Error('boom'))
+    issuersApi.getIssuer.mockRejectedValueOnce(new Error('boom'))
     await renderPage(ACTIVE_ID)
 
     expect(await screen.findByRole('heading', { name: 'No pudimos cargar el emisor' })).toBeInTheDocument()
@@ -139,7 +124,7 @@ describe('EntityDetailPage', () => {
   it('does not show the previous issuer while another one is loading', async () => {
     const router = await renderPage(ACTIVE_ID)
     await screen.findByRole('heading', { level: 1, name: ACTIVE_NAME })
-    vi.mocked(entitiesModule.getEntity).mockImplementation(() => new Promise(() => undefined))
+    issuersApi.getIssuer.mockImplementation(() => new Promise(() => undefined))
 
     await router.navigate('/admin/emisores/salud-laboral-rio-claro')
 
@@ -173,7 +158,7 @@ describe('EntityDetailPage', () => {
 
       fireEvent.click(within(dialog()).getByRole('button', { name: 'Cancelar' }))
 
-      expect(entitiesModule.revokeEntity).not.toHaveBeenCalled()
+      expect(issuersApi.revokeIssuer).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(revokeButton()).toBeInTheDocument()
     })
@@ -187,7 +172,7 @@ describe('EntityDetailPage', () => {
       fireEvent.click(confirm())
 
       await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(`Emisor revocado el ${formatLongDate(today())}`))
-      expect(entitiesModule.revokeEntity).toHaveBeenCalledWith(ACTIVE_ID)
+      expect(issuersApi.revokeIssuer).toHaveBeenCalledWith(ACTIVE_ID)
       expect(screen.getByText('Revocado')).toBeInTheDocument()
       expect(screen.queryByText('Habilitado')).not.toBeInTheDocument()
       expect(revokeButton()).not.toBeInTheDocument()
@@ -219,12 +204,27 @@ describe('EntityDetailPage', () => {
       fireEvent.click(confirm())
       await screen.findByRole('alert')
 
-      const entity = (await listEntities()).find((candidate) => candidate.id === ACTIVE_ID)
+      const entity = (await issuersApi.listIssuers()).find((candidate) => candidate.id === ACTIVE_ID)
       expect(entity?.revokedAt).toBe(today())
     })
 
+    it('shows no revocation notice at all, neither failure nor success, when the session ended while revoking', async () => {
+      issuersApi.revokeIssuer.mockRejectedValueOnce(new DataError('unauthorized'))
+      await renderPage(ACTIVE_ID)
+      await screen.findByRole('heading', { level: 1, name: ACTIVE_NAME })
+      openDialog()
+      type(ACTIVE_NAME)
+
+      fireEvent.click(confirm())
+
+      await waitFor(() => expect(issuersApi.revokeIssuer).toHaveBeenCalledTimes(1))
+      expect(screen.queryByText('No pudimos revocar al emisor')).not.toBeInTheDocument()
+      expect(screen.queryByText('Emisor revocado')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Emisor revocado el/)).not.toBeInTheDocument()
+    })
+
     it('keeps the issuer active and warns the admin when revoking fails', async () => {
-      vi.mocked(entitiesModule.revokeEntity).mockRejectedValueOnce(new Error('boom'))
+      issuersApi.revokeIssuer.mockRejectedValueOnce(new Error('boom'))
       await renderPage(ACTIVE_ID)
       await screen.findByRole('heading', { level: 1, name: ACTIVE_NAME })
       openDialog()
