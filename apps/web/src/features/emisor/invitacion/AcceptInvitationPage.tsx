@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Logo } from '@/components/Logo'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Field, Input } from '@/components/ui/field'
 import { acceptInvitationSchema, type AcceptInvitationValues } from '@/features/emisor/invitacion/acceptInvitationSchema'
 import { invitationFailureFor, type InvitationFailure } from '@/features/emisor/invitacion/acceptInvitationErrors'
@@ -15,6 +16,7 @@ const SIGN_IN_PATH = '/emisor/ingresar'
 const BAD_LINK_TITLE = 'Este enlace ya no sirve'
 const BAD_LINK_TEXT = 'Puede que haya vencido o que ya lo hayas usado. Si ya creaste tu contraseña, inicia sesión. Si no, pídele al equipo de HabilitApp una invitación nueva.'
 const GENERIC_FAILURE_TEXT = 'No pudimos crear tu contraseña. Inténtalo de nuevo en un momento.'
+const CHECK_FAILURE_TEXT = 'No pudimos revisar tu enlace. Inténtalo de nuevo en un momento.'
 const FIELD_LABELS = { password: 'Contraseña', confirmation: 'Repite la contraseña' } as const
 
 const InvitationHeader = ({ title = 'Crea tu contraseña' }: { title?: string }) => (
@@ -37,6 +39,63 @@ const BadLinkView = () => (
     </Link>
   </main>
 )
+
+type LinkCheck = 'checking' | 'valid' | 'bad-link' | 'failed'
+
+interface CheckedInvitationProps {
+  ticket: string
+  onAccepting: (accepting: boolean) => void
+}
+
+// Asks Clerk whether the ticket is still good before the password form shows. Clerk answers without using it up.
+const CheckedInvitation = ({ ticket, onAccepting }: CheckedInvitationProps): JSX.Element => {
+  const { signUp } = useSignUp()
+  const signUpRef = useRef(signUp)
+  const [check, setCheck] = useState<LinkCheck>('checking')
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    signUpRef.current = signUp
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    const verify = async () => {
+      const { error } = await signUpRef.current.ticket({ ticket }).catch((thrown: unknown) => ({ error: thrown }))
+      if (cancelled) return
+      if (!error) setCheck('valid')
+      else setCheck(invitationFailureFor(error) === 'bad-link' ? 'bad-link' : 'failed')
+    }
+    void verify()
+    return () => {
+      cancelled = true
+    }
+  }, [ticket, attempt])
+
+  const retry = () => {
+    setCheck('checking')
+    setAttempt((value) => value + 1)
+  }
+
+  if (check === 'valid') return <InvitationForm ticket={ticket} onAccepting={onAccepting} />
+  if (check === 'bad-link') return <BadLinkView />
+  return (
+    <main className="mx-auto grid min-h-svh w-full max-w-md content-center gap-6 p-4 sm:p-6">
+      <InvitationHeader />
+      {check === 'checking' ? (
+        <div role="status" aria-label="Revisando tu enlace" className="grid gap-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <>
+          <Alert tone="danger" title={CHECK_FAILURE_TEXT} />
+          <Button onClick={retry}>Reintentar</Button>
+        </>
+      )}
+    </main>
+  )
+}
 
 interface InvitationFormProps {
   ticket: string
@@ -165,5 +224,5 @@ export const AcceptInvitationPage = (): JSX.Element | null => {
       </main>
     )
   }
-  return <InvitationForm ticket={ticket} onAccepting={setAccepting} />
+  return <CheckedInvitation ticket={ticket} onAccepting={setAccepting} />
 }

@@ -44,6 +44,7 @@ const clerkError = (code: string) =>
 describe('AcceptInvitationPage', () => {
   beforeEach(() => {
     signUpControl.status = 'complete'
+    signUpControl.ticket.mockReset().mockResolvedValue({ error: null })
     signUpControl.create.mockReset().mockResolvedValue({ error: null })
     // Finalizing the sign-up is what opens the Clerk session that the mocked hooks report.
     signUpControl.finalize.mockReset().mockImplementation(async () => {
@@ -62,8 +63,8 @@ describe('AcceptInvitationPage', () => {
   it('shows the password form with visible labels', async () => {
     renderInvitation()
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Crea tu contraseña' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(await screen.findByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Crea tu contraseña' })).toBeInTheDocument()
     expect(screen.getByLabelText(/^Repite la contraseña/)).toBeInTheDocument()
   })
 
@@ -120,6 +121,57 @@ describe('AcceptInvitationPage', () => {
     renderInvitation('/emisor/aceptar-invitacion?__clerk_ticket=')
 
     expect(await screen.findByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/emisor/ingresar')
+  })
+
+  it('checks the ticket when the screen opens, before asking for a password', async () => {
+    renderInvitation()
+
+    expect(await screen.findByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(signUpControl.ticket).toHaveBeenCalledWith({ ticket: TICKET })
+    expect(signUpControl.create).not.toHaveBeenCalled()
+  })
+
+  it.each(['invitation_already_accepted', 'ticket_invalid_code'])(
+    'shows the bad-link view on open, without the password form, when Clerk rejects the ticket (%s)',
+    async (code) => {
+      signUpControl.ticket.mockResolvedValue({ error: clerkError(code) })
+      renderInvitation()
+
+      expect(await screen.findByRole('heading', { name: 'Este enlace ya no sirve' })).toBeInTheDocument()
+      expect(screen.queryByLabelText(/^Contraseña/)).not.toBeInTheDocument()
+      expect(signUpControl.create).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not check anything with Clerk when the ticket is missing', async () => {
+    renderInvitation('/emisor/aceptar-invitacion')
+
+    expect(await screen.findByRole('heading', { name: 'Este enlace ya no sirve' })).toBeInTheDocument()
+    expect(signUpControl.ticket).not.toHaveBeenCalled()
+  })
+
+  it('offers to retry when the ticket check fails for another reason, and shows the form once it works', async () => {
+    signUpControl.ticket.mockRejectedValueOnce(new Error('Failed to fetch: https://clerk.internal'))
+    renderInvitation()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos revisar tu enlace. Inténtalo de nuevo en un momento.')
+    expect(screen.queryByLabelText(/^Contraseña/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Clerk|clerk\.internal|Failed to fetch/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+
+    expect(await screen.findByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(signUpControl.ticket).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not check the ticket while another Clerk session is open, and checks it after signing out', async () => {
+    clerkSession.signedIn = true
+    renderInvitation()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cerrar sesión y continuar' }))
+
+    expect(await screen.findByLabelText(/^Contraseña/)).toBeInTheDocument()
+    expect(signUpControl.ticket).toHaveBeenCalledTimes(1)
   })
 
   it('shows a generic failure and preserves the form after a network error', async () => {

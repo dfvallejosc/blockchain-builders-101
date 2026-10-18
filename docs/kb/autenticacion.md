@@ -106,15 +106,17 @@ Lo que hace el código, comprobado con pruebas de Vitest que simulan `@clerk/rea
 
 ## Aceptar la invitación del emisor (TA-30)
 
-El emisor abre el enlace del correo de Clerk en `/emisor/aceptar-invitacion`, crea y confirma su contraseña en una pantalla propia de HabilitApp, y al completar el registro llega al panel `/emisor` (que abre el listado `/emisor/certificados`) con la sesión de Clerk ya iniciada. No pasa por `/emisor/ingresar`. Si ya hay una sesión de Clerk abierta en el navegador, la pantalla pide cerrarla antes de continuar con el mismo enlace. Los errores de Clerk no se muestran literalmente.
+El emisor abre el enlace del correo de Clerk en `/emisor/aceptar-invitacion`. Al abrirla, la pantalla le pregunta a Clerk si el ticket sigue sirviendo (`signUp.ticket({ ticket })`, que no lo gasta); si no sirve, muestra "Este enlace ya no sirve" sin pedir contraseña. Si sirve, el emisor crea y confirma su contraseña en una pantalla propia de HabilitApp, y al completar el registro llega al panel `/emisor` (que abre el listado `/emisor/certificados`) con la sesión de Clerk ya iniciada. No pasa por `/emisor/ingresar`. Si ya hay una sesión de Clerk abierta en el navegador, la pantalla pide cerrarla antes de continuar con el mismo enlace. Los errores de Clerk no se muestran literalmente.
 
 | Comprobación contra Clerk real (desarrollo, 2026-10-18) | Resultado |
 | --- | --- |
 | Redirección y enlace | Clerk acepta `redirectUrl` local a `/emisor/aceptar-invitacion`; el enlace incluye `__clerk_status=sign_up` y `__clerk_ticket`. |
 | Creación de la cuenta | Confirmado: `signUp.create({ strategy: 'ticket', ticket, password })` en una llamada. Devuelve `status: "complete"`, sin campos pendientes; después `signUp.finalize()` abre la sesión. El correo viene del ticket; Clerk pidió correo y contraseña, sin nombre ni apellido. |
 | Sesión existente y doble envío | Con sesión abierta, Clerk mostró `signedIn: true`; un segundo `create` devolvió `session_exists`. Dos envíos seguidos también dieron `session_exists`. La pantalla evita el envío si ya hay sesión y bloquea el botón mientras procesa. |
-| Enlace usado | Confirmado: error `invitation_already_accepted`. |
-| Ticket alterado | Confirmado: error `ticket_invalid_code`. |
+| Validar el ticket al abrir | Confirmado: `signUp.ticket({ ticket })` sin error deja `status: "missing_requirements"`, `missingFields: ["password"]` y el correo en `signUp`. No gasta el ticket (se repite al recargar). Después, `create({ strategy: 'ticket', ticket, password })` termina en `complete`. Pasar la contraseña con `signUp.password({ password, emailAddress })` **no** cierra el alta: `finalize()` falla y no hay sesión. |
+| Enlace usado | Confirmado, también al abrir con `ticket()`: error `invitation_already_accepted`. Con una sesión de Clerk abierta, `ticket()` responde `session_exists` y tapa a los demás errores. |
+| Ticket alterado | Confirmado, también al abrir con `ticket()`: error `ticket_invalid_code`. |
+| `__clerk_status` | Una invitación ya usada llegó con `__clerk_status=sign_in`. No se usa: el veredicto es el de `ticket()`. |
 | Lugar al terminar y acceso a la entidad | La prueba directa confirmó `GET /me` con `role: "issuer"` y la entidad de la invitación. La prueba completa desde la pantalla del front, el listado de certificados y el ingreso posterior siguen pendientes. |
 
 Los errores se identifican en `error.errors[].code`; el `error.code` de nivel superior era `api_response_error`. La interfaz trata como enlace inválido la ausencia de ticket y los códigos observados `invitation_already_accepted` y `ticket_invalid_code`. Los códigos candidatos de rechazo de contraseña (`form_password_length_too_short`, `form_password_pwned`, `form_password_not_strong_enough`, `form_password_validation_failed`) se tomaron de memoria y **no se comprobaron** contra Clerk; vencimiento y revocación de invitaciones tampoco se probaron. Esos casos, el comportamiento en el plan gratis de producción y la prueba real completa con capturas de escritorio y 390 px siguen sin verificar.

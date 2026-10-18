@@ -10,6 +10,7 @@ export const signInControl = {
 
 // Controls what the Clerk sign-up hook does in invitation tests.
 export const signUpControl = {
+  ticket: vi.fn(async (_params: { ticket: string }): Promise<{ error: unknown }> => ({ error: null })),
   create: vi.fn(async (_params: { strategy: 'ticket'; ticket: string; password: string }): Promise<{ error: unknown }> => ({ error: null })),
   finalize: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
   status: 'complete',
