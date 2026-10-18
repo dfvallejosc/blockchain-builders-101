@@ -2,7 +2,10 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
+    testutils::{
+        storage::{Instance as _, Persistent as _},
+        Address as _, Ledger,
+    },
     Address, BytesN, Env,
 };
 
@@ -378,4 +381,86 @@ fn reauthorized_issuer_certificates_become_valid_again() {
         client.get_status(&active_fingerprint).verdict,
         Verdict::Valid
     );
+}
+
+#[test]
+fn extend_ttl_renews_certificate_issuer_and_instance() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 23);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    let contract_id = client.address.clone();
+    env.ledger()
+        .set_sequence_number(env.ledger().get().sequence_number + 1_000);
+    env.set_auths(&[]);
+    client.extend_ttl(&certificate_fingerprint);
+
+    env.as_contract(&contract_id, || {
+        let max_ttl = env.storage().max_ttl();
+        assert_eq!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Certificate(certificate_fingerprint.clone())),
+            max_ttl
+        );
+        assert_eq!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Issuer(issuer.clone())),
+            max_ttl
+        );
+        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
+    });
+}
+
+#[test]
+fn extend_ttl_unknown_fingerprint_fails() {
+    let (env, client, _) = setup();
+
+    assert_eq!(
+        client.try_extend_ttl(&fingerprint(&env, 24)),
+        Err(Ok(Error::NotFound))
+    );
+}
+
+#[test]
+fn writes_extend_ttl_to_max() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 25);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    let contract_id = client.address.clone();
+    env.as_contract(&contract_id, || {
+        let max_ttl = env.storage().max_ttl();
+        assert_eq!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Certificate(certificate_fingerprint.clone())),
+            max_ttl
+        );
+        assert_eq!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Issuer(issuer.clone())),
+            max_ttl
+        );
+        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
+    });
+
+    let second_issuer = Address::generate(&env);
+    client.authorize_issuer(&second_issuer);
+    env.as_contract(&contract_id, || {
+        let max_ttl = env.storage().max_ttl();
+        assert_eq!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Issuer(second_issuer.clone())),
+            max_ttl
+        );
+        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
+    });
 }

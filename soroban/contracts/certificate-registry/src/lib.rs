@@ -9,8 +9,6 @@ pub struct CertificateRegistry;
 mod test;
 mod types;
 
-const TTL_THRESHOLD: u32 = 100;
-
 #[contractimpl]
 impl CertificateRegistry {
     pub fn __constructor(env: Env, admin: Address) {
@@ -99,6 +97,19 @@ impl CertificateRegistry {
         Ok(())
     }
 
+    pub fn extend_ttl(env: Env, fingerprint: BytesN<32>) -> Result<(), Error> {
+        let certificate = env
+            .storage()
+            .persistent()
+            .get::<_, Certificate>(&DataKey::Certificate(fingerprint.clone()))
+            .ok_or(Error::NotFound)?;
+
+        Self::extend_certificate(env.clone(), fingerprint);
+        Self::extend_issuer(env.clone(), certificate.issuer);
+        Self::extend_instance(env);
+        Ok(())
+    }
+
     pub fn annul(env: Env, issuer: Address, fingerprint: BytesN<32>) -> Result<(), Error> {
         issuer.require_auth();
 
@@ -174,24 +185,21 @@ impl CertificateRegistry {
     }
 
     fn extend_certificate(env: Env, fingerprint: BytesN<32>) {
-        env.storage().persistent().extend_ttl(
-            &DataKey::Certificate(fingerprint),
-            TTL_THRESHOLD,
-            env.storage().max_ttl(),
-        );
+        let max_ttl = env.storage().max_ttl();
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Certificate(fingerprint), max_ttl, max_ttl);
     }
 
     fn extend_issuer(env: Env, issuer: Address) {
-        env.storage().persistent().extend_ttl(
-            &DataKey::Issuer(issuer),
-            TTL_THRESHOLD,
-            env.storage().max_ttl(),
-        );
+        let max_ttl = env.storage().max_ttl();
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Issuer(issuer), max_ttl, max_ttl);
     }
 
     fn extend_instance(env: Env) {
-        env.storage()
-            .instance()
-            .extend_ttl(TTL_THRESHOLD, env.storage().max_ttl());
+        let max_ttl = env.storage().max_ttl();
+        env.storage().instance().extend_ttl(max_ttl, max_ttl);
     }
 }
