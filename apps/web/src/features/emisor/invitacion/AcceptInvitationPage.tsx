@@ -40,9 +40,10 @@ const BadLinkView = () => (
 
 interface InvitationFormProps {
   ticket: string
+  onAccepting: (accepting: boolean) => void
 }
 
-const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
+const InvitationForm = ({ ticket, onAccepting }: InvitationFormProps): JSX.Element => {
   const { signUp } = useSignUp()
   const navigate = useNavigate()
   const [failure, setFailure] = useState<InvitationFailure | null>(null)
@@ -63,8 +64,11 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
     setFailure(null)
     const recordFailure = (error: unknown) => {
       const result = invitationFailureFor(error)
+      onAccepting(false)
       setFailure(result)
     }
+    // Finalizing opens the Clerk session: the page must not read it as another open session.
+    onAccepting(true)
     try {
       const { error } = await signUp.create({ strategy: 'ticket', ticket, password: values.password })
       if (error) {
@@ -72,6 +76,7 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
         return
       }
       if (signUp.status !== 'complete') {
+        onAccepting(false)
         setFailure('generic')
         return
       }
@@ -82,6 +87,7 @@ const InvitationForm = ({ ticket }: InvitationFormProps): JSX.Element => {
       }
       await navigate(PANEL_PATH)
     } catch {
+      onAccepting(false)
       setFailure('generic')
     }
   }
@@ -134,11 +140,12 @@ export const AcceptInvitationPage = (): JSX.Element | null => {
   const [searchParams] = useSearchParams()
   const ticket = searchParams.get('__clerk_ticket')
   const [sessionClosed, setSessionClosed] = useState(false)
+  const [accepting, setAccepting] = useState(false)
   const [signOutFailed, setSignOutFailed] = useState(false)
 
   if (!isLoaded) return null
   if (!ticket) return <BadLinkView />
-  if (isSignedIn && !sessionClosed) {
+  if (isSignedIn && !sessionClosed && !accepting) {
     const continueAfterSignOut = async () => {
       setSignOutFailed(false)
       try {
@@ -158,5 +165,5 @@ export const AcceptInvitationPage = (): JSX.Element | null => {
       </main>
     )
   }
-  return <InvitationForm ticket={ticket} />
+  return <InvitationForm ticket={ticket} onAccepting={setAccepting} />
 }
