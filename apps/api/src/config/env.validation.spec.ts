@@ -43,6 +43,14 @@ describe('validateEnv Clerk and CORS settings', () => {
     expect(() => validateEnv({ ...productionEnv, WEB_APP_URL: 'not-a-url' })).toThrow('WEB_APP_URL');
   });
 
+  it.each(['test', 'development'])('rejects a malformed WEB_APP_URL outside production (%s)', (nodeEnv) => {
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: nodeEnv, WEB_APP_URL: 'localhost:5173' })).toThrow('WEB_APP_URL');
+  });
+
+  it('treats an empty WEB_APP_URL as missing outside production', () => {
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: 'development', WEB_APP_URL: '' })).not.toThrow();
+  });
+
   it('accepts WEB_APP_URL in production', () => {
     expect(() => validateEnv(productionEnv)).not.toThrow();
   });
