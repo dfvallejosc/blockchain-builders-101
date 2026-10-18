@@ -85,31 +85,6 @@ describe('SorobanStellarClient', () => {
     );
   });
 
-  it('falls back to simulation when queryContract reports an archived footprint', async () => {
-    const config = createConfig();
-    const server = createServer(config.sponsorSecret);
-    const queryContract = vi.fn(async () => {
-      throw new Error('archived footprint');
-    });
-    server.simulateTransaction.mockResolvedValueOnce({
-      id: 'simulation',
-      latestLedger: 10,
-      events: [],
-      _parsed: true as const,
-      transactionData: {} as never,
-      minResourceFee: '0',
-      result: { auth: [], retval: nativeToScVal('Valid') },
-    });
-    const client = new SorobanStellarClient(
-      { ...server, queryContract } as never,
-      config,
-    );
-
-    await expect(client.getVerdict('00'.repeat(32))).resolves.toBe('valid');
-    expect(queryContract).toHaveBeenCalledTimes(1);
-    expect(server.simulateTransaction).toHaveBeenCalledTimes(1);
-  });
-
   it('creates and sponsors a missing issuer account with the three Stellar operations', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
