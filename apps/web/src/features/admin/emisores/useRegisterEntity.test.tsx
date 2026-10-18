@@ -1,3 +1,4 @@
+import { QueryObserver } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerIssuer } from '@/api/issuers'
@@ -87,5 +88,24 @@ describe('useRegisterEntity', () => {
 
     expect(second).toBeNull()
     expect(registerIssuer).toHaveBeenCalledTimes(1)
+  })
+
+  it('answers as soon as the issuer is saved, without waiting for the list to reload', async () => {
+    vi.mocked(registerIssuer).mockResolvedValue(ENTITY)
+    const client = createTestQueryClient()
+    const slowList = new QueryObserver(client, {
+      queryKey: ['admin', 'issuers'],
+      queryFn: () => new Promise<never>(() => undefined),
+    })
+    const unsubscribe = slowList.subscribe(() => undefined)
+    const { result } = renderHook(() => useRegisterEntity(), { wrapper: createQueryWrapper(client) })
+
+    let outcome: unknown
+    await act(async () => {
+      outcome = await Promise.race([result.current.register(VALUES), new Promise((resolve) => setTimeout(() => resolve('waiting'), 300))])
+    })
+    unsubscribe()
+
+    expect(outcome).toBe(ENTITY)
   })
 })

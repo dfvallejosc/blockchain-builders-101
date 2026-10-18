@@ -13,7 +13,10 @@ export const useRevokeEntity = () => {
   const revokingRef = useRef(false)
   const mutation = useMutation({
     mutationFn: (id: string) => revokeIssuer(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ISSUERS_KEY }),
+    // Refreshing is not awaited: the change is already saved, so the answer must not wait for a slow reload.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ISSUERS_KEY })
+    },
   })
   const { mutateAsync } = mutation
 

@@ -1,3 +1,4 @@
+import { QueryObserver } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { revokeIssuer } from '@/api/issuers'
@@ -78,5 +79,25 @@ describe('useRevokeEntity', () => {
 
     expect(second).toBe('busy')
     expect(revokeIssuer).toHaveBeenCalledTimes(1)
+  })
+
+  it('answers as soon as the revocation is applied, without waiting for the open screens to reload', async () => {
+    vi.mocked(revokeIssuer).mockResolvedValue(REVOKED)
+    const client = createTestQueryClient()
+    // An open detail screen whose reload is slow: refreshing it must not hold back the answer.
+    const slowDetail = new QueryObserver(client, {
+      queryKey: ['admin', 'issuers', 'i-1'],
+      queryFn: () => new Promise<never>(() => undefined),
+    })
+    const unsubscribe = slowDetail.subscribe(() => undefined)
+    const { result } = renderHook(() => useRevokeEntity(), { wrapper: createQueryWrapper(client) })
+
+    let outcome: unknown
+    await act(async () => {
+      outcome = await Promise.race([result.current.revoke('i-1'), new Promise((resolve) => setTimeout(() => resolve('waiting'), 300))])
+    })
+    unsubscribe()
+
+    expect(outcome).toBe(REVOKED)
   })
 })
