@@ -97,12 +97,20 @@ Lo que hace el código, comprobado con las pruebas unitarias y e2e, y en parte c
 
 Lo que hace el código, comprobado con pruebas de Vitest que simulan `@clerk/react` y la API. **No se comprobó contra una instancia real de Clerk**: falta (1) que `signIn.status` ya sea `complete` justo después de `signIn.password(...)`, y (2) que el motivo del cierre de sesión sobreviva a un `signOut()` real.
 
-- **SDK:** `@clerk/react` 6.17.8. `ClerkProvider` se monta solo bajo `/emisor/*`, así que la administración y la consulta pública no dependen de Clerk. Sin `VITE_CLERK_PUBLISHABLE_KEY` (pública, se fija al construir el front), `/emisor/*` muestra "El ingreso no está configurado".
+- **SDK:** `@clerk/react` 6.17.8. `ClerkProvider` se monta bajo `/emisor/*` y `/admin/*` (`AuthLayout`); la consulta pública no depende de Clerk. Sin `VITE_CLERK_PUBLISHABLE_KEY` (pública, se fija al construir el front), `/emisor/*` y `/admin/*` muestran "El ingreso no está configurado".
 - **Ingreso:** formulario propio con `useSignIn` (la API de señales: `signIn.password` y `signIn.finalize`). Credenciales rechazadas solo se reconocen por los códigos `form_identifier_not_found` y `form_password_incorrect`; cualquier otro fallo muestra un mensaje genérico, nunca el texto de Clerk.
 - **Sesión:** el rol y la entidad salen de `GET /me`, no de los metadatos de Clerk. El token se envía con `Authorization: Bearer` por el cliente de TA-25 (`setTokenProvider`). El front ya no tiene modo de demostración para el emisor.
 - **Cierre de sesión por la API:** `unauthorized` (sesión vencida) y `entity-revoked` en cualquier consulta o mutación cierran la sesión de Clerk, vacían la caché y llevan a `/emisor/ingresar` con el motivo (`expired`, `revoked`, `no-role` o `not-issuer`). Que la API esté dormida o sin red (`unavailable`) no cierra la sesión.
 - **`forbidden`:** `mapApiError` convierte un 403 sin `code` en `forbidden`; `unauthorized` queda solo para el 401. Emitir convierte `forbidden` en "tipo no permitido".
 - **Origen del token:** el `azp` del token es el origen del front, y la API lo compara con `CORS_ORIGIN`, que debe incluir `http://localhost:5173` y `https://habilitapp-web.onrender.com`.
+
+## Ingreso del administrador en el front (TA-27)
+
+**Administrador en el front.** `AdminSessionGate` (en `apps/web/src/features/admin/auth/`) usa la misma sesión de Clerk que el emisor: manda el token, lee `GET /me` y exige `role: 'admin'`. El nombre y el correo del panel salen del usuario de Clerk (el correo si no tiene nombre). Los motivos de cierre de sesión son `expired`, `no-role` y `not-admin`. Comparte con el emisor `features/auth/` (cierre de sesión, hooks y `AuthLayout`). Un emisor con sesión que abre `/admin/*` termina con `not-admin`, y un administrador que abre `/emisor/*` termina con `not-issuer`.
+
+**Registrar un emisor** envía la invitación de Clerk dentro de la misma operación: si la invitación falla, la API deshace el registro (409 si el correo ya tiene cuenta o invitación, 503 si Clerk falla). Por eso el front dice que la entidad podrá emitir cuando acepte la invitación.
+
+**Pendiente de comprobar contra Clerk real, para el administrador:** que `signIn.status` sea `complete` justo después de `signIn.password()`, que el motivo sobreviva a `signOut({ redirectUrl })`, y que el token de un administrador traiga el claim `metadata` con `role: "admin"` en la misma instancia.
 
 ## Reglas que ya fijan el criterio de aceptación
 
