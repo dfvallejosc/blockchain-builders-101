@@ -1,22 +1,13 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { createMemoryRouter } from 'react-router'
-import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetState, signIn } from '@/data'
-import * as entitiesModule from '@/data/entities'
-import { adminRoutes } from '@/features/admin/routes'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderAdminAt, resetAdminTestState } from '@/test/admin'
+import { issuersApi } from '@/test/issuers-api'
 
-vi.mock('@/data/entities', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/entities')>()
-  return { ...actual, listEntities: vi.fn(actual.listEntities) }
-})
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/issuers', async () => (await import('@/test/issuers-api')).issuersApi)
 
-const renderPage = async () => {
-  await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
-  const router = createMemoryRouter(adminRoutes, { initialEntries: ['/admin/emisores'] })
-  render(<RouterProvider router={router} />)
-  return router
-}
+const renderPage = async () => renderAdminAt('/admin/emisores')
 
 const table = () => screen.getByRole('table', { name: 'Tabla de emisores' })
 const bodyRows = () => within(table()).getAllByRole('row').slice(1)
@@ -28,12 +19,12 @@ const search = (value: string) =>
   fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar emisor por nombre' }), { target: { value } })
 
 describe('EntitiesPage', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
-    const actual = await vi.importActual<typeof import('@/data/entities')>('@/data/entities')
-    vi.mocked(entitiesModule.listEntities).mockReset()
-    vi.mocked(entitiesModule.listEntities).mockImplementation(actual.listEntities)
+  beforeEach(() => {
+    resetAdminTestState()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('shows the title, the description and the count', async () => {
@@ -136,13 +127,13 @@ describe('EntitiesPage', () => {
   })
 
   it('shows the skeleton while loading', async () => {
-    const actual = await vi.importActual<typeof import('@/data/entities')>('@/data/entities')
+    const original = issuersApi.listIssuers.getMockImplementation()!
     let release: (() => void) | undefined
-    vi.mocked(entitiesModule.listEntities).mockImplementationOnce(
+    issuersApi.listIssuers.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           release = () => {
-            void actual.listEntities().then(resolve)
+            void original().then(resolve)
           }
         }),
     )
@@ -154,7 +145,7 @@ describe('EntitiesPage', () => {
   })
 
   it('shows an error with a retry when the issuers cannot be loaded', async () => {
-    vi.mocked(entitiesModule.listEntities).mockRejectedValueOnce(new Error('boom'))
+    issuersApi.listIssuers.mockRejectedValueOnce(new Error('boom'))
     await renderPage()
 
     expect(await screen.findByText('No pudimos cargar los emisores')).toBeInTheDocument()
@@ -164,7 +155,7 @@ describe('EntitiesPage', () => {
   })
 
   it('shows an empty state with access to register, and no search, when there are no issuers', async () => {
-    vi.mocked(entitiesModule.listEntities).mockResolvedValueOnce([])
+    issuersApi.listIssuers.mockResolvedValueOnce([])
     await renderPage()
 
     expect(await screen.findByText('Aún no hay emisores registrados')).toBeInTheDocument()

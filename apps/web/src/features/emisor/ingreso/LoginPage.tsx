@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { loginSchema, type LoginFormValues } from '@/features/emisor/ingreso/loginSchema'
-import type { SessionEndReason } from '@/features/auth/sessionEnd'
+import type { IssuerSessionEndReason } from '@/features/auth/sessionEnd'
 
 const PANEL_PATH = '/emisor'
 
@@ -17,7 +17,7 @@ type Failure = 'credentials' | 'generic'
 
 const REJECTED_CREDENTIAL_CODES = ['form_identifier_not_found', 'form_password_incorrect']
 
-const REASON_ALERTS: Record<SessionEndReason, { title: string; text: string }> = {
+const REASON_ALERTS: Record<IssuerSessionEndReason, { title: string; text: string }> = {
   expired: { title: 'Tu sesión venció', text: 'Inicia sesión de nuevo.' },
   revoked: { title: 'Tu entidad fue revocada', text: 'Tu entidad ya no puede usar HabilitApp.' },
   'no-role': { title: 'Tu cuenta no tiene un rol asignado', text: 'Pídele ayuda al equipo de HabilitApp.' },
@@ -25,10 +25,10 @@ const REASON_ALERTS: Record<SessionEndReason, { title: string; text: string }> =
 }
 
 // The location state is untrusted: only a known reason is shown.
-const isSessionEndReason = (value: unknown): value is SessionEndReason =>
+const isSessionEndReason = (value: unknown): value is IssuerSessionEndReason =>
   typeof value === 'string' && Object.hasOwn(REASON_ALERTS, value)
 
-const readReason = (state: unknown): SessionEndReason | null => {
+const readReason = (state: unknown): IssuerSessionEndReason | null => {
   if (typeof state !== 'object' || state === null || !('reason' in state)) return null
   return isSessionEndReason(state.reason) ? state.reason : null
 }
@@ -39,7 +39,7 @@ const failureFor = (error: unknown): Failure =>
     : 'generic'
 
 interface LoginFormProps {
-  reason: SessionEndReason | null
+  reason: IssuerSessionEndReason | null
 }
 
 const LoginForm = ({ reason }: LoginFormProps) => {

@@ -1,27 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { createMemoryRouter } from 'react-router'
-import { RouterProvider } from 'react-router/dom'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ToastProvider } from '@/components/ui/toast'
-import { listEntities, resetState, signIn } from '@/data'
-import * as entitiesModule from '@/data/entities'
-import { adminRoutes } from '@/features/admin/routes'
+import { DataError } from '@/data/errors'
+import { renderAdminAt, resetAdminTestState } from '@/test/admin'
+import { issuersApi } from '@/test/issuers-api'
 
-vi.mock('@/data/entities', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/data/entities')>()
-  return { ...actual, registerEntity: vi.fn(actual.registerEntity) }
-})
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/issuers', async () => (await import('@/test/issuers-api')).issuersApi)
 
-const renderPage = async () => {
-  await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
-  const router = createMemoryRouter(adminRoutes, { initialEntries: ['/admin/emisores/nuevo'] })
-  render(
-    <ToastProvider>
-      <RouterProvider router={router} />
-    </ToastProvider>,
-  )
-  return router
-}
+const renderPage = async () => renderAdminAt('/admin/emisores/nuevo')
 
 interface FormInput {
   name: string
@@ -57,20 +44,17 @@ const fillForm = (overrides: Partial<FormInput> = {}, { withCertificate = true }
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Registrar emisor' }))
 
 describe('RegisterEntityPage', () => {
-  beforeEach(async () => {
-    window.localStorage.clear()
-    resetState()
+  beforeEach(() => {
+    resetAdminTestState()
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 14, 12))
     vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
-    const actual = await vi.importActual<typeof import('@/data/entities')>('@/data/entities')
-    vi.mocked(entitiesModule.registerEntity).mockReset()
-    vi.mocked(entitiesModule.registerEntity).mockImplementation(actual.registerEntity)
   })
 
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it('shows the screen texts and the two sections', async () => {
@@ -79,7 +63,7 @@ describe('RegisterEntityPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Registrar emisor' })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Cuando registres la entidad, podrá emitir certificados. Revisa bien el NIT y el correo: el correo será su usuario de acceso.',
+        'Al registrar la entidad, le enviaremos una invitación al correo de contacto para que cree su acceso. Revisa bien el NIT y el correo: ese correo será su usuario.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'Datos de la entidad' })).toBeInTheDocument()
@@ -116,7 +100,7 @@ describe('RegisterEntityPage', () => {
     await waitFor(() => expect(summary.closest('[tabindex="-1"]')).toHaveFocus())
     expect(screen.getByLabelText(/Nombre de la entidad/)).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByLabelText(/NIT/)).toHaveAccessibleDescription(/Escribe el NIT de la entidad\./)
-    expect(entitiesModule.registerEntity).not.toHaveBeenCalled()
+    expect(issuersApi.registerIssuer).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Teléfono' }))
     await waitFor(() => expect(screen.getByLabelText(/Teléfono/)).toHaveFocus())
   })
@@ -143,19 +127,21 @@ describe('RegisterEntityPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/emisores/torre-firme-salud'))
     expect(router.state.location.search).toBe('?nuevo=1')
     expect(await screen.findByText('Emisor registrado')).toBeInTheDocument()
-    expect(screen.getByText('Torre Firme Salud ya puede emitir certificados.')).toBeInTheDocument()
-    expect(entitiesModule.registerEntity).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByText('Enviamos una invitación a laura.pardo@torrefirme.co. Torre Firme Salud podrá emitir cuando la acepte.'),
+    ).toBeInTheDocument()
+    expect(issuersApi.registerIssuer).toHaveBeenCalledTimes(1)
   })
 
-  it('saves the issuer as Habilitado with the normalized NIT and phone, and its email can sign in', async () => {
+  it('saves the issuer as Habilitado with the normalized NIT and phone', async () => {
     await renderPage()
     await screen.findByLabelText(/Nombre de la entidad/)
     fillForm({ nit: '9014823185', phone: '310-555-0199' })
 
     submit()
 
-    await waitFor(async () => expect((await listEntities()).some((entity) => entity.id === 'torre-firme-salud')).toBe(true))
-    const saved = (await listEntities()).find((entity) => entity.id === 'torre-firme-salud')
+    await waitFor(async () => expect((await issuersApi.listIssuers()).some((entity) => entity.id === 'torre-firme-salud')).toBe(true))
+    const saved = (await issuersApi.listIssuers()).find((entity) => entity.id === 'torre-firme-salud')
     expect(saved).toMatchObject({
       nit: '901.482.318-5',
       phone: '310 555 0199',
@@ -164,7 +150,6 @@ describe('RegisterEntityPage', () => {
       certificateTypes: ['height-work'],
       email: 'laura.pardo@torrefirme.co',
     })
-    await expect(signIn('issuer', 'laura.pardo@torrefirme.co', 'x')).resolves.toMatchObject({ role: 'issuer' })
   })
 
   it.each([
@@ -182,11 +167,16 @@ describe('RegisterEntityPage', () => {
     const alert = await screen.findByText('Ya hay un emisor con esos datos')
     await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus())
     expect(router.state.location.pathname).toBe('/admin/emisores/nuevo')
-    expect((await listEntities()).length).toBe(8)
+    expect((await issuersApi.listIssuers()).length).toBe(8)
+    expect(
+      screen.getByText(
+        'El NIT o el correo ya están registrados. Si es el correo, puede que ya tenga una cuenta o una invitación pendiente.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows a generic error when saving fails for another reason', async () => {
-    vi.mocked(entitiesModule.registerEntity).mockRejectedValueOnce(new Error('boom'))
+    issuersApi.registerIssuer.mockRejectedValueOnce(new Error('boom'))
     const router = await renderPage()
     await screen.findByLabelText(/Nombre de la entidad/)
     fillForm()
@@ -196,6 +186,27 @@ describe('RegisterEntityPage', () => {
     const alert = await screen.findByText('No pudimos registrar al emisor')
     await waitFor(() => expect(alert.closest('[tabindex="-1"]')).toHaveFocus())
     expect(router.state.location.pathname).toBe('/admin/emisores/nuevo')
+    expect(
+      screen.getByText(
+        'No se guardó ningún cambio. Inténtalo de nuevo en un momento y, si dudas, revisa la lista antes de reintentar.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    ['a 5xx or a network failure', new DataError('unavailable')],
+    ['a 400', new DataError('invalid-input')],
+  ])('shows the same failure text on %s, and nothing was saved', async (_label, failure) => {
+    issuersApi.registerIssuer.mockRejectedValueOnce(failure)
+    await renderPage()
+    await screen.findByLabelText(/Nombre de la entidad/)
+    fillForm()
+
+    submit()
+
+    expect(await screen.findByText('No pudimos registrar al emisor')).toBeInTheDocument()
+    expect(screen.getByText(/No se guardó ningún cambio/)).toBeInTheDocument()
+    expect((await issuersApi.listIssuers()).length).toBe(8)
   })
 
   it('sends only once when the button is pressed twice', async () => {
@@ -208,7 +219,7 @@ describe('RegisterEntityPage', () => {
     fireEvent.click(button)
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/emisores/torre-firme-salud'))
-    expect(entitiesModule.registerEntity).toHaveBeenCalledTimes(1)
+    expect(issuersApi.registerIssuer).toHaveBeenCalledTimes(1)
   })
 
   it('goes back to the list with Cancelar', async () => {

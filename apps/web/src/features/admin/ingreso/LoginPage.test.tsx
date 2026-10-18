@@ -1,13 +1,24 @@
+import { ClerkAPIResponseError } from '@clerk/react/errors'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { getSession, resetState, signIn } from '@/data'
-import { adminRoutes } from '@/features/admin/routes'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { LoginPage } from '@/features/admin/ingreso/LoginPage'
+import { clerkSession, signInControl } from '@/test/clerk'
+import { createQueryWrapper } from '@/test/query'
 
-const renderLogin = (path = '/admin/ingresar') => {
-  const router = createMemoryRouter([...adminRoutes, { path: '/', element: <p>Inicio</p> }], { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
+vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
+
+const renderLogin = (entry: string | { pathname: string; state: unknown } = '/admin/ingresar') => {
+  const router = createMemoryRouter(
+    [
+      { path: '/admin/ingresar', element: <LoginPage /> },
+      { path: '/admin', element: <p>Panel</p> },
+      { path: '/', element: <p>Inicio</p> },
+    ],
+    { initialEntries: [entry] },
+  )
+  render(<RouterProvider router={router} />, { wrapper: createQueryWrapper() })
   return router
 }
 
@@ -18,157 +29,146 @@ const fill = (email: string, password: string) => {
 
 const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
 
-describe('admin LoginPage', () => {
-  beforeEach(() => {
-    window.localStorage.clear()
-    resetState()
+const clerkError = (code: string) =>
+  new ClerkAPIResponseError('Request failed', {
+    data: [{ code, message: 'Clerk internal message', long_message: 'Clerk long message' }],
+    status: 422,
   })
 
-  it('shows the screen texts from the mockup', async () => {
+// Finalizing the sign-in is what opens the Clerk session that the mocked hooks report.
+const finalizeOpensSession = () =>
+  signInControl.finalize.mockImplementation(async () => {
+    clerkSession.signedIn = true
+    return { error: null }
+  })
+
+const EMAIL = 'daniela.rojas@habilitapp.co'
+
+describe('admin LoginPage', () => {
+  beforeEach(() => {
+    signInControl.status = 'complete'
+    signInControl.password.mockReset().mockResolvedValue({ error: null })
+    signInControl.finalize.mockReset()
+    finalizeOpensSession()
+    clerkSession.signedIn = false
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('shows the screen texts', async () => {
     renderLogin()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
-    expect(
-      screen.getByText('Entra con el correo que el equipo de HabilitApp registró para ti.'),
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText(/Correo/)).toHaveAttribute('placeholder', 'nombre@habilitapp.co')
+    expect(screen.getByText('Entra con el correo que el equipo de HabilitApp registró para ti.')).toBeInTheDocument()
     expect(screen.getByText('Uso interno del equipo de HabilitApp.')).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute('href', '/')
   })
 
-  it('is the main landmark of the page', async () => {
-    renderLogin()
-
-    expect(await screen.findByRole('main')).toContainElement(screen.getByRole('heading', { level: 1 }))
-  })
-
-  it('does not hint at any demo credentials', async () => {
-    renderLogin()
-    await screen.findByLabelText(/Correo/)
-
-    expect(screen.queryByText(/daniela/)).not.toBeInTheDocument()
-  })
-
-  it('signs in with the demo admin and opens the issuers list', async () => {
+  it('signs in with the email and the password, finalizes the session and goes to the panel', async () => {
     const router = renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('daniela.rojas@habilitapp.co', 'cualquier-cosa')
+    await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
 
+    fill(EMAIL, 'una-clave')
     submit()
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/emisores'))
-    expect((await getSession('admin'))?.role).toBe('admin')
+    expect(await screen.findByText('Panel')).toBeInTheDocument()
+    expect(signInControl.password).toHaveBeenCalledWith({ identifier: EMAIL, password: 'una-clave' })
+    expect(signInControl.finalize).toHaveBeenCalledTimes(1)
+    expect(router.state.location.pathname).toBe('/admin')
   })
 
-  it('signs in when the email has spaces around it', async () => {
-    const router = renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('  daniela.rojas@habilitapp.co ', 'x')
-
-    submit()
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/emisores'))
-  })
-
-  it('shows the error alert and does not enter with an unknown email', async () => {
-    const router = renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('nadie@ejemplo.co', 'x')
-
-    submit()
-
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No pudimos iniciar tu sesión')
-    expect(alert).toHaveTextContent('El correo o la contraseña no coinciden. Revisa los datos e inténtalo de nuevo.')
-    expect(router.state.location.pathname).toBe('/admin/ingresar')
-    expect(await getSession('admin')).toBeNull()
-  })
-
-  it('does not let an issuer email in', async () => {
-    const router = renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('coordinacion@cumbrefirme.co', 'x')
-
-    submit()
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos iniciar tu sesión')
-    expect(router.state.location.pathname).toBe('/admin/ingresar')
-    expect(await getSession('admin')).toBeNull()
-  })
-
-  it('hides the error alert as soon as the user edits a field', async () => {
+  it('shows the field errors and does not call Clerk when the form is empty', async () => {
     renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('nadie@ejemplo.co', 'x')
-    submit()
-    await screen.findByRole('alert')
-
-    fireEvent.change(screen.getByLabelText(/Correo/), { target: { value: 'daniela.rojas@habilitapp.co' } })
-
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
-
-  it('shows an error under each empty field and does not try to sign in', async () => {
-    renderLogin()
-    await screen.findByLabelText(/Correo/)
+    await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
 
     submit()
 
     expect(await screen.findByText('Escribe tu correo.')).toBeInTheDocument()
     expect(screen.getByText('Escribe tu contraseña.')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Correo/)).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText(/Contraseña/)).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByLabelText(/Contraseña/)).toHaveAccessibleDescription('Escribe tu contraseña.')
-    await waitFor(() => expect(screen.getByLabelText(/Correo/)).toHaveFocus())
-    expect(screen.queryByText('No pudimos iniciar tu sesión')).not.toBeInTheDocument()
+    expect(signInControl.password).not.toHaveBeenCalled()
   })
 
-  it('treats a blank password as empty and does not sign in', async () => {
-    renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('daniela.rojas@habilitapp.co', '   ')
+  it.each(['form_identifier_not_found', 'form_password_incorrect'])(
+    'says the credentials do not match when Clerk answers %s, without Clerk messages',
+    async (code) => {
+      signInControl.password.mockResolvedValue({ error: clerkError(code) })
+      renderLogin()
+      await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
 
+      fill(EMAIL, 'mala-clave')
+      submit()
+
+      expect(await screen.findByText('No pudimos iniciar tu sesión')).toBeInTheDocument()
+      expect(screen.getByText('El correo o la contraseña no coinciden. Revisa los datos e inténtalo de nuevo.')).toBeInTheDocument()
+      expect(document.body.textContent).not.toContain('Clerk')
+    },
+  )
+
+  it.each([
+    ['another Clerk error', { error: clerkError('something_else') }],
+    ['an unexpected status', { error: null, status: 'needs_second_factor' }],
+  ])('shows the generic failure on %s', async (_label, result) => {
+    signInControl.password.mockResolvedValue({ error: result.error })
+    if ('status' in result) signInControl.status = result.status as string
+    renderLogin()
+    await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
+
+    fill(EMAIL, 'una-clave')
     submit()
 
-    expect(await screen.findByText('Escribe tu contraseña.')).toBeInTheDocument()
-    expect(await getSession('admin')).toBeNull()
+    expect(await screen.findByText('Inténtalo de nuevo en un momento.')).toBeInTheDocument()
+    expect(screen.queryByText(/no coinciden/)).not.toBeInTheDocument()
   })
 
-  it('validates the email while filling it in', async () => {
+  it('shows the generic failure when Clerk throws', async () => {
+    signInControl.password.mockRejectedValue(new Error('offline'))
     renderLogin()
-    const email = await screen.findByLabelText(/Correo/)
+    await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
 
-    fireEvent.change(email, { target: { value: 'daniela' } })
-    fireEvent.blur(email)
+    fill(EMAIL, 'una-clave')
+    submit()
 
-    expect(await screen.findByText('Escribe un correo válido.')).toBeInTheDocument()
+    expect(await screen.findByText('Inténtalo de nuevo en un momento.')).toBeInTheDocument()
   })
 
-  it('disables the button while signing in so a double click sends only once', async () => {
-    renderLogin()
-    await screen.findByLabelText(/Correo/)
-    fill('daniela.rojas@habilitapp.co', 'x')
-    const button = screen.getByRole('button', { name: 'Iniciar sesión' })
+  it.each([
+    ['expired', 'Tu sesión venció', 'Inicia sesión de nuevo.'],
+    ['no-role', 'Tu cuenta no tiene un rol asignado', 'Pídele ayuda al equipo de HabilitApp.'],
+    ['not-admin', 'Esta cuenta no es de administración', 'Entra con la cuenta de administración.'],
+  ])('explains why the session ended: %s', async (reason, title, text) => {
+    renderLogin({ pathname: '/admin/ingresar', state: { reason } })
 
-    fireEvent.click(button)
-    fireEvent.click(button)
-
-    await waitFor(() => expect(button).toBeDisabled())
+    expect(await screen.findByText(title)).toBeInTheDocument()
+    expect(screen.getByText(text)).toBeInTheDocument()
   })
 
-  it('sends a signed-in admin straight to the panel', async () => {
-    await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+  it.each([{ reason: 'revoked' }, { reason: 'made-up' }, { reason: 7 }, null])(
+    'ignores a reason it does not know (%j)',
+    async (state) => {
+      renderLogin({ pathname: '/admin/ingresar', state })
+
+      await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    },
+  )
+
+  it('goes to the panel when there is already a session and no reason', async () => {
+    clerkSession.signedIn = true
+
     const router = renderLogin()
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/emisores'))
-    expect(screen.queryByLabelText(/Correo/)).not.toBeInTheDocument()
+    expect(await screen.findByText('Panel')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'))
   })
 
-  it('goes back to the home page', async () => {
-    const router = renderLogin()
+  it('stays on the login when there is still a session but a reason says it ended', async () => {
+    clerkSession.signedIn = true
 
-    fireEvent.click(await screen.findByRole('link', { name: 'Volver al inicio' }))
+    const router = renderLogin({ pathname: '/admin/ingresar', state: { reason: 'expired' } })
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(await screen.findByText('Tu sesión venció')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/admin/ingresar')
   })
 })

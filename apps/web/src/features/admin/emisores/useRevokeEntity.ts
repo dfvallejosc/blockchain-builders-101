@@ -1,23 +1,39 @@
-import { useCallback, useRef, useState } from 'react'
-import { revokeEntity, type Entity } from '@/data'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useRef } from 'react'
+import { revokeIssuer } from '@/api/issuers'
+import type { Entity } from '@/data'
+import { ISSUERS_KEY } from '@/features/admin/emisores/queryKeys'
+import { sessionEndReasonFor } from '@/features/auth/sessionEnd'
+
+// 'session-ended': the session gate is already sending the user to the login, so the screen shows nothing.
+export type RevokeResult = Entity | 'busy' | 'session-ended' | null
 
 export const useRevokeEntity = () => {
-  const [revoking, setRevoking] = useState(false)
+  const queryClient = useQueryClient()
   const revokingRef = useRef(false)
+  const mutation = useMutation({
+    mutationFn: (id: string) => revokeIssuer(id),
+    // Refreshing is not awaited: the change is already saved, so the answer must not wait for a slow reload.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ISSUERS_KEY })
+    },
+  })
+  const { mutateAsync } = mutation
 
-  const revoke = useCallback(async (id: string): Promise<Entity | 'busy' | null> => {
-    if (revokingRef.current) return 'busy'
-    revokingRef.current = true
-    setRevoking(true)
-    try {
-      return await revokeEntity(id)
-    } catch {
-      return null
-    } finally {
-      revokingRef.current = false
-      setRevoking(false)
-    }
-  }, [])
+  const revoke = useCallback(
+    async (id: string): Promise<RevokeResult> => {
+      if (revokingRef.current) return 'busy'
+      revokingRef.current = true
+      try {
+        return await mutateAsync(id)
+      } catch (error) {
+        return sessionEndReasonFor(error, false) === null ? null : 'session-ended'
+      } finally {
+        revokingRef.current = false
+      }
+    },
+    [mutateAsync],
+  )
 
-  return { revoking, revoke }
+  return { revoking: mutation.isPending, revoke }
 }

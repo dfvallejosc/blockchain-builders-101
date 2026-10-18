@@ -1,9 +1,8 @@
 import { useContext } from 'react'
-import { NavLink, Outlet, useNavigate, useOutletContext } from 'react-router'
+import { NavLink, Outlet, useOutletContext } from 'react-router'
 import { Logo } from '@/components/Logo'
-import { LOGIN_PATH } from '@/features/auth/loginPaths'
 import { SessionActionsContext } from '@/layouts/SessionActionsContext'
-import { signOut, type Role, type Session } from '@/data'
+import type { Role, Session } from '@/data'
 
 interface NavItem {
   label: string
@@ -32,16 +31,11 @@ const userLabel = (session: Session): string =>
 export const PanelLayout = () => {
   const session = useOutletContext<Session>()
   const sessionActions = useContext(SessionActionsContext)
-  const navigate = useNavigate()
   const { role } = session
 
+  // Both session gates provide the sign out: they close the Clerk session and go to the login.
   const handleSignOut = async () => {
-    if (sessionActions) {
-      await sessionActions.signOut()
-      return
-    }
-    await signOut(role)
-    navigate(LOGIN_PATH[role])
+    await sessionActions?.signOut()
   }
 
   return (

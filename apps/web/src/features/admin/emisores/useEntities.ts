@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { listEntities, type Entity } from '@/data'
+import { useQuery } from '@tanstack/react-query'
+import { listIssuers } from '@/api/issuers'
+import type { Entity } from '@/data'
+import { ISSUERS_KEY } from '@/features/admin/emisores/queryKeys'
 
 export type EntitiesState =
   | { phase: 'loading' }
@@ -7,27 +9,14 @@ export type EntitiesState =
   | { phase: 'ready'; entities: Entity[] }
 
 export const useEntities = () => {
-  const [load, setLoad] = useState<EntitiesState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
+  const query = useQuery({ queryKey: ISSUERS_KEY, queryFn: listIssuers })
+  const { refetch } = query
 
-  useEffect(() => {
-    let cancelled = false
-    listEntities()
-      .then((entities) => {
-        if (!cancelled) setLoad({ phase: 'ready', entities })
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ phase: 'error' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [attempt])
+  const load: EntitiesState = query.data
+    ? { phase: 'ready', entities: query.data }
+    : query.isError && !query.isFetching
+      ? { phase: 'error' }
+      : { phase: 'loading' }
 
-  const retry = useCallback(() => {
-    setLoad({ phase: 'loading' })
-    setAttempt((current) => current + 1)
-  }, [])
-
-  return { load, retry }
+  return { load, retry: () => void refetch() }
 }

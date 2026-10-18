@@ -4,3 +4,10 @@ export class NotIssuerError extends Error {
     this.name = 'NotIssuerError'
   }
 }
+
+export class NotAdminError extends Error {
+  constructor() {
+    super('not-admin')
+    this.name = 'NotAdminError'
+  }
+}

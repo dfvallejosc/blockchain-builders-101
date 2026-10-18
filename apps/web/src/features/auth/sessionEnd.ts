@@ -1,9 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { NavigateFunction } from 'react-router'
 import { DataError } from '@/data/errors'
-import { NotIssuerError } from '@/features/auth/errors'
+import { NotAdminError, NotIssuerError } from '@/features/auth/errors'
 
-export type SessionEndReason = 'expired' | 'revoked' | 'no-role' | 'not-issuer'
+export type SessionEndReason = 'expired' | 'revoked' | 'no-role' | 'not-issuer' | 'not-admin'
+export type IssuerSessionEndReason = Exclude<SessionEndReason, 'not-admin'>
+export type AdminSessionEndReason = Exclude<SessionEndReason, 'revoked' | 'not-issuer'>
 
 interface SessionEndDeps {
   signOut: (options: { redirectUrl: string }) => Promise<unknown>
@@ -14,6 +16,7 @@ interface SessionEndDeps {
 // forbidden only ends the session on GET /me: elsewhere it means one action is not allowed.
 export const sessionEndReasonFor = (error: unknown, fromProfile: boolean): SessionEndReason | null => {
   if (error instanceof NotIssuerError) return 'not-issuer'
+  if (error instanceof NotAdminError) return 'not-admin'
   if (!(error instanceof DataError)) return null
   if (error.code === 'unauthorized') return 'expired'
   if (error.code === 'entity-revoked') return 'revoked'

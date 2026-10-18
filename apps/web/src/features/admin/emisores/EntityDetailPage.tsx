@@ -95,6 +95,7 @@ const EntityDetail = ({ id }: { id: string }) => {
     const revoked = await revoke(entity.id)
     if (revoked === 'busy') return
     setConfirming(false)
+    if (revoked === 'session-ended') return
     if (revoked === null) {
       toast.show({
         tone: 'danger',

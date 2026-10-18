@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { getEntity, type Entity } from '@/data'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { getIssuer } from '@/api/issuers'
+import { DataError, type Entity } from '@/data'
+import { issuerKey } from '@/features/admin/emisores/queryKeys'
 
 export type EntityState =
   | { phase: 'loading' }
@@ -8,29 +11,22 @@ export type EntityState =
   | { phase: 'ready'; entity: Entity }
 
 export const useEntity = (id: string) => {
-  const [load, setLoad] = useState<EntityState>({ phase: 'loading' })
-  const [attempt, setAttempt] = useState(0)
+  const queryClient = useQueryClient()
+  const query = useQuery({ queryKey: issuerKey(id), queryFn: () => getIssuer(id) })
+  const { refetch } = query
 
-  useEffect(() => {
-    let cancelled = false
-    getEntity(id)
-      .then((entity) => {
-        if (!cancelled) setLoad(entity ? { phase: 'ready', entity } : { phase: 'not-found' })
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ phase: 'error' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [id, attempt])
+  const load: EntityState = query.data
+    ? { phase: 'ready', entity: query.data }
+    : query.isError && !query.isFetching
+      ? query.error instanceof DataError && query.error.code === 'not-found'
+        ? { phase: 'not-found' }
+        : { phase: 'error' }
+      : { phase: 'loading' }
 
-  const retry = useCallback(() => {
-    setLoad({ phase: 'loading' })
-    setAttempt((current) => current + 1)
-  }, [])
+  const replace = useCallback(
+    (entity: Entity) => queryClient.setQueryData(issuerKey(id), entity),
+    [id, queryClient],
+  )
 
-  const replace = useCallback((entity: Entity) => setLoad({ phase: 'ready', entity }), [])
-
-  return { load, retry, replace }
+  return { load, retry: () => void refetch(), replace }
 }

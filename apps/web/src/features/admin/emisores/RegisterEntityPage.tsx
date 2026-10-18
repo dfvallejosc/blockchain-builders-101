@@ -86,7 +86,11 @@ export const RegisterEntityPage = () => {
   const submit = async (values: RegisterEntityValues) => {
     const entity = await register(values)
     if (!entity) return
-    toast.show({ tone: 'success', title: 'Emisor registrado', message: `${entity.name} ya puede emitir certificados.` })
+    toast.show({
+      tone: 'success',
+      title: 'Emisor registrado',
+      message: `Enviamos una invitación a ${entity.email}. ${entity.name} podrá emitir cuando la acepte.`,
+    })
     navigate(`${LIST_PATH}/${entity.id}?nuevo=1`)
   }
 
@@ -95,8 +99,8 @@ export const RegisterEntityPage = () => {
       <div>
         <h1 className="text-3xl font-bold">Registrar emisor</h1>
         <p className="mt-1 text-ha-text-muted">
-          Cuando registres la entidad, podrá emitir certificados. Revisa bien el NIT y el correo: el correo será su
-          usuario de acceso.
+          Al registrar la entidad, le enviaremos una invitación al correo de contacto para que cree su acceso. Revisa
+          bien el NIT y el correo: ese correo será su usuario.
         </p>
       </div>
 
@@ -104,11 +108,13 @@ export const RegisterEntityPage = () => {
         <div key={error} ref={focusOnMount} tabIndex={-1}>
           {error === 'duplicate' ? (
             <Alert tone="warning" title="Ya hay un emisor con esos datos">
-              El nombre, el NIT o el correo ya están registrados. Revisa los datos.
+              El NIT o el correo ya están registrados. Si es el correo, puede que ya tenga una cuenta o una invitación
+              pendiente.
             </Alert>
           ) : (
             <Alert tone="danger" title="No pudimos registrar al emisor">
-              Revisa tu conexión e inténtalo de nuevo.
+              No se guardó ningún cambio. Inténtalo de nuevo en un momento y, si dudas, revisa la lista antes de
+              reintentar.
             </Alert>
           )}
         </div>
