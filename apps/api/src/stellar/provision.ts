@@ -10,7 +10,7 @@ const provisionIssuers = async (): Promise<void> => {
   try {
     const client = app.get<StellarClient | undefined>(STELLAR_CLIENT);
     if (!client) {
-      throw new Error('Stellar registry is not enabled.');
+      throw new Error('El registro de Stellar no está habilitado.');
     }
 
     const issuers = await app
@@ -28,17 +28,17 @@ const provisionIssuers = async (): Promise<void> => {
         await client.revokeIssuer(issuer.id);
         revokedCount += 1;
       }
-      console.log(issuer.id);
+      console.log(`Emisor: ${issuer.id}`);
     }
 
-    console.log(`Provisioned ${issuers.length} issuers.`);
-    console.log(`Reapplied revocation to ${revokedCount} issuers.`);
+    console.log(`Se aprovisionaron ${issuers.length} emisores.`);
+    console.log(`Se reaplicó la revocación a ${revokedCount} emisores.`);
   } finally {
     await app.close();
   }
 };
 
 void provisionIssuers().catch(() => {
-  console.error('Stellar provisioning failed.');
+  console.error('El aprovisionamiento de Stellar falló.');
   process.exitCode = 1;
 });

@@ -16,7 +16,7 @@ const runSmoke = async (): Promise<void> => {
   try {
     const client = app.get<StellarClient | undefined>(STELLAR_CLIENT);
     if (!client) {
-      throw new Error('Stellar registry is not enabled.');
+      throw new Error('El registro de Stellar no está habilitado.');
     }
 
     const issuerId = randomUUID();
@@ -24,38 +24,38 @@ const runSmoke = async (): Promise<void> => {
 
     await client.ensureIssuerAccount(issuerId);
     const authorizationHash = await client.authorizeIssuer(issuerId);
-    console.log(`authorize: ${transactionLink(authorizationHash)}`);
+    console.log(`Autorizar emisor: ${transactionLink(authorizationHash)}`);
 
     const registerHash = await client.registerCertificate({
       issuerId,
       fingerprint,
       validUntil: endOfDayInBogotaAsUnix(VALID_UNTIL),
     });
-    console.log(`register: ${transactionLink(registerHash)}`);
+    console.log(`Registrar certificado: ${transactionLink(registerHash)}`);
 
     const validVerdict = await client.getVerdict(fingerprint);
     if (validVerdict !== 'valid') {
-      throw new Error(`Expected valid verdict, got ${validVerdict}.`);
+      throw new Error(`Se esperaba el veredicto válido y se recibió ${validVerdict}.`);
     }
-    console.log(`verdict after register: ${validVerdict}`);
+    console.log(`Veredicto después del registro: ${validVerdict}`);
 
     const annulHash = await client.annulCertificate({ issuerId, fingerprint });
-    console.log(`annul: ${transactionLink(annulHash)}`);
+    console.log(`Anular certificado: ${transactionLink(annulHash)}`);
 
     const annulledVerdict = await client.getVerdict(fingerprint);
     if (annulledVerdict !== 'annulled') {
-      throw new Error(`Expected annulled verdict, got ${annulledVerdict}.`);
+      throw new Error(`Se esperaba el veredicto anulado y se recibió ${annulledVerdict}.`);
     }
-    console.log(`verdict after annul: ${annulledVerdict}`);
+    console.log(`Veredicto después de anular: ${annulledVerdict}`);
 
     const revokeHash = await client.revokeIssuer(issuerId);
-    console.log(`revoke: ${transactionLink(revokeHash)}`);
+    console.log(`Revocar emisor: ${transactionLink(revokeHash)}`);
   } finally {
     await app.close();
   }
 };
 
 void runSmoke().catch(() => {
-  console.error('Stellar smoke test failed.');
+  console.error('La prueba de Stellar falló.');
   process.exitCode = 1;
 });
