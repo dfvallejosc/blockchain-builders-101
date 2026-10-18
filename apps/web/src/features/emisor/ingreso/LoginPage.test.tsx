@@ -96,10 +96,10 @@ describe('LoginPage', () => {
 
     submit()
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/certificados'))
     expect(signInControl.password).toHaveBeenCalledWith({ identifier: ISSUER_EMAIL, password: 'cualquier-cosa' })
     expect(signInControl.finalize).toHaveBeenCalledTimes(1)
-    expect(await screen.findByRole('heading', { level: 1, name: 'Emitir certificado' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Certificados' })).toBeInTheDocument()
   })
 
   it.each(['form_identifier_not_found', 'form_password_incorrect'])(
@@ -265,7 +265,7 @@ describe('LoginPage', () => {
     clerkSession.signedIn = true
     const router = renderLogin()
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/emitir'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/emisor/certificados'))
     expect(screen.queryByLabelText(/Usuario/)).not.toBeInTheDocument()
   })
 

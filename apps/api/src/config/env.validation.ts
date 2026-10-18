@@ -41,6 +41,11 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   CORS_ORIGIN?: string;
 
+  // Required in production; elsewhere it is only checked when set, because a malformed value would fail at invite time.
+  @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production || (env.WEB_APP_URL ?? '') !== '')
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
+  WEB_APP_URL?: string;
+
   @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
   @IsString()
   @IsNotEmpty()

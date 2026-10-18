@@ -21,6 +21,44 @@ describe('AccountsService', () => {
     });
   });
 
+  it('sends redirectUrl built from WEB_APP_URL and the invitation path', async () => {
+    const createInvitation = vi.fn().mockResolvedValue({ id: 'inv_1' });
+    const service = new AccountsService(buildClient(createInvitation), 'http://localhost:5173');
+
+    await service.inviteIssuer(ISSUER_ID, EMAIL);
+
+    expect(createInvitation).toHaveBeenCalledWith({
+      emailAddress: EMAIL,
+      publicMetadata: { role: 'issuer', issuerId: ISSUER_ID },
+      redirectUrl: 'http://localhost:5173/emisor/aceptar-invitacion',
+    });
+  });
+
+  it('tolerates a trailing slash in WEB_APP_URL', async () => {
+    const createInvitation = vi.fn().mockResolvedValue({ id: 'inv_1' });
+    const service = new AccountsService(buildClient(createInvitation), 'http://localhost:5173/');
+
+    await service.inviteIssuer(ISSUER_ID, EMAIL);
+
+    expect(createInvitation).toHaveBeenCalledWith({
+      emailAddress: EMAIL,
+      publicMetadata: { role: 'issuer', issuerId: ISSUER_ID },
+      redirectUrl: 'http://localhost:5173/emisor/aceptar-invitacion',
+    });
+  });
+
+  it('omits redirectUrl when WEB_APP_URL is not set', async () => {
+    const createInvitation = vi.fn().mockResolvedValue({ id: 'inv_1' });
+    const service = new AccountsService(buildClient(createInvitation));
+
+    await service.inviteIssuer(ISSUER_ID, EMAIL);
+
+    expect(createInvitation).toHaveBeenCalledWith({
+      emailAddress: EMAIL,
+      publicMetadata: { role: 'issuer', issuerId: ISSUER_ID },
+    });
+  });
+
   it('rethrows a Clerk failure unchanged', async () => {
     const failure = new Error('clerk exploded');
     const createInvitation = vi.fn().mockRejectedValue(failure);

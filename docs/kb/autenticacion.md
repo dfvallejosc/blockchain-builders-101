@@ -49,7 +49,7 @@ Comprobado en su documentación el 2026-10-16. Lo que la documentación no confi
 - `POST /v1/invitations` (límite de 100 por hora) acepta `emailAddress`, `redirectUrl` y `publicMetadata`. Clerk envía el correo con un enlace único. El correo del invitado queda verificado y la invitación vence al mes. Se pueden revocar.
 - En la instancia de desarrollo, el `publicMetadata` de la invitación pasa al usuario cuando la acepta. No se confirmó que el plan gratis incluya las invitaciones en producción.
 - El correo de la invitación llega **en inglés** ("Your invitation", plantilla por defecto de Clerk). El plan gratis no deja personalizar las plantillas de correo, así que los emisores lo recibirían así.
-- `inviteIssuer` no pasa `redirectUrl`. Al aceptar, Clerk deja al invitado en la página "Welcome" del portal de su instancia. Cuando exista el front, la invitación tendrá que mandarlo a su pantalla de ingreso (tarea del front).
+- `inviteIssuer` pasa `redirectUrl` a `/emisor/aceptar-invitacion` cuando está configurada `WEB_APP_URL`. En producción esta variable debe ser una URL válida del front; en otros entornos, si falta, la invitación se crea sin `redirectUrl`. `WEB_APP_URL` es el origen del front y es independiente de `CORS_ORIGIN`, que la API usa para validar el origen de la sesión.
 - `createInvitation` sin `ignoreExisting` falla si el correo ya tiene una invitación o una cuenta; hoy se vería como un 500. TA-21 debe decidir qué hacer.
 - Una invitación **no impide** que alguien se registre por su cuenta. Para eso hace falta el modo "solo por invitación" en el panel. No se confirmó que esté en el plan gratis.
 
@@ -103,6 +103,25 @@ Lo que hace el código, comprobado con pruebas de Vitest que simulan `@clerk/rea
 - **Cierre de sesión por la API:** `unauthorized` (sesión vencida) y `entity-revoked` en cualquier consulta o mutación cierran la sesión de Clerk, vacían la caché y llevan a `/emisor/ingresar` con el motivo (`expired`, `revoked`, `no-role` o `not-issuer`). Que la API esté dormida o sin red (`unavailable`) no cierra la sesión.
 - **`forbidden`:** `mapApiError` convierte un 403 sin `code` en `forbidden`; `unauthorized` queda solo para el 401. Emitir convierte `forbidden` en "tipo no permitido".
 - **Origen del token:** el `azp` del token es el origen del front, y la API lo compara con `CORS_ORIGIN`, que debe incluir `http://localhost:5173` y `https://habilitapp-web.onrender.com`.
+
+## Aceptar la invitación del emisor (TA-30)
+
+El emisor abre el enlace del correo de Clerk en `/emisor/aceptar-invitacion`. Al abrirla, la pantalla le pregunta a Clerk si el ticket sigue sirviendo (`signUp.ticket({ ticket })`, que no lo gasta); si no sirve, muestra "Este enlace ya no sirve" sin pedir contraseña. Si sirve, el emisor crea y confirma su contraseña en una pantalla propia de HabilitApp, y al completar el registro llega al panel `/emisor` (que abre el listado `/emisor/certificados`) con la sesión de Clerk ya iniciada. No pasa por `/emisor/ingresar`. Si ya hay una sesión de Clerk abierta en el navegador, la pantalla pide cerrarla antes de continuar con el mismo enlace. Los errores de Clerk no se muestran literalmente.
+
+| Comprobación contra Clerk real (desarrollo, 2026-10-18) | Resultado |
+| --- | --- |
+| Redirección y enlace | Clerk acepta `redirectUrl` local a `/emisor/aceptar-invitacion`; el enlace incluye `__clerk_status=sign_up` y `__clerk_ticket`. |
+| Creación de la cuenta | Confirmado: `signUp.create({ strategy: 'ticket', ticket, password })` en una llamada. Devuelve `status: "complete"`, sin campos pendientes; después `signUp.finalize()` abre la sesión. El correo viene del ticket; Clerk pidió correo y contraseña, sin nombre ni apellido. |
+| Sesión existente y doble envío | Con sesión abierta, Clerk mostró `signedIn: true`; un segundo `create` devolvió `session_exists`. Dos envíos seguidos también dieron `session_exists`. La pantalla evita el envío si ya hay sesión y bloquea el botón mientras procesa. |
+| Validar el ticket al abrir | Confirmado: `signUp.ticket({ ticket })` sin error deja `status: "missing_requirements"`, `missingFields: ["password"]` y el correo en `signUp`. No gasta el ticket (se repite al recargar). Después, `create({ strategy: 'ticket', ticket, password })` termina en `complete`. Pasar la contraseña con `signUp.password({ password, emailAddress })` **no** cierra el alta: `finalize()` falla y no hay sesión. |
+| Enlace usado | Confirmado, también al abrir con `ticket()`: error `invitation_already_accepted`. Con una sesión de Clerk abierta, `ticket()` responde `session_exists` y tapa a los demás errores. |
+| Ticket alterado | Confirmado, también al abrir con `ticket()`: error `ticket_invalid_code`. |
+| `__clerk_status` | Una invitación ya usada llegó con `__clerk_status=sign_in`. No se usa: el veredicto es el de `ticket()`. |
+| Lugar al terminar y acceso a la entidad | La prueba directa confirmó `GET /me` con `role: "issuer"` y la entidad de la invitación. La prueba completa desde la pantalla del front, el listado de certificados y el ingreso posterior siguen pendientes. |
+
+Los errores se identifican en `error.errors[].code`; el `error.code` de nivel superior era `api_response_error`. La interfaz trata como enlace inválido la ausencia de ticket y los códigos observados `invitation_already_accepted` y `ticket_invalid_code`. Los códigos candidatos de rechazo de contraseña (`form_password_length_too_short`, `form_password_pwned`, `form_password_not_strong_enough`, `form_password_validation_failed`) se tomaron de memoria y **no se comprobaron** contra Clerk; vencimiento y revocación de invitaciones tampoco se probaron. Esos casos, el comportamiento en el plan gratis de producción y la prueba real completa con capturas de escritorio y 390 px siguen sin verificar.
+
+**Pendiente para staging:** configurar `WEB_APP_URL` en Render con el origen del front y permitir ese origen en la configuración de Clerk. No se cambió ninguno de esos servicios como parte de TA-30.
 
 ## Ingreso del administrador en el front (TA-27)
 

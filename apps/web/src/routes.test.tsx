@@ -219,12 +219,12 @@ describe('routes', () => {
       expect(brand?.querySelector('svg')).toBeInTheDocument()
     })
 
-    it('redirects /emisor to the issue page', async () => {
+    it('redirects /emisor to the certificate list', async () => {
       signInIssuer()
       const router = renderAt('/emisor')
 
-      expect(await screen.findByRole('heading', { name: 'Emitir certificado' })).toBeInTheDocument()
-      expect(router.state.location.pathname).toBe('/emisor/emitir')
+      expect(await screen.findByRole('heading', { name: 'Certificados' })).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/emisor/certificados')
     })
 
     it.each([

@@ -7,7 +7,7 @@ import { splitOrigins } from '../app.setup.js';
 import { appConfig } from '../config/app.config.js';
 import { clerkConfig } from '../config/clerk.config.js';
 import { Issuer } from '../issuers/issuer.entity.js';
-import { AccountsService, CLERK_CLIENT } from './accounts.service.js';
+import { AccountsService, CLERK_CLIENT, WEB_APP_URL } from './accounts.service.js';
 import { AuthGuard } from './auth.guard.js';
 import { ClerkTokenVerifier } from './clerk-token-verifier.js';
 import { MeController } from './me.controller.js';
@@ -32,6 +32,11 @@ export const createClerkClientFromConfig = (config: ConfigService): ClerkClient 
   providers: [
     { provide: TOKEN_VERIFIER, inject: [ConfigService], useFactory: createTokenVerifier },
     { provide: CLERK_CLIENT, inject: [ConfigService], useFactory: createClerkClientFromConfig },
+    {
+      provide: WEB_APP_URL,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): string | undefined => config.get<ConfigType<typeof appConfig>>('app')?.webAppUrl,
+    },
     { provide: APP_GUARD, useClass: AuthGuard },
     AccountsService,
   ],
