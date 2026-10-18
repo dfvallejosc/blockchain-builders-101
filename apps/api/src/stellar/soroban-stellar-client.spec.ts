@@ -32,7 +32,7 @@ const createServer = (sponsorSecret: string) => {
       latestLedger: 10,
       events: [],
       _parsed: true as const,
-      transactionData: {} as never,
+      transactionData: new SorobanDataBuilder(),
       minResourceFee: '0',
       result: {
         auth: [],
@@ -128,6 +128,38 @@ describe('SorobanStellarClient', () => {
     expect(server.sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it('serializes concurrent missing-account provisioning through the sponsor queue', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const notFound = Object.assign(new Error('missing account'), {
+      response: { status: 404 },
+    });
+    const sponsor = Keypair.fromSecret(config.sponsorSecret).publicKey();
+    server.getAccount.mockImplementation(async (publicKey: string) => {
+      if (publicKey === sponsor) return new Account(sponsor, '1');
+      throw notFound;
+    });
+    const client = new SorobanStellarClient(server as never, config);
+
+    await Promise.all([
+      client.ensureIssuerAccount('issuer-one'),
+      client.ensureIssuerAccount('issuer-two'),
+    ]);
+
+    expect(server.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(server.getAccount).toHaveBeenCalledTimes(4);
+  });
+
+  it('refreshes the sponsor account after simulation before sending the write', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const client = new SorobanStellarClient(server as never, config);
+
+    await client.extendTtl('00'.repeat(32));
+
+    expect(server.getAccount).toHaveBeenCalledTimes(2);
+  });
+
   it('maps an immediate failed submission to its contract error code', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
@@ -196,7 +228,7 @@ describe('SorobanStellarClient', () => {
   it('keeps contract and network errors free of configured secrets', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
-    server.simulateTransaction.mockRejectedValueOnce(new Error('rpc failure'));
+    server.simulateTransaction.mockRejectedValue(new Error('rpc failure'));
     const client = new SorobanStellarClient(server as never, config);
 
     await expect(client.extendTtl('00'.repeat(32))).rejects.toBeInstanceOf(

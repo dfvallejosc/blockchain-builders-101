@@ -53,45 +53,40 @@ export class SorobanStellarClient implements StellarClient {
   }
 
   async ensureIssuerAccount(issuerId: string): Promise<void> {
-    const deadline = this.createDeadline();
-    const issuer = this.issuerKeypair(issuerId);
-    try {
-      await this.withTimeout(this.server.getAccount(issuer.publicKey()), deadline);
-      return;
-    } catch (error) {
-      if (!this.isAccountNotFound(error)) throw this.mapError(error);
-    }
+    await this.enqueueWrite(async (deadline) => {
+      const issuer = this.issuerKeypair(issuerId);
+      try {
+        await this.withTimeout(this.server.getAccount(issuer.publicKey()), deadline);
+        return undefined;
+      } catch (error) {
+        if (!this.isAccountNotFound(error)) throw this.mapError(error);
+      }
 
-    try {
-      const sponsor = await this.withTimeout(
-        this.server.getAccount(this.sponsorKeypair().publicKey()),
-        deadline,
-      );
-      const transaction = new TransactionBuilder(sponsor, { fee: '100' })
-        .setNetworkPassphrase(this.config.networkPassphrase)
-        .setTimeout(30)
-        .addOperation(
-          Operation.beginSponsoringFutureReserves({
-            sponsoredId: issuer.publicKey(),
-          }),
-        )
-        .addOperation(
-          Operation.createAccount({
-            destination: issuer.publicKey(),
-            startingBalance: '0',
-          }),
-        )
-        .addOperation(
-          Operation.endSponsoringFutureReserves({
-            source: issuer.publicKey(),
-          }),
-        )
-        .build();
-      transaction.sign(this.sponsorKeypair(), issuer);
-      await this.submitAndConfirm(transaction, deadline);
-    } catch (error) {
-      throw this.mapError(error);
-    }
+      try {
+        const sponsor = await this.withTimeout(
+          this.server.getAccount(this.sponsorKeypair().publicKey()),
+          deadline,
+        );
+        const transaction = new TransactionBuilder(sponsor, { fee: '100' })
+          .setNetworkPassphrase(this.config.networkPassphrase)
+          .setTimeout(30)
+          .addOperation(
+            Operation.beginSponsoringFutureReserves({ sponsoredId: issuer.publicKey() }),
+          )
+          .addOperation(
+            Operation.createAccount({ destination: issuer.publicKey(), startingBalance: '0' }),
+          )
+          .addOperation(
+            Operation.endSponsoringFutureReserves({ source: issuer.publicKey() }),
+          )
+          .build();
+        transaction.sign(this.sponsorKeypair(), issuer);
+        await this.submitAndConfirm(transaction, deadline);
+      } catch (error) {
+        throw this.mapError(error);
+      }
+      return undefined;
+    });
   }
 
   authorizeIssuer(issuerId: string): Promise<string> {
@@ -188,7 +183,7 @@ export class SorobanStellarClient implements StellarClient {
     );
   }
 
-  private enqueueWrite(operation: (deadline: Deadline) => Promise<string>): Promise<string> {
+  private enqueueWrite<T>(operation: (deadline: Deadline) => Promise<T>): Promise<T> {
     const deadline = this.createDeadline();
     const next = this.writeChain.then(() => operation(deadline), () => operation(deadline));
     this.writeChain = next.then(() => undefined, () => undefined);
@@ -204,7 +199,11 @@ export class SorobanStellarClient implements StellarClient {
       const transaction = this.buildTransaction(account, method, args);
       const simulation = await this.simulateTransaction(transaction, account, deadline);
       const auth = await this.signAuth(simulation, authKeypair);
-      const authorized = this.buildTransaction(account, method, args, auth);
+      const currentAccount = await this.withTimeout(
+        this.server.getAccount(this.sponsorKeypair().publicKey()),
+        deadline,
+      );
+      const authorized = this.buildTransaction(currentAccount, method, args, auth);
       const assembled = assembleTransaction(authorized, simulation).build();
       assembled.sign(this.sponsorKeypair());
       return this.submitAndConfirm(assembled, deadline);
