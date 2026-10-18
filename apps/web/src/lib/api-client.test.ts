@@ -32,6 +32,24 @@ describe('api client', () => {
     setTokenProvider(null)
   })
 
+  it('waits 10 seconds for a read', async () => {
+    let timeout: unknown
+    const client = createApiClient()
+
+    await client.get('/probe', { adapter: successAdapter((config) => { timeout = config.timeout; return successAdapter()(config) }) })
+
+    expect(timeout).toBe(10_000)
+  })
+
+  it.each(['post', 'put', 'patch', 'delete'] as const)('waits 30 seconds for a %s, which can write to the network', async (method) => {
+    let timeout: unknown
+    const client = createApiClient()
+
+    await client.request({ method, url: '/probe', adapter: successAdapter((config) => { timeout = config.timeout; return successAdapter()(config) }) })
+
+    expect(timeout).toBe(30_000)
+  })
+
   it('adds the bearer token from its provider', async () => {
     let authorization: unknown
     const client = createApiClient({ getToken: async () => 'session-token' })
