@@ -96,6 +96,7 @@ describe('Issuers (e2e)', () => {
     process.env.CLERK_PUBLISHABLE_KEY = ['pk', 'test', randomBytes(16).toString('hex')].join('_');
     process.env.CLERK_JWT_KEY = signer.publicKeyPem;
     process.env.CORS_ORIGIN = ALLOWED_ORIGIN;
+    process.env.WEB_APP_URL = ALLOWED_ORIGIN;
 
     // The Clerk client is replaced, so the suite never reaches the network.
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -165,6 +166,7 @@ describe('Issuers (e2e)', () => {
       expect(createInvitation).toHaveBeenCalledWith({
         emailAddress: payload.email,
         publicMetadata: { role: 'issuer', issuerId: response.body.id },
+        redirectUrl: `${ALLOWED_ORIGIN}/emisor/aceptar-invitacion`,
       });
       expect(await storedByNit(payload.nit)).not.toBeNull();
     });
