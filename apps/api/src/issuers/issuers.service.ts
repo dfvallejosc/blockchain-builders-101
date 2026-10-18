@@ -1,6 +1,7 @@
 import { isClerkAPIResponseError } from '@clerk/backend/errors';
 import {
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,13 +10,18 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, QueryFailedError, type Repository } from 'typeorm';
 import { AccountsService } from '../auth/accounts.service.js';
+import {
+  CERTIFICATE_REGISTRY,
+  type CertificateRegistry,
+} from '../certificates/certificate-registry.js';
 import { currentMonthRange } from './current-month.js';
 import type { CreateIssuerDto } from './dto/create-issuer.dto.js';
 import { Issuer } from './issuer.entity.js';
 import { toIssuerResponse, type IssuerResponse } from './issuer-response.js';
 
 const DUPLICATE_NIT_MESSAGE = 'Ya hay una entidad registrada con ese NIT.';
-const DUPLICATE_EMAIL_MESSAGE = 'Ese correo ya tiene una cuenta o una invitación pendiente.';
+const DUPLICATE_EMAIL_MESSAGE =
+  'Ese correo ya tiene una cuenta o una invitación pendiente.';
 const UNAVAILABLE_MESSAGE = 'El servicio no está disponible.';
 
 // Clerk answers with one of these codes when the email already has an account or a pending invitation.
@@ -40,7 +46,10 @@ const isNitUniqueViolation = (error: unknown): boolean =>
   error.driverError.constraint === 'uq_issuer_nit';
 
 const isClerkDuplicate = (error: unknown): boolean =>
-  isClerkAPIResponseError(error) && error.errors.some((clerkError) => CLERK_DUPLICATE_CODES.includes(clerkError.code));
+  isClerkAPIResponseError(error) &&
+  error.errors.some((clerkError) =>
+    CLERK_DUPLICATE_CODES.includes(clerkError.code),
+  );
 
 // Only the status and the error codes are logged: the Clerk message can carry the contact's email.
 const describeClerkFailure = (error: unknown): string =>
@@ -56,10 +65,12 @@ export class IssuersService {
     @InjectRepository(Issuer) private readonly issuers: Repository<Issuer>,
     private readonly dataSource: DataSource,
     private readonly accounts: AccountsService,
+    @Inject(CERTIFICATE_REGISTRY)
+    private readonly registry: CertificateRegistry,
   ) {}
 
-  // The row and the invitation succeed together: an error from either rolls the row back, so the admin can retry.
-  // Clerk is outside the transaction, so a commit that fails after Clerk accepted would leave an orphan invitation.
+  // Registry authorization and the row succeed together, so a failed authorization rolls the row back.
+  // Clerk is outside the transaction, so a commit that fails after Clerk accepted can leave an orphan invitation.
   // Its issuerId matches no row, so the guard answers 403 and it grants nothing.
   async register(input: CreateIssuerDto): Promise<IssuerResponse> {
     const issuer = await this.dataSource.transaction(async (manager) => {
@@ -81,16 +92,22 @@ export class IssuersService {
           }),
         );
       } catch (error) {
-        if (isNitUniqueViolation(error)) throw new ConflictException(DUPLICATE_NIT_MESSAGE);
+        if (isNitUniqueViolation(error))
+          throw new ConflictException(DUPLICATE_NIT_MESSAGE);
         throw error;
       }
+
+      await this.registry.authorizeIssuer(saved.id);
 
       try {
         await this.accounts.inviteIssuer(saved.id, saved.email);
       } catch (error) {
         if (error instanceof ServiceUnavailableException) throw error;
-        if (isClerkDuplicate(error)) throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
-        this.logger.warn(`Clerk invitation failed: ${describeClerkFailure(error)}`);
+        if (isClerkDuplicate(error))
+          throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
+        this.logger.warn(
+          `Clerk invitation failed: ${describeClerkFailure(error)}`,
+        );
         throw new ServiceUnavailableException(UNAVAILABLE_MESSAGE);
       }
       return saved;
@@ -100,10 +117,16 @@ export class IssuersService {
   }
 
   async list(): Promise<IssuerResponse[]> {
-    const issuers = await this.issuers.find({ order: { createdAt: 'DESC', id: 'DESC' } });
-    const counts = await this.countIssuedThisMonth(issuers.map((issuer) => issuer.id));
+    const issuers = await this.issuers.find({
+      order: { createdAt: 'DESC', id: 'DESC' },
+    });
+    const counts = await this.countIssuedThisMonth(
+      issuers.map((issuer) => issuer.id),
+    );
 
-    return issuers.map((issuer) => toIssuerResponse(issuer, counts.get(issuer.id) ?? 0));
+    return issuers.map((issuer) =>
+      toIssuerResponse(issuer, counts.get(issuer.id) ?? 0),
+    );
   }
 
   async get(id: string): Promise<IssuerResponse> {
@@ -118,7 +141,11 @@ export class IssuersService {
     const issuer = await this.findOrFail(id);
     if (issuer.revokedAt) return this.get(id);
 
-    await this.issuers.update({ id, revokedAt: IsNull() }, { revokedAt: new Date() });
+    await this.registry.revokeIssuer(id);
+    await this.issuers.update(
+      { id, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
     return this.get(id);
   }
 
@@ -128,15 +155,15 @@ export class IssuersService {
     return issuer;
   }
 
-  private async countIssuedThisMonth(issuerIds: string[]): Promise<Map<string, number>> {
+  private async countIssuedThisMonth(
+    issuerIds: string[],
+  ): Promise<Map<string, number>> {
     if (issuerIds.length === 0) return new Map();
 
     const { from, to } = currentMonthRange(new Date());
-    const rows = await this.dataSource.query<{ issuerId: string; count: number }[]>(ISSUED_COUNT_SQL, [
-      from,
-      to,
-      issuerIds,
-    ]);
+    const rows = await this.dataSource.query<
+      { issuerId: string; count: number }[]
+    >(ISSUED_COUNT_SQL, [from, to, issuerIds]);
     return new Map(rows.map((row) => [row.issuerId, row.count]));
   }
 }

@@ -7,6 +7,7 @@ import { appConfig } from './config/app.config.js';
 import { clerkConfig } from './config/clerk.config.js';
 import { databaseConfig } from './config/database.config.js';
 import { validateEnv } from './config/env.validation.js';
+import { stellarConfig } from './config/stellar.config.js';
 import { postgresConnection } from './database/connection.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -19,7 +20,7 @@ import { WorkersModule } from './workers/workers.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
-      load: [appConfig, clerkConfig, databaseConfig],
+      load: [appConfig, clerkConfig, databaseConfig, stellarConfig],
       validate: validateEnv,
     }),
     TypeOrmModule.forRootAsync({

@@ -12,6 +12,9 @@ export interface RegistryStatus extends RegistryEntry {
   annulled: boolean;
 }
 
+export type RegistryVerdict =
+  'valid' | 'expired' | 'annulled' | 'issuer-revoked' | 'not-found';
+
 // Thrown by `annul` when the certificate was already annulled, so concurrent annulments
 // resolve to exactly one winner whatever the implementation.
 export class CertificateAlreadyAnnulledError extends Error {
@@ -24,5 +27,9 @@ export class CertificateAlreadyAnnulledError extends Error {
 export interface CertificateRegistry {
   register(entry: RegistryEntry): Promise<void>;
   getStatus(certificateId: string): Promise<RegistryStatus | null>;
+  getVerdict(fingerprint: string): Promise<RegistryVerdict>;
+  authorizeIssuer(issuerId: string): Promise<void>;
+  revokeIssuer(issuerId: string): Promise<void>;
+  extendTtl(certificateId: string): Promise<void>;
   annul(certificateId: string): Promise<void>;
 }
