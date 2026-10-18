@@ -99,6 +99,39 @@ impl CertificateRegistry {
         Ok(())
     }
 
+    pub fn annul(env: Env, issuer: Address, fingerprint: BytesN<32>) -> Result<(), Error> {
+        issuer.require_auth();
+
+        let issuer_status = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Issuer(issuer.clone()))
+            .unwrap_or(IssuerStatus::Unknown);
+        if issuer_status != IssuerStatus::Authorized {
+            return Err(Error::IssuerNotAuthorized);
+        }
+
+        let key = DataKey::Certificate(fingerprint.clone());
+        let mut certificate = env
+            .storage()
+            .persistent()
+            .get::<_, Certificate>(&key)
+            .ok_or(Error::NotFound)?;
+        if certificate.issuer != issuer {
+            return Err(Error::NotCertificateIssuer);
+        }
+        if certificate.annulled {
+            return Err(Error::AlreadyAnnulled);
+        }
+
+        certificate.annulled = true;
+        env.storage().persistent().set(&key, &certificate);
+        Self::extend_certificate(env.clone(), fingerprint);
+        Self::extend_issuer(env.clone(), issuer);
+        Self::extend_instance(env);
+        Ok(())
+    }
+
     pub fn get_status(env: Env, fingerprint: BytesN<32>) -> CertificateStatus {
         let Some(certificate) = env
             .storage()

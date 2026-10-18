@@ -242,3 +242,140 @@ fn authorize_issuer_requires_admin_signature() {
 
     assert!(client.try_authorize_issuer(&issuer).is_err());
 }
+
+#[test]
+fn annul_marks_the_certificate_annulled() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 13);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    client.annul(&issuer, &certificate_fingerprint);
+
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::Annulled
+    );
+}
+
+#[test]
+fn annul_unknown_fingerprint_fails() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+
+    assert_eq!(
+        client.try_annul(&issuer, &fingerprint(&env, 14)),
+        Err(Ok(Error::NotFound))
+    );
+}
+
+#[test]
+fn annul_twice_fails() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 15);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    client.annul(&issuer, &certificate_fingerprint);
+
+    assert_eq!(
+        client.try_annul(&issuer, &certificate_fingerprint),
+        Err(Ok(Error::AlreadyAnnulled))
+    );
+}
+
+#[test]
+fn annul_by_another_authorized_issuer_fails() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let other_issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 16);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    assert_eq!(
+        client.try_annul(&other_issuer, &certificate_fingerprint),
+        Err(Ok(Error::NotCertificateIssuer))
+    );
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::Valid
+    );
+}
+
+#[test]
+fn annul_by_revoked_issuer_fails() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 17);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    client.revoke_issuer(&issuer);
+
+    assert_eq!(
+        client.try_annul(&issuer, &certificate_fingerprint),
+        Err(Ok(Error::IssuerNotAuthorized))
+    );
+}
+
+#[test]
+fn annul_requires_the_issuers_signature() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 18);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    client.annul(&issuer, &certificate_fingerprint);
+    assert!(env.auths().iter().any(|(address, _)| address == &issuer));
+
+    let (unmocked_env, unmocked_client, _) = setup();
+    unmocked_env.mock_all_auths();
+    let unmocked_issuer = authorized_issuer(&unmocked_env, &unmocked_client);
+    let unmocked_fingerprint = fingerprint(&unmocked_env, 19);
+    unmocked_client.register(&unmocked_issuer, &unmocked_fingerprint, &2_000);
+    unmocked_env.set_auths(&[]);
+    assert!(unmocked_client
+        .try_annul(&unmocked_issuer, &unmocked_fingerprint)
+        .is_err());
+}
+
+#[test]
+fn revoked_issuer_takes_priority_over_annulled() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 20);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    client.annul(&issuer, &certificate_fingerprint);
+    client.revoke_issuer(&issuer);
+
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::IssuerRevoked
+    );
+}
+
+#[test]
+fn reauthorized_issuer_certificates_become_valid_again() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let annulled_fingerprint = fingerprint(&env, 21);
+    let active_fingerprint = fingerprint(&env, 22);
+    client.register(&issuer, &annulled_fingerprint, &2_000);
+    client.register(&issuer, &active_fingerprint, &2_000);
+    client.annul(&issuer, &annulled_fingerprint);
+    client.revoke_issuer(&issuer);
+    client.authorize_issuer(&issuer);
+
+    assert_eq!(
+        client.get_status(&annulled_fingerprint).verdict,
+        Verdict::Annulled
+    );
+    assert_eq!(
+        client.get_status(&active_fingerprint).verdict,
+        Verdict::Valid
+    );
+}
