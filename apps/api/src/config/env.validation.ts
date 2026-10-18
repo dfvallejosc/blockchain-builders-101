@@ -42,6 +42,10 @@ export class EnvironmentVariables {
   CORS_ORIGIN?: string;
 
   @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
+  WEB_APP_URL?: string;
+
+  @ValidateIf((env: EnvironmentVariables) => env.NODE_ENV === NodeEnv.Production)
   @IsString()
   @IsNotEmpty()
   CLERK_SECRET_KEY?: string;

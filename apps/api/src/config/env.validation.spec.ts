@@ -8,6 +8,7 @@ const productionEnv = {
   CLERK_SECRET_KEY: 'secret-placeholder',
   CLERK_PUBLISHABLE_KEY: 'publishable-placeholder',
   CORS_ORIGIN: 'https://app.example.com',
+  WEB_APP_URL: 'https://app.example.com',
 };
 
 const without = (env: Record<string, unknown>, key: string): Record<string, unknown> =>
@@ -31,6 +32,23 @@ describe('validateEnv Clerk and CORS settings', () => {
   it('rejects a missing CORS_ORIGIN in production', () => {
     expect(() => validateEnv(without(productionEnv, 'CORS_ORIGIN'))).toThrow('Variables de entorno inválidas');
     expect(() => validateEnv(without(productionEnv, 'CORS_ORIGIN'))).toThrow('CORS_ORIGIN');
+  });
+
+  it('rejects a missing WEB_APP_URL in production', () => {
+    expect(() => validateEnv(without(productionEnv, 'WEB_APP_URL'))).toThrow('Variables de entorno inválidas');
+    expect(() => validateEnv(without(productionEnv, 'WEB_APP_URL'))).toThrow('WEB_APP_URL');
+  });
+
+  it('rejects a WEB_APP_URL that is not a URL in production', () => {
+    expect(() => validateEnv({ ...productionEnv, WEB_APP_URL: 'not-a-url' })).toThrow('WEB_APP_URL');
+  });
+
+  it('accepts WEB_APP_URL in production', () => {
+    expect(() => validateEnv(productionEnv)).not.toThrow();
+  });
+
+  it('does not require WEB_APP_URL outside production', () => {
+    expect(() => validateEnv({ ...baseEnv, NODE_ENV: 'test' })).not.toThrow();
   });
 
   it('accepts every key in production', () => {
