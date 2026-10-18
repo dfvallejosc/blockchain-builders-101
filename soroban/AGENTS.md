@@ -47,10 +47,10 @@ stellar contract invoke \
   --id <alias> \
   --network testnet \
   --source-account <identity> \
-  -- hello --to world
+  -- get_status --fingerprint <64 hex characters>
 ```
 
-The sample `hello_world` contract exposes `hello(to: String) -> Vec<String>`. Replace that with your own functions; `stellar contract invoke --id <id> -- -h` prints the generated CLI for the deployed contract.
+`stellar contract invoke --id <id> -- -h` prints the generated CLI for the deployed contract. The `certificate-registry` functions are listed in `README.md`.
 
 ## Further reading
 

@@ -6,15 +6,20 @@ Este contrato de Soroban permite que emisores autorizados registren certificados
 
 | Función | Firma | Descripción |
 | --- | --- | --- |
+| `__constructor` | `__constructor(admin: Address)` | Corre una sola vez al desplegar y fija al administrador. |
 | `authorize_issuer` | `authorize_issuer(issuer: Address) -> Result<(), Error>` | Autoriza a un emisor. Requiere la firma del administrador. |
 | `revoke_issuer` | `revoke_issuer(issuer: Address) -> Result<(), Error>` | Revoca a un emisor existente. Requiere la firma del administrador. |
 | `get_issuer_status` | `get_issuer_status(issuer: Address) -> IssuerStatus` | Consulta si el emisor está autorizado, revocado o no registrado. |
 | `register` | `register(issuer: Address, fingerprint: BytesN<32>, valid_until: u64) -> Result<(), Error>` | Registra una huella única con fecha de vencimiento. Requiere la firma del emisor autorizado. |
-| `extend_ttl` | `extend_ttl(fingerprint: BytesN<32>) -> Result<(), Error>` | Extiende la vigencia del almacenamiento de un certificado existente. |
+| `extend_ttl` | `extend_ttl(fingerprint: BytesN<32>) -> Result<(), Error>` | No exige firma. Alarga al máximo el tiempo de vida del certificado, el de su emisor y el de la instancia. Falla con `NotFound` si la huella no existe. |
 | `annul` | `annul(issuer: Address, fingerprint: BytesN<32>) -> Result<(), Error>` | Anula un certificado del emisor. Requiere la firma del emisor autorizado que lo registró. |
 | `get_status` | `get_status(fingerprint: BytesN<32>) -> CertificateStatus` | Consulta el veredicto, el emisor y la fecha de vencimiento asociados a una huella. |
 
 Los veredictos de `get_status` son `Valid`, `Expired`, `Annulled`, `IssuerRevoked` y `NotFound`. El estado de emisor puede ser `Unknown`, `Authorized` o `Revoked`.
+
+**Prioridad del veredicto**, de mayor a menor: `NotFound`, `IssuerRevoked`, `Annulled`, `Expired`, `Valid`. El vencimiento no se guarda: se calcula al consultar y un certificado es `Expired` solo si la hora del ledger es mayor que `valid_until` (segundos Unix). `register` rechaza un `valid_until` que no sea posterior a la hora actual del ledger.
+
+**Tiempo de vida (TTL).** Emisores y certificados van en almacenamiento persistente, y el administrador en el de instancia. Cada escritura renueva al máximo el TTL de lo que toca y el de la instancia. Si una entrada llega a archivarse, la llamada falla en vez de devolver `NotFound`: hay que restaurarla antes de consultar.
 
 ## Códigos de error
 
