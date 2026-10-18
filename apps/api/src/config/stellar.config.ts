@@ -2,7 +2,8 @@ import { registerAs } from '@nestjs/config';
 import type { RegistryDriverValue } from './env.validation.js';
 
 export const stellarConfig = registerAs('stellar', () => ({
-  driver: (process.env.REGISTRY_DRIVER ?? 'postgres') as RegistryDriverValue,
+  // An empty value counts as unset, like in the validation.
+  driver: (process.env.REGISTRY_DRIVER || 'postgres') as RegistryDriverValue,
   rpcUrl: process.env.STELLAR_RPC_URL,
   networkPassphrase: process.env.STELLAR_NETWORK_PASSPHRASE,
   contractId: process.env.STELLAR_CONTRACT_ID,

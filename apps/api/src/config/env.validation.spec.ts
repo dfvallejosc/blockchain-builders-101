@@ -111,3 +111,26 @@ describe('validateEnv Stellar registry settings', () => {
     ).toThrow('REGISTRY_DRIVER');
   });
 });
+
+describe('validateEnv empty REGISTRY_DRIVER', () => {
+  it('treats an empty value as postgres, so a copied .env.example boots', () => {
+    const env = validateEnv({ ...baseEnv, REGISTRY_DRIVER: '' });
+
+    expect(env.REGISTRY_DRIVER).toBe(RegistryDriver.Postgres);
+  });
+
+  it('still requires the Stellar variables when the driver is stellar and they are empty', () => {
+    expect(() =>
+      validateEnv({
+        ...baseEnv,
+        REGISTRY_DRIVER: 'stellar',
+        STELLAR_RPC_URL: '',
+        STELLAR_NETWORK_PASSPHRASE: '',
+        STELLAR_CONTRACT_ID: '',
+        STELLAR_MASTER_SECRET: '',
+        STELLAR_ADMIN_SECRET: '',
+        STELLAR_SPONSOR_SECRET: '',
+      }),
+    ).toThrow('STELLAR_RPC_URL');
+  });
+});

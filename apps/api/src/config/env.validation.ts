@@ -122,7 +122,12 @@ export class EnvironmentVariables {
 export const validateEnv = (
   config: Record<string, unknown>,
 ): EnvironmentVariables => {
-  const parsed = plainToInstance(EnvironmentVariables, config, {
+  // An empty REGISTRY_DRIVER (the line copied from .env.example) counts as unset and takes the default.
+  const input =
+    config.REGISTRY_DRIVER === ''
+      ? Object.fromEntries(Object.entries(config).filter(([name]) => name !== 'REGISTRY_DRIVER'))
+      : config;
+  const parsed = plainToInstance(EnvironmentVariables, input, {
     enableImplicitConversion: false,
     exposeDefaultValues: true,
   });
