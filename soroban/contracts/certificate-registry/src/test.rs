@@ -4,9 +4,9 @@ use super::*;
 use soroban_sdk::{
     testutils::{
         storage::{Instance as _, Persistent as _},
-        Address as _, Ledger,
+        Address as _, Ledger, MockAuth, MockAuthInvoke,
     },
-    Address, BytesN, Env,
+    Address, BytesN, Env, IntoVal,
 };
 
 fn setup() -> (Env, CertificateRegistryClient<'static>, Address) {
@@ -25,6 +25,21 @@ fn authorized_issuer(env: &Env, client: &CertificateRegistryClient<'_>) -> Addre
 
 fn fingerprint(env: &Env, byte: u8) -> BytesN<32> {
     BytesN::from_array(env, &[byte; 32])
+}
+
+fn advance_ledger(env: &Env) {
+    env.ledger()
+        .set_sequence_number(env.ledger().get().sequence_number + 1_000);
+}
+
+fn assert_ttl_is_max(env: &Env, client: &CertificateRegistryClient<'_>, keys: &[DataKey]) {
+    env.as_contract(&client.address, || {
+        let max_ttl = env.storage().max_ttl();
+        for key in keys {
+            assert_eq!(env.storage().persistent().get_ttl(key), max_ttl);
+        }
+        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
+    });
 }
 
 #[test]
@@ -431,36 +446,145 @@ fn writes_extend_ttl_to_max() {
     env.mock_all_auths();
     let issuer = authorized_issuer(&env, &client);
     let certificate_fingerprint = fingerprint(&env, 25);
-    client.register(&issuer, &certificate_fingerprint, &2_000);
 
-    let contract_id = client.address.clone();
-    env.as_contract(&contract_id, || {
-        let max_ttl = env.storage().max_ttl();
-        assert_eq!(
-            env.storage()
-                .persistent()
-                .get_ttl(&DataKey::Certificate(certificate_fingerprint.clone())),
-            max_ttl
-        );
-        assert_eq!(
-            env.storage()
-                .persistent()
-                .get_ttl(&DataKey::Issuer(issuer.clone())),
-            max_ttl
-        );
-        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
-    });
+    advance_ledger(&env);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    assert_ttl_is_max(
+        &env,
+        &client,
+        &[
+            DataKey::Certificate(certificate_fingerprint),
+            DataKey::Issuer(issuer),
+        ],
+    );
 
     let second_issuer = Address::generate(&env);
+    advance_ledger(&env);
     client.authorize_issuer(&second_issuer);
-    env.as_contract(&contract_id, || {
-        let max_ttl = env.storage().max_ttl();
-        assert_eq!(
-            env.storage()
-                .persistent()
-                .get_ttl(&DataKey::Issuer(second_issuer.clone())),
-            max_ttl
-        );
-        assert_eq!(env.storage().instance().get_ttl(), max_ttl);
-    });
+    assert_ttl_is_max(&env, &client, &[DataKey::Issuer(second_issuer)]);
+}
+
+#[test]
+fn annul_extends_ttl_to_max() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 26);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    advance_ledger(&env);
+    client.annul(&issuer, &certificate_fingerprint);
+
+    assert_ttl_is_max(
+        &env,
+        &client,
+        &[
+            DataKey::Certificate(certificate_fingerprint),
+            DataKey::Issuer(issuer),
+        ],
+    );
+}
+
+#[test]
+fn revoke_issuer_extends_ttl_to_max() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+
+    advance_ledger(&env);
+    client.revoke_issuer(&issuer);
+
+    assert_ttl_is_max(&env, &client, &[DataKey::Issuer(issuer)]);
+}
+
+#[test]
+fn annulled_takes_priority_over_expired() {
+    let (env, client, _) = setup();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(1_000);
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 27);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+    client.annul(&issuer, &certificate_fingerprint);
+
+    env.ledger().set_timestamp(2_001);
+
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::Annulled
+    );
+}
+
+#[test]
+fn register_signed_by_the_admin_instead_of_the_issuer_fails() {
+    let (env, client, admin) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 28);
+
+    env.mock_auths(&[MockAuth {
+        address: &admin,
+        invoke: &MockAuthInvoke {
+            contract: &client.address,
+            fn_name: "register",
+            args: (&issuer, &certificate_fingerprint, 2_000u64).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+
+    assert!(matches!(
+        client.try_register(&issuer, &certificate_fingerprint, &2_000),
+        Err(Err(_))
+    ));
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::NotFound
+    );
+}
+
+#[test]
+fn annul_signed_by_the_admin_instead_of_the_issuer_fails() {
+    let (env, client, admin) = setup();
+    env.mock_all_auths();
+    let issuer = authorized_issuer(&env, &client);
+    let certificate_fingerprint = fingerprint(&env, 29);
+    client.register(&issuer, &certificate_fingerprint, &2_000);
+
+    env.mock_auths(&[MockAuth {
+        address: &admin,
+        invoke: &MockAuthInvoke {
+            contract: &client.address,
+            fn_name: "annul",
+            args: (&issuer, &certificate_fingerprint).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+
+    assert!(matches!(
+        client.try_annul(&issuer, &certificate_fingerprint),
+        Err(Err(_))
+    ));
+    assert_eq!(
+        client.get_status(&certificate_fingerprint).verdict,
+        Verdict::Valid
+    );
+}
+
+#[test]
+fn authorize_issuer_signed_by_the_issuer_itself_fails() {
+    let (env, client, _) = setup();
+    let issuer = Address::generate(&env);
+
+    env.mock_auths(&[MockAuth {
+        address: &issuer,
+        invoke: &MockAuthInvoke {
+            contract: &client.address,
+            fn_name: "authorize_issuer",
+            args: (&issuer,).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+
+    assert!(matches!(client.try_authorize_issuer(&issuer), Err(Err(_))));
+    assert_eq!(client.get_issuer_status(&issuer), IssuerStatus::Unknown);
 }
