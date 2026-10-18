@@ -2,7 +2,6 @@ export { certificateStatus, getCertificate, issueCertificate, listCertificates }
 export { getEntity, listEntities, registerEntity, revokeEntity } from '@/data/entities'
 export { DataError } from '@/data/errors'
 export type { DataErrorCode } from '@/data/errors'
-export { getSession, signIn, signOut } from '@/data/session'
 export { resetState } from '@/data/storage'
 export { verifyCertificate } from '@/data/verification'
 export { listWorkers, registerWorker } from '@/data/workers'

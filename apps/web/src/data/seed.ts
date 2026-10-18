@@ -1,17 +1,11 @@
 import { formatCertificateId } from '@/data/certificate-id'
 import type {
-  AdminSession,
   Certificate,
   CertificateType,
   DocumentType,
   Entity,
   Worker,
 } from '@/data/types'
-
-export const ADMIN_USER: Pick<AdminSession, 'name' | 'email'> = {
-  name: 'Daniela Rojas',
-  email: 'daniela.rojas@habilitapp.co',
-}
 
 export const SEED_ENTITIES: Entity[] = [
   {
