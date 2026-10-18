@@ -149,16 +149,20 @@ export class SorobanStellarClient implements StellarClient {
     const deadline = this.createDeadline();
     try {
       if (this.server.queryContract) {
-        const response = await this.withTimeout(
-          this.server.queryContract<{ verdict: unknown }>(
-            this.config.contractId,
-            'get_status',
-            { fingerprint: Buffer.from(fingerprint, 'hex') },
-            this.config.networkPassphrase,
-          ),
-          deadline,
-        );
-        return this.mapVerdict(response.result.verdict);
+        try {
+          const response = await this.withTimeout(
+            this.server.queryContract<{ verdict: unknown }>(
+              this.config.contractId,
+              'get_status',
+              { fingerprint: Buffer.from(fingerprint, 'hex') },
+              this.config.networkPassphrase,
+            ),
+            deadline,
+          );
+          return this.mapVerdict(response.result.verdict);
+        } catch (error) {
+          if (!/archiv|footprint/i.test(String(error))) throw error;
+        }
       }
       const simulation = await this.simulate(
         'get_status',
