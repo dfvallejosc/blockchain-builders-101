@@ -98,6 +98,10 @@ const buildHarness = () => {
   const registry: CertificateRegistry = {
     register,
     getStatus: vi.fn(),
+    getVerdict: vi.fn(),
+    authorizeIssuer: vi.fn(),
+    revokeIssuer: vi.fn(),
+    extendTtl: vi.fn(),
     annul,
   };
   const compute = vi.fn().mockReturnValue('private-fingerprint');

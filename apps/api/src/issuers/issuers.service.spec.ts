@@ -1,7 +1,13 @@
 import { ClerkAPIResponseError } from '@clerk/backend/errors';
-import { ConflictException, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { QueryFailedError, type DataSource, type Repository } from 'typeorm';
 import type { AccountsService } from '../auth/accounts.service.js';
+import type { CertificateRegistry } from '../certificates/certificate-registry.js';
 import { CertificateType } from '../certificates/certificate-type.js';
 import type { CreateIssuerDto } from './dto/create-issuer.dto.js';
 import { Issuer } from './issuer.entity.js';
@@ -36,10 +42,17 @@ const buildIssuer = (overrides: Partial<Issuer> = {}): Issuer =>
   }) as Issuer;
 
 const uniqueViolation = (constraint: string): QueryFailedError =>
-  new QueryFailedError('INSERT ...', [], Object.assign(new Error('duplicate key'), { code: '23505', constraint }));
+  new QueryFailedError(
+    'INSERT ...',
+    [],
+    Object.assign(new Error('duplicate key'), { code: '23505', constraint }),
+  );
 
 const clerkError = (status: number, code: string): ClerkAPIResponseError =>
-  new ClerkAPIResponseError('clerk failure', { data: [{ code, message: 'm', long_message: 'm' }], status });
+  new ClerkAPIResponseError('clerk failure', {
+    data: [{ code, message: 'm', long_message: 'm' }],
+    status,
+  });
 
 const setup = () => {
   const transactional = {
@@ -59,12 +72,22 @@ const setup = () => {
     query: vi.fn().mockResolvedValue([]),
   };
   const accounts = { inviteIssuer: vi.fn().mockResolvedValue(undefined) };
+  const registry: CertificateRegistry = {
+    authorizeIssuer: vi.fn().mockResolvedValue(undefined),
+    revokeIssuer: vi.fn().mockResolvedValue(undefined),
+    register: vi.fn().mockResolvedValue(undefined),
+    getStatus: vi.fn().mockResolvedValue(null),
+    getVerdict: vi.fn().mockResolvedValue('not-found'),
+    extendTtl: vi.fn().mockResolvedValue(undefined),
+    annul: vi.fn().mockResolvedValue(undefined),
+  };
   const service = new IssuersService(
     repository as unknown as Repository<Issuer>,
     dataSource as unknown as DataSource,
     accounts as unknown as AccountsService,
+    registry,
   );
-  return { service, repository, transactional, dataSource, accounts };
+  return { service, repository, transactional, dataSource, accounts, registry };
 };
 
 describe('IssuersService', () => {
@@ -74,23 +97,44 @@ describe('IssuersService', () => {
 
   describe('register', () => {
     it('saves the issuer unrevoked, invites its contact email, and answers the Entity fields', async () => {
-      const { service, transactional, accounts } = setup();
+      const { service, transactional, accounts, registry } = setup();
 
       const response = await service.register(input);
 
-      expect(transactional.create).toHaveBeenCalledWith({ ...input, revokedAt: null });
-      expect(accounts.inviteIssuer).toHaveBeenCalledWith(ISSUER_ID, input.email);
+      expect(transactional.create).toHaveBeenCalledWith({
+        ...input,
+        revokedAt: null,
+      });
+      expect(registry.authorizeIssuer).toHaveBeenCalledWith(ISSUER_ID);
+      expect(accounts.inviteIssuer).toHaveBeenCalledWith(
+        ISSUER_ID,
+        input.email,
+      );
       expect(response).toEqual(toIssuerResponse(buildIssuer(), 0));
     });
 
     it('invites only after the row is saved, so the invitation can carry its id', async () => {
-      const { service, transactional, accounts } = setup();
+      const { service, transactional, accounts, registry } = setup();
 
       await service.register(input);
 
       expect(transactional.save.mock.invocationCallOrder[0]).toBeLessThan(
+        registry.authorizeIssuer.mock.invocationCallOrder[0] as number,
+      );
+      expect(registry.authorizeIssuer.mock.invocationCallOrder[0]).toBeLessThan(
         accounts.inviteIssuer.mock.invocationCallOrder[0] as number,
       );
+    });
+
+    it('rolls back before inviting when registry authorization fails', async () => {
+      const { service, accounts, registry } = setup();
+      const failure = new ServiceUnavailableException(
+        'El servicio no está disponible.',
+      );
+      vi.mocked(registry.authorizeIssuer).mockRejectedValue(failure);
+
+      await expect(service.register(input)).rejects.toBe(failure);
+      expect(accounts.inviteIssuer).not.toHaveBeenCalled();
     });
 
     it('answers 409 and never calls Clerk when the NIT is already registered', async () => {
@@ -100,7 +144,9 @@ describe('IssuersService', () => {
       const result = service.register(input);
 
       await expect(result).rejects.toBeInstanceOf(ConflictException);
-      await expect(result).rejects.toMatchObject({ message: 'Ya hay una entidad registrada con ese NIT.' });
+      await expect(result).rejects.toMatchObject({
+        message: 'Ya hay una entidad registrada con ese NIT.',
+      });
       expect(accounts.inviteIssuer).not.toHaveBeenCalled();
     });
 
@@ -115,31 +161,44 @@ describe('IssuersService', () => {
     it.each([
       ['an existing account', 'form_identifier_exists'],
       ['an existing invitation', 'duplicate_record'],
-    ])('rolls back with 409 when the email already has %s in Clerk', async (_name, code) => {
-      const { service, accounts } = setup();
-      accounts.inviteIssuer.mockRejectedValue(clerkError(422, code));
+    ])(
+      'rolls back with 409 when the email already has %s in Clerk',
+      async (_name, code) => {
+        const { service, accounts } = setup();
+        accounts.inviteIssuer.mockRejectedValue(clerkError(422, code));
 
-      const result = service.register(input);
+        const result = service.register(input);
 
-      await expect(result).rejects.toBeInstanceOf(ConflictException);
-      await expect(result).rejects.toMatchObject({
-        message: 'Ese correo ya tiene una cuenta o una invitación pendiente.',
-      });
-    });
+        await expect(result).rejects.toBeInstanceOf(ConflictException);
+        await expect(result).rejects.toMatchObject({
+          message: 'Ese correo ya tiene una cuenta o una invitación pendiente.',
+        });
+      },
+    );
 
     it('also recognizes the duplicate codes under another 4xx status', async () => {
       const { service, accounts } = setup();
-      accounts.inviteIssuer.mockRejectedValue(clerkError(400, 'duplicate_record'));
+      accounts.inviteIssuer.mockRejectedValue(
+        clerkError(400, 'duplicate_record'),
+      );
 
-      await expect(service.register(input)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.register(input)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
     });
 
     it('logs the Clerk status and codes, never the email or the Clerk message', async () => {
       const { service, accounts } = setup();
-      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-      accounts.inviteIssuer.mockRejectedValue(clerkError(401, 'authentication_invalid'));
+      const warn = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      accounts.inviteIssuer.mockRejectedValue(
+        clerkError(401, 'authentication_invalid'),
+      );
 
-      await expect(service.register(input)).rejects.toBeInstanceOf(ServiceUnavailableException);
+      await expect(service.register(input)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
 
       const logged = warn.mock.calls.map((call) => String(call[0])).join('\n');
       expect(logged).toContain('401');
@@ -151,10 +210,16 @@ describe('IssuersService', () => {
 
     it('logs an unexpected failure without its message', async () => {
       const { service, accounts } = setup();
-      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-      accounts.inviteIssuer.mockRejectedValue(new Error(`timeout inviting ${input.email}`));
+      const warn = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      accounts.inviteIssuer.mockRejectedValue(
+        new Error(`timeout inviting ${input.email}`),
+      );
 
-      await expect(service.register(input)).rejects.toBeInstanceOf(ServiceUnavailableException);
+      await expect(service.register(input)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
 
       expect(warn).toHaveBeenCalledTimes(1);
       expect(String(warn.mock.calls[0]?.[0])).not.toContain(input.email);
@@ -163,7 +228,10 @@ describe('IssuersService', () => {
 
     it.each([
       ['a Clerk server error', clerkError(500, 'unexpected')],
-      ['a Clerk validation error of another kind', clerkError(422, 'form_param_format_invalid')],
+      [
+        'a Clerk validation error of another kind',
+        clerkError(422, 'form_param_format_invalid'),
+      ],
       ['a network failure', new Error('connect ETIMEDOUT')],
     ])('rolls back with a generic 503 on %s', async (_name, failure) => {
       const { service, accounts } = setup();
@@ -172,12 +240,16 @@ describe('IssuersService', () => {
       const result = service.register(input);
 
       await expect(result).rejects.toBeInstanceOf(ServiceUnavailableException);
-      await expect(result).rejects.toMatchObject({ message: 'El servicio no está disponible.' });
+      await expect(result).rejects.toMatchObject({
+        message: 'El servicio no está disponible.',
+      });
     });
 
     it('keeps the 503 from AccountsService when Clerk is not configured', async () => {
       const { service, accounts } = setup();
-      const unavailable = new ServiceUnavailableException('El servicio no está disponible.');
+      const unavailable = new ServiceUnavailableException(
+        'El servicio no está disponible.',
+      );
       accounts.inviteIssuer.mockRejectedValue(unavailable);
 
       await expect(service.register(input)).rejects.toBe(unavailable);
@@ -196,10 +268,19 @@ describe('IssuersService', () => {
 
       const response = await service.list();
 
-      expect(repository.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC', id: 'DESC' } });
+      expect(repository.find).toHaveBeenCalledWith({
+        order: { createdAt: 'DESC', id: 'DESC' },
+      });
       expect(dataSource.query).toHaveBeenCalledTimes(1);
-      expect(dataSource.query).toHaveBeenCalledWith(expect.any(String), ['2026-10-01', '2026-11-01', [ISSUER_ID, OTHER_ID]]);
-      expect(response).toEqual([toIssuerResponse(first, 0), toIssuerResponse(second, 7)]);
+      expect(dataSource.query).toHaveBeenCalledWith(expect.any(String), [
+        '2026-10-01',
+        '2026-11-01',
+        [ISSUER_ID, OTHER_ID],
+      ]);
+      expect(response).toEqual([
+        toIssuerResponse(first, 0),
+        toIssuerResponse(second, 7),
+      ]);
     });
 
     it('answers an empty list without counting', async () => {
@@ -218,7 +299,9 @@ describe('IssuersService', () => {
       repository.findOneBy.mockResolvedValue(issuer);
       dataSource.query.mockResolvedValue([{ issuerId: ISSUER_ID, count: 3 }]);
 
-      await expect(service.get(ISSUER_ID)).resolves.toEqual(toIssuerResponse(issuer, 3));
+      await expect(service.get(ISSUER_ID)).resolves.toEqual(
+        toIssuerResponse(issuer, 3),
+      );
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: ISSUER_ID });
     });
 
@@ -226,7 +309,9 @@ describe('IssuersService', () => {
       const { service, repository } = setup();
       repository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.get(ISSUER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.get(ISSUER_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -234,23 +319,48 @@ describe('IssuersService', () => {
     it('marks the issuer revoked with the server time and keeps its data', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-10-18T08:30:00.000Z'));
-      const { service, repository } = setup();
-      const revoked = buildIssuer({ revokedAt: new Date('2026-10-18T08:30:00.000Z') });
-      repository.findOneBy.mockResolvedValueOnce(buildIssuer()).mockResolvedValueOnce(revoked);
+      const { service, repository, registry } = setup();
+      const revoked = buildIssuer({
+        revokedAt: new Date('2026-10-18T08:30:00.000Z'),
+      });
+      repository.findOneBy
+        .mockResolvedValueOnce(buildIssuer())
+        .mockResolvedValueOnce(revoked);
 
       const response = await service.revoke(ISSUER_ID);
 
+      expect(registry.revokeIssuer).toHaveBeenCalledWith(ISSUER_ID);
       expect(repository.update).toHaveBeenCalledWith(
-        { id: ISSUER_ID, revokedAt: expect.objectContaining({ _type: 'isNull' }) },
+        {
+          id: ISSUER_ID,
+          revokedAt: expect.objectContaining({ _type: 'isNull' }),
+        },
         { revokedAt: new Date('2026-10-18T08:30:00.000Z') },
       );
       expect(response.revokedAt).toBe('2026-10-18T08:30:00.000Z');
       expect(response.nit).toBe(input.nit);
     });
 
+    it('does not mark an issuer revoked when registry revocation fails', async () => {
+      const { service, repository, registry } = setup();
+      const issuer = buildIssuer();
+      repository.findOneBy.mockResolvedValue(issuer);
+      vi.mocked(registry.revokeIssuer).mockRejectedValue(
+        new ServiceUnavailableException(),
+      );
+
+      await expect(service.revoke(ISSUER_ID)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+      expect(issuer.revokedAt).toBeNull();
+    });
+
     it('is idempotent: an already revoked issuer keeps its original date', async () => {
       const { service, repository } = setup();
-      const revoked = buildIssuer({ revokedAt: new Date('2026-10-01T00:00:00.000Z') });
+      const revoked = buildIssuer({
+        revokedAt: new Date('2026-10-01T00:00:00.000Z'),
+      });
       repository.findOneBy.mockResolvedValue(revoked);
 
       const response = await service.revoke(ISSUER_ID);
@@ -263,7 +373,9 @@ describe('IssuersService', () => {
       const { service, repository } = setup();
       repository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.revoke(ISSUER_ID)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.revoke(ISSUER_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
       expect(repository.update).not.toHaveBeenCalled();
     });
   });

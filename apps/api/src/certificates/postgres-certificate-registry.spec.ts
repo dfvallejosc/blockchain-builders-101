@@ -1,7 +1,10 @@
 import { IsNull, type Repository } from 'typeorm';
 import { Certificate } from './certificate.entity.js';
 import { PostgresCertificateRegistry } from './postgres-certificate-registry.js';
-import { CertificateAlreadyAnnulledError, type RegistryEntry } from './certificate-registry.js';
+import {
+  CertificateAlreadyAnnulledError,
+  type RegistryEntry,
+} from './certificate-registry.js';
 
 const entry: RegistryEntry = {
   certificateId: 'certificate-123',
@@ -20,7 +23,9 @@ const buildRepository = () => ({
 describe('PostgresCertificateRegistry', () => {
   it('registers without saving or updating the certificate row', async () => {
     const repository = buildRepository();
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
     await registry.register(entry);
 
@@ -31,7 +36,9 @@ describe('PostgresCertificateRegistry', () => {
   it('returns null when the certificate is not found', async () => {
     const repository = buildRepository();
     repository.findOne.mockResolvedValue(null);
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
     await expect(registry.getStatus(entry.certificateId)).resolves.toBeNull();
   });
@@ -46,15 +53,22 @@ describe('PostgresCertificateRegistry', () => {
       validUntil: entry.validUntil,
       annulledAt: new Date('2026-10-18T12:00:00.000Z'),
     });
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
-    await expect(registry.getStatus(entry.certificateId)).resolves.toEqual({ ...entry, annulled: true });
+    await expect(registry.getStatus(entry.certificateId)).resolves.toEqual({
+      ...entry,
+      annulled: true,
+    });
   });
 
   it('marks the certificate as annulled only when it has not already been annulled', async () => {
     const repository = buildRepository();
     repository.update.mockResolvedValue({ affected: 1 });
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
     await registry.annul(entry.certificateId);
 
@@ -67,9 +81,13 @@ describe('PostgresCertificateRegistry', () => {
   it('rejects with CertificateAlreadyAnnulledError when no row changed', async () => {
     const repository = buildRepository();
     repository.update.mockResolvedValue({ affected: 0 });
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
-    await expect(registry.annul(entry.certificateId)).rejects.toBeInstanceOf(CertificateAlreadyAnnulledError);
+    await expect(registry.annul(entry.certificateId)).rejects.toBeInstanceOf(
+      CertificateAlreadyAnnulledError,
+    );
   });
 
   it('reports a certificate as not annulled when annulledAt is null', async () => {
@@ -82,8 +100,91 @@ describe('PostgresCertificateRegistry', () => {
       validUntil: entry.validUntil,
       annulledAt: null,
     });
-    const registry = new PostgresCertificateRegistry(repository as unknown as Repository<Certificate>);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
 
-    await expect(registry.getStatus(entry.certificateId)).resolves.toEqual({ ...entry, annulled: false });
+    await expect(registry.getStatus(entry.certificateId)).resolves.toEqual({
+      ...entry,
+      annulled: false,
+    });
+  });
+
+  it.each([
+    [
+      'a valid certificate',
+      { annulledAt: null, validUntil: '2099-12-31' },
+      null,
+      'valid',
+    ],
+    [
+      'an expired certificate',
+      { annulledAt: null, validUntil: '2026-10-17' },
+      null,
+      'expired',
+    ],
+    [
+      'an annulled certificate',
+      {
+        annulledAt: new Date('2026-10-18T12:00:00.000Z'),
+        validUntil: '2099-12-31',
+      },
+      null,
+      'annulled',
+    ],
+    [
+      'a certificate from a revoked issuer',
+      { annulledAt: null, validUntil: '2099-12-31' },
+      new Date('2026-10-18T12:00:00.000Z'),
+      'issuer-revoked',
+    ],
+  ])('returns %s', async (_caseName, certificate, revokedAt, expected) => {
+    const repository = buildRepository();
+    repository.findOne.mockResolvedValue({
+      fingerprint: entry.fingerprint,
+      validUntil: certificate.validUntil,
+      annulledAt: certificate.annulledAt,
+      issuer: { revokedAt },
+    });
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
+
+    await expect(registry.getVerdict(entry.fingerprint)).resolves.toBe(
+      expected,
+    );
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { fingerprint: entry.fingerprint },
+      relations: { issuer: true },
+    });
+  });
+
+  it('returns not-found when no certificate matches the fingerprint', async () => {
+    const repository = buildRepository();
+    repository.findOne.mockResolvedValue(null);
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
+
+    await expect(registry.getVerdict('missing-fingerprint')).resolves.toBe(
+      'not-found',
+    );
+  });
+
+  it('resolves issuer and TTL operations without changing the repository', async () => {
+    const repository = buildRepository();
+    const registry = new PostgresCertificateRegistry(
+      repository as unknown as Repository<Certificate>,
+    );
+
+    await expect(
+      registry.authorizeIssuer('issuer-123'),
+    ).resolves.toBeUndefined();
+    await expect(registry.revokeIssuer('issuer-123')).resolves.toBeUndefined();
+    await expect(
+      registry.extendTtl(entry.certificateId),
+    ).resolves.toBeUndefined();
+    expect(repository.save).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 });
