@@ -121,6 +121,7 @@ describe('SorobanStellarClient', () => {
     ['a bare string', 'Valid'],
     ['an unknown variant', { verdict: ['Mystery'] }],
     ['a number', { verdict: 42 }],
+    ['an inherited property name', { verdict: ['constructor'] }],
   ])('fails closed instead of reading %s as not-found', async (_label, result) => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);

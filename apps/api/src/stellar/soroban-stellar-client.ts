@@ -359,7 +359,8 @@ export class SorobanStellarClient implements StellarClient {
   // An unrecognised shape fails closed: it must never read as "not found".
   private mapVerdict(status: unknown): RegistryVerdict {
     const name = status && typeof status === 'object' && 'verdict' in status ? variantName(status.verdict) : undefined;
-    const verdict = name === undefined ? undefined : VERDICTS[name];
+    // Own keys only: an inherited name such as `constructor` must not read as a verdict.
+    const verdict = name !== undefined && Object.hasOwn(VERDICTS, name) ? VERDICTS[name] : undefined;
     if (!verdict) throw new NetworkUnavailableError();
     return verdict;
   }
