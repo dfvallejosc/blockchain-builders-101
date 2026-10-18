@@ -17,6 +17,8 @@
     "migration:generate": "nest build && typeorm migration:generate -d dist/database/data-source.js",
     "migration:run": "nest build && typeorm migration:run -d dist/database/data-source.js",
     "migration:revert": "nest build && typeorm migration:revert -d dist/database/data-source.js",
+    "stellar:provision": "nest build && node dist/stellar/provision.js",
+    "stellar:smoke": "nest build && node dist/stellar/smoke.js",
     "lint": "oxlint --type-aware src/ test/",
     "test": "vitest run",
     "test:watch": "vitest",
