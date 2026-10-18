@@ -1,6 +1,5 @@
 import {
   authorizeEntry,
-  Contract,
   Keypair,
   Operation,
   TransactionBuilder,
@@ -11,7 +10,7 @@ import {
   type Transaction,
 } from '@stellar/stellar-sdk';
 import { assembleTransaction } from '@stellar/stellar-sdk/rpc';
-import type { Server, Api } from '@stellar/stellar-sdk/rpc';
+import { Api, type Server } from '@stellar/stellar-sdk/rpc';
 
 import type { RegistryVerdict } from '../certificates/certificate-registry.js';
 import { ContractError, NetworkUnavailableError } from './contract-errors.js';
@@ -28,14 +27,11 @@ interface StellarConfig {
   sponsorSecret: string;
 }
 
-interface TransactionResponse {
-  status: string;
-  hash?: string;
-  errorResultXdr?: string;
+interface Deadline {
+  readonly expiresAt: number;
 }
 
-type ServerWithRestore = Server & {
-  restoreFootprint?: (transaction: Transaction) => Promise<unknown>;
+type QueryServer = Server & {
   queryContract?: <T>(
     contractId: string,
     method: string,
@@ -48,132 +44,129 @@ const SUCCESS = 'SUCCESS';
 const FAILED = 'FAILED';
 
 export class SorobanStellarClient implements StellarClient {
-  private readonly contract: Contract;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(
-    private readonly server: ServerWithRestore,
+    private readonly server: QueryServer,
     private readonly config: StellarConfig,
   ) {
-    this.contract = new Contract(config.contractId);
   }
 
   async ensureIssuerAccount(issuerId: string): Promise<void> {
-    const keypair = deriveIssuerKeypair(this.config.masterSecret, issuerId);
+    const deadline = this.createDeadline();
+    const issuer = this.issuerKeypair(issuerId);
     try {
-      await this.withTimeout(this.server.getAccount(keypair.publicKey()));
+      await this.withTimeout(this.server.getAccount(issuer.publicKey()), deadline);
+      return;
+    } catch (error) {
+      if (!this.isAccountNotFound(error)) throw this.mapError(error);
+    }
+
+    try {
+      const sponsor = await this.withTimeout(
+        this.server.getAccount(this.sponsorKeypair().publicKey()),
+        deadline,
+      );
+      const transaction = new TransactionBuilder(sponsor, { fee: '100' })
+        .setNetworkPassphrase(this.config.networkPassphrase)
+        .setTimeout(30)
+        .addOperation(
+          Operation.beginSponsoringFutureReserves({
+            sponsoredId: issuer.publicKey(),
+          }),
+        )
+        .addOperation(
+          Operation.createAccount({
+            destination: issuer.publicKey(),
+            startingBalance: '0',
+          }),
+        )
+        .addOperation(
+          Operation.endSponsoringFutureReserves({
+            source: issuer.publicKey(),
+          }),
+        )
+        .build();
+      transaction.sign(this.sponsorKeypair(), issuer);
+      await this.submitAndConfirm(transaction, deadline);
     } catch (error) {
       throw this.mapError(error);
     }
   }
 
   authorizeIssuer(issuerId: string): Promise<string> {
-    return this.enqueueWrite(() =>
+    return this.enqueueWrite((deadline) =>
       this.invokeWrite(
         'authorize_issuer',
-        [
-          nativeToScVal(
-            deriveIssuerKeypair(this.config.masterSecret, issuerId).publicKey(),
-            {
-              type: 'address',
-            },
-          ),
-        ],
+        [nativeToScVal(this.issuerKeypair(issuerId).publicKey(), { type: 'address' })],
         this.adminKeypair(),
+        deadline,
       ),
     );
   }
 
   revokeIssuer(issuerId: string): Promise<string> {
-    return this.enqueueWrite(() =>
+    return this.enqueueWrite((deadline) =>
       this.invokeWrite(
         'revoke_issuer',
-        [
-          nativeToScVal(
-            deriveIssuerKeypair(this.config.masterSecret, issuerId).publicKey(),
-            {
-              type: 'address',
-            },
-          ),
-        ],
+        [nativeToScVal(this.issuerKeypair(issuerId).publicKey(), { type: 'address' })],
         this.adminKeypair(),
+        deadline,
       ),
     );
   }
 
-  registerCertificate(input: {
-    issuerId: string;
-    fingerprint: string;
-    validUntil: number;
-  }): Promise<string> {
-    return this.enqueueWrite(() =>
+  registerCertificate(input: { issuerId: string; fingerprint: string; validUntil: number }): Promise<string> {
+    return this.enqueueWrite((deadline) =>
       this.invokeWrite(
         'register',
         [
-          nativeToScVal(
-            deriveIssuerKeypair(
-              this.config.masterSecret,
-              input.issuerId,
-            ).publicKey(),
-            {
-              type: 'address',
-            },
-          ),
-          nativeToScVal(Buffer.from(input.fingerprint, 'hex'), {
-            type: 'bytes',
-          }),
+          nativeToScVal(this.issuerKeypair(input.issuerId).publicKey(), { type: 'address' }),
+          nativeToScVal(Buffer.from(input.fingerprint, 'hex'), { type: 'bytes' }),
           nativeToScVal(BigInt(input.validUntil), { type: 'u64' }),
         ],
         this.issuerKeypair(input.issuerId),
+        deadline,
       ),
     );
   }
 
-  annulCertificate(input: {
-    issuerId: string;
-    fingerprint: string;
-  }): Promise<string> {
-    return this.enqueueWrite(() =>
+  annulCertificate(input: { issuerId: string; fingerprint: string }): Promise<string> {
+    return this.enqueueWrite((deadline) =>
       this.invokeWrite(
         'annul',
         [
-          nativeToScVal(
-            deriveIssuerKeypair(
-              this.config.masterSecret,
-              input.issuerId,
-            ).publicKey(),
-            {
-              type: 'address',
-            },
-          ),
-          nativeToScVal(Buffer.from(input.fingerprint, 'hex'), {
-            type: 'bytes',
-          }),
+          nativeToScVal(this.issuerKeypair(input.issuerId).publicKey(), { type: 'address' }),
+          nativeToScVal(Buffer.from(input.fingerprint, 'hex'), { type: 'bytes' }),
         ],
         this.issuerKeypair(input.issuerId),
+        deadline,
       ),
     );
   }
 
   async getVerdict(fingerprint: string): Promise<RegistryVerdict> {
+    const deadline = this.createDeadline();
     try {
       if (this.server.queryContract) {
         const response = await this.withTimeout(
-          this.server.queryContract<string>(
+          this.server.queryContract<{ verdict: unknown }>(
             this.config.contractId,
             'get_status',
             { fingerprint: Buffer.from(fingerprint, 'hex') },
             this.config.networkPassphrase,
           ),
+          deadline,
         );
-        return this.mapVerdict(response.result);
+        return this.mapVerdict(response.result.verdict);
       }
-      const simulation = await this.simulate('get_status', [
-        nativeToScVal(Buffer.from(fingerprint, 'hex'), { type: 'bytes' }),
-      ]);
-      if (!('result' in simulation) || !simulation.result) {
+      const simulation = await this.simulate(
+        'get_status',
+        [nativeToScVal(Buffer.from(fingerprint, 'hex'), { type: 'bytes' })],
+        deadline,
+      );
+      if (!Api.isSimulationSuccess(simulation) || !simulation.result)
         throw new NetworkUnavailableError();
-      }
       return this.mapVerdict(scValToNative(simulation.result.retval));
     } catch (error) {
       throw this.mapError(error);
@@ -181,164 +174,143 @@ export class SorobanStellarClient implements StellarClient {
   }
 
   extendTtl(fingerprint: string): Promise<string> {
-    return this.enqueueWrite(() =>
+    return this.enqueueWrite((deadline) =>
       this.invokeWrite(
         'extend_ttl',
         [nativeToScVal(Buffer.from(fingerprint, 'hex'), { type: 'bytes' })],
         this.sponsorKeypair(),
+        deadline,
       ),
     );
   }
 
-  private enqueueWrite(operation: () => Promise<string>): Promise<string> {
-    const next = this.writeChain.then(operation, operation);
-    this.writeChain = next.then(
-      () => undefined,
-      () => undefined,
-    );
+  private enqueueWrite(operation: (deadline: Deadline) => Promise<string>): Promise<string> {
+    const deadline = this.createDeadline();
+    const next = this.writeChain.then(() => operation(deadline), () => operation(deadline));
+    this.writeChain = next.then(() => undefined, () => undefined);
     return next;
   }
 
-  private async invokeWrite(
-    method: string,
-    args: xdr.ScVal[],
-    authKeypair: Keypair,
-  ): Promise<string> {
+  private async invokeWrite(method: string, args: xdr.ScVal[], authKeypair: Keypair, deadline: Deadline): Promise<string> {
     try {
       const account = await this.withTimeout(
         this.server.getAccount(this.sponsorKeypair().publicKey()),
+        deadline,
       );
       const transaction = this.buildTransaction(account, method, args);
-      const simulation = await this.simulateTransaction(transaction, true);
+      const simulation = await this.simulateTransaction(transaction, account, deadline);
       const auth = await this.signAuth(simulation, authKeypair);
       const authorized = this.buildTransaction(account, method, args, auth);
       const assembled = assembleTransaction(authorized, simulation).build();
       assembled.sign(this.sponsorKeypair());
-      const response = await this.withTimeout(
-        this.server.sendTransaction(assembled),
-      );
-      return this.waitForConfirmation(response.hash);
+      return this.submitAndConfirm(assembled, deadline);
     } catch (error) {
       throw this.mapError(error);
     }
   }
 
-  private async simulate(
-    method: string,
-    args: xdr.ScVal[],
-  ): Promise<Api.SimulateTransactionResponse> {
+  private async simulate(method: string, args: xdr.ScVal[], deadline: Deadline): Promise<Api.SimulateTransactionResponse> {
     const account = await this.withTimeout(
       this.server.getAccount(this.sponsorKeypair().publicKey()),
+      deadline,
     );
-    return this.simulateTransaction(
-      this.buildTransaction(account, method, args),
-      false,
-    );
+    return this.simulateTransaction(this.buildTransaction(account, method, args), account, deadline);
   }
 
-  private async simulateTransaction(
-    transaction: Transaction,
-    restore: boolean,
-  ): Promise<Api.SimulateTransactionResponse> {
-    let simulation = await this.withTimeout(
-      this.server.simulateTransaction(transaction),
-    );
-    if ('error' in simulation && /archiv|footprint/i.test(simulation.error)) {
-      if (!restore || !this.server.restoreFootprint)
-        throw new NetworkUnavailableError();
-      await this.withTimeout(this.server.restoreFootprint(transaction));
-      simulation = await this.withTimeout(
-        this.server.simulateTransaction(transaction),
-      );
+  private async simulateTransaction(transaction: Transaction, account: Account, deadline: Deadline): Promise<Api.SimulateTransactionResponse> {
+    let simulation = await this.withTimeout(this.server.simulateTransaction(transaction), deadline);
+    if (Api.isSimulationRestore(simulation)) {
+      await this.restoreFootprint(account, simulation.restorePreamble, deadline);
+      simulation = await this.withTimeout(this.server.simulateTransaction(transaction), deadline);
     }
-    if ('error' in simulation)
-      throw this.contractOrNetworkError(simulation.error);
+    if ('error' in simulation) throw this.contractOrNetworkError(simulation.error);
     if (!simulation.result) throw new NetworkUnavailableError();
     return simulation;
   }
 
-  private async signAuth(
-    simulation: Api.SimulateTransactionResponse,
-    keypair: Keypair,
-  ): Promise<xdr.SorobanAuthorizationEntry[] | undefined> {
-    if (!('result' in simulation) || !simulation.result) return undefined;
-    if (!simulation.result.auth.length) return undefined;
-    const expiration = simulation.latestLedger + 100;
-    return Promise.all(
-      simulation.result.auth.map((entry) =>
-        authorizeEntry(
-          entry,
-          keypair,
-          expiration,
-          this.config.networkPassphrase,
-        ),
-      ),
-    );
+  private async restoreFootprint(account: Account, preamble: Api.SimulateTransactionRestoreResponse['restorePreamble'], deadline: Deadline): Promise<void> {
+    const transaction = new TransactionBuilder(account, { fee: preamble.minResourceFee })
+      .setNetworkPassphrase(this.config.networkPassphrase)
+      .setSorobanData(preamble.transactionData.build())
+      .setTimeout(30)
+      .addOperation(Operation.restoreFootprint())
+      .build();
+    transaction.sign(this.sponsorKeypair());
+    await this.submitAndConfirm(transaction, deadline);
   }
 
-  private buildTransaction(
-    account: Account,
-    method: string,
-    args: xdr.ScVal[],
-    auth?: xdr.SorobanAuthorizationEntry[],
-  ): Transaction {
+  private async signAuth(simulation: Api.SimulateTransactionResponse, keypair: Keypair): Promise<xdr.SorobanAuthorizationEntry[] | undefined> {
+    if (!Api.isSimulationSuccess(simulation) || !simulation.result?.auth.length)
+      return undefined;
+    const expiration = simulation.latestLedger + 100;
+    return Promise.all(simulation.result.auth.map((entry) => authorizeEntry(entry, keypair, expiration, this.config.networkPassphrase)));
+  }
+
+  private buildTransaction(account: Account, method: string, args: xdr.ScVal[], auth?: xdr.SorobanAuthorizationEntry[]): Transaction {
     return new TransactionBuilder(account, { fee: '100' })
       .setNetworkPassphrase(this.config.networkPassphrase)
       .setTimeout(30)
-      .addOperation(
-        Operation.invokeContractFunction({
-          contract: this.config.contractId,
-          function: method,
-          args,
-          auth,
-        }),
-      )
+      .addOperation(Operation.invokeContractFunction({ contract: this.config.contractId, function: method, args, auth }))
       .build();
   }
 
-  private async waitForConfirmation(hash: string): Promise<string> {
-    const started = Date.now();
-    while (Date.now() - started < NETWORK_TIMEOUT_MS) {
-      const response = (await this.withTimeout(
-        this.server.getTransaction(hash),
-      )) as TransactionResponse;
+  private async submitAndConfirm(transaction: Transaction, deadline: Deadline): Promise<string> {
+    const response = await this.withTimeout(this.server.sendTransaction(transaction), deadline);
+    if (response.status === 'ERROR') throw this.contractOrNetworkError([response.errorResult, response.diagnosticEvents]);
+    if (response.status !== 'PENDING') throw new NetworkUnavailableError();
+    return this.waitForConfirmation(response.hash, deadline);
+  }
+
+  private async waitForConfirmation(hash: string, deadline: Deadline): Promise<string> {
+    while (this.remaining(deadline) > 0) {
+      const response = await this.withTimeout(this.server.getTransaction(hash), deadline);
       if (response.status === SUCCESS) return hash;
-      if (response.status === FAILED) {
-        throw this.contractOrNetworkError(
-          response.errorResultXdr ?? 'transaction failed',
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (response.status === FAILED) throw this.contractOrNetworkError([response.resultXdr, response.diagnosticEventsXdr, response.events]);
+      await this.withTimeout(new Promise<void>((resolve) => setTimeout(resolve, 250)), deadline);
     }
     throw new NetworkUnavailableError();
   }
 
-  private withTimeout<T>(promise: Promise<T>): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new NetworkUnavailableError()),
-          NETWORK_TIMEOUT_MS,
-        ),
-      ),
-    ]);
+  private createDeadline(): Deadline { return { expiresAt: Date.now() + NETWORK_TIMEOUT_MS }; }
+
+  private remaining(deadline: Deadline): number { return Math.max(0, deadline.expiresAt - Date.now()); }
+
+  private withTimeout<T>(promise: Promise<T>, deadline: Deadline): Promise<T> {
+    const remaining = this.remaining(deadline);
+    if (!remaining) return Promise.reject(new NetworkUnavailableError());
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return new Promise<T>((resolve, reject) => {
+      timer = setTimeout(() => reject(new NetworkUnavailableError()), remaining);
+      promise.then(
+        (value) => { if (timer) clearTimeout(timer); resolve(value); },
+        (error: unknown) => { if (timer) clearTimeout(timer); reject(error); },
+      );
+    });
   }
 
-  private contractOrNetworkError(message: string): Error {
+  private contractOrNetworkError(value: unknown): Error {
+    const message = this.errorText(value);
     const match = message.match(/(?:error|code|contract)[^0-9]*([0-9]+)/i);
-    return match
-      ? new ContractError(Number(match[1]))
-      : new NetworkUnavailableError();
+    return match ? new ContractError(Number(match[1])) : new NetworkUnavailableError();
+  }
+
+  private errorText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    try {
+      return JSON.stringify(value, (_, nested) => typeof nested === 'bigint' ? nested.toString() : nested);
+    } catch { return ''; }
   }
 
   private mapError(error: unknown): Error {
-    if (
-      error instanceof ContractError ||
-      error instanceof NetworkUnavailableError
-    )
-      return error;
+    if (error instanceof ContractError || error instanceof NetworkUnavailableError) return error;
     return new NetworkUnavailableError();
+  }
+
+  private isAccountNotFound(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const response = 'response' in error && error.response && typeof error.response === 'object' ? error.response : undefined;
+    const status = response && 'status' in response ? response.status : undefined;
+    return status === 404;
   }
 
   private mapVerdict(value: unknown): RegistryVerdict {
@@ -350,15 +322,7 @@ export class SorobanStellarClient implements StellarClient {
     return 'not-found';
   }
 
-  private sponsorKeypair(): Keypair {
-    return Keypair.fromSecret(this.config.sponsorSecret);
-  }
-
-  private adminKeypair(): Keypair {
-    return Keypair.fromSecret(this.config.adminSecret);
-  }
-
-  private issuerKeypair(issuerId: string): Keypair {
-    return deriveIssuerKeypair(this.config.masterSecret, issuerId);
-  }
+  private sponsorKeypair(): Keypair { return Keypair.fromSecret(this.config.sponsorSecret); }
+  private adminKeypair(): Keypair { return Keypair.fromSecret(this.config.adminSecret); }
+  private issuerKeypair(issuerId: string): Keypair { return deriveIssuerKeypair(this.config.masterSecret, issuerId); }
 }

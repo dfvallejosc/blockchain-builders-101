@@ -69,7 +69,6 @@ export class StellarCertificateRegistry implements CertificateRegistry {
     try {
       await this.client.revokeIssuer(issuerId);
     } catch (error) {
-      if (error instanceof ContractError) return;
       throw toHttpException(error);
     }
   }

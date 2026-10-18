@@ -2,6 +2,7 @@ import {
   Account,
   Keypair,
   Networks,
+  SorobanDataBuilder,
   nativeToScVal,
 } from '@stellar/stellar-sdk';
 import { describe, expect, it, vi } from 'vitest';
@@ -62,6 +63,90 @@ const createServer = (sponsorSecret: string) => {
 };
 
 describe('SorobanStellarClient', () => {
+  it('maps the decoded CertificateStatus struct returned by queryContract', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const queryContract = vi.fn(async () => ({
+      result: { verdict: 'IssuerRevoked', issuer: 'G...', valid_until: 1n },
+    }));
+    const client = new SorobanStellarClient(
+      { ...server, queryContract } as never,
+      config,
+    );
+
+    await expect(client.getVerdict('00'.repeat(32))).resolves.toBe(
+      'issuer-revoked',
+    );
+    expect(queryContract).toHaveBeenCalledWith(
+      contractId,
+      'get_status',
+      { fingerprint: Buffer.from('00'.repeat(32), 'hex') },
+      Networks.TESTNET,
+    );
+  });
+
+  it('creates and sponsors a missing issuer account with the three Stellar operations', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const notFound = Object.assign(new Error('missing account'), {
+      response: { status: 404 },
+    });
+    server.getAccount.mockRejectedValueOnce(notFound);
+    const client = new SorobanStellarClient(server as never, config);
+
+    await expect(client.ensureIssuerAccount('new-issuer')).resolves.toBeUndefined();
+
+    const transaction = server.sendTransaction.mock.calls[0]?.[0] as {
+      operations: unknown[];
+    };
+    expect(transaction.operations).toHaveLength(3);
+    expect(server.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps an immediate failed submission to its contract error code', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    server.sendTransaction.mockResolvedValueOnce({
+      status: 'ERROR',
+      hash: 'failed',
+      errorResult: 'contract error code 6',
+    } as never);
+    const client = new SorobanStellarClient(server as never, config);
+
+    const internal = client as unknown as {
+      submitAndConfirm: (
+        transaction: never,
+        deadline: { expiresAt: number },
+      ) => Promise<string>;
+    };
+    await expect(
+      internal.submitAndConfirm({} as never, { expiresAt: Date.now() + 20_000 }),
+    ).rejects.toMatchObject({ code: 6 });
+  });
+
+  it('maps a failed confirmed transaction from resultXdr and diagnostics', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    server.getTransaction.mockResolvedValueOnce({
+      status: 'FAILED',
+      resultXdr: 'contract error code 5',
+      diagnosticEventsXdr: [],
+    } as never);
+    const client = new SorobanStellarClient(server as never, config);
+    const internal = client as unknown as {
+      waitForConfirmation: (
+        hash: string,
+        deadline: { expiresAt: number },
+      ) => Promise<string>;
+    };
+
+    await expect(
+      internal.waitForConfirmation('failed-hash', {
+        expiresAt: Date.now() + 20_000,
+      }),
+    ).rejects.toMatchObject({ code: 5 });
+  });
+
   it('serializes concurrent writes through the sponsor account', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
@@ -134,23 +219,30 @@ describe('SorobanStellarClient', () => {
       result: { auth: [], retval: nativeToScVal(null) },
     };
     server.simulateTransaction
-      .mockResolvedValueOnce({ error: 'archived footprint' } as never)
+      .mockResolvedValueOnce({
+        ...simulation,
+        restorePreamble: {
+          minResourceFee: '100',
+          transactionData: new SorobanDataBuilder(),
+        },
+      } as never)
       .mockResolvedValueOnce(simulation);
-    const restoreFootprint = vi.fn(async () => undefined);
-    const client = new SorobanStellarClient(
-      { ...server, restoreFootprint } as never,
-      config,
-    );
+    const client = new SorobanStellarClient(server as never, config);
     const internal = client as unknown as {
       simulateTransaction: (
         transaction: never,
-        restore: boolean,
+        account: Account,
+        deadline: { expiresAt: number },
       ) => Promise<unknown>;
     };
 
-    await internal.simulateTransaction({} as never, true);
+    await internal.simulateTransaction(
+      {} as never,
+      new Account(Keypair.random().publicKey(), '1'),
+      { expiresAt: Date.now() + 20_000 },
+    );
 
-    expect(restoreFootprint).toHaveBeenCalledTimes(1);
+    expect(server.sendTransaction).toHaveBeenCalledTimes(1);
     expect(server.simulateTransaction).toHaveBeenCalledTimes(2);
   });
 

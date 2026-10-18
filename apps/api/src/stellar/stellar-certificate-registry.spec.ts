@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { Certificate } from '../certificates/certificate.entity.js';
 import {
@@ -62,8 +62,8 @@ describe('StellarCertificateRegistry', () => {
       validUntil: Date.UTC(2026, 9, 20, 4, 59, 59) / 1000,
     });
     expect(postgres.register).toHaveBeenCalledWith(entry);
-    expect(client.registerCertificate.mock.invocationCallOrder[0]).toBeLessThan(
-      postgres.register.mock.invocationCallOrder[0],
+    expect(vi.mocked(client.registerCertificate).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(postgres.register).mock.invocationCallOrder[0],
     );
   });
 
@@ -162,28 +162,26 @@ describe('StellarCertificateRegistry', () => {
 
     expect(client.ensureIssuerAccount).toHaveBeenCalledWith(entry.issuerId);
     expect(client.authorizeIssuer).toHaveBeenCalledWith(entry.issuerId);
-    expect(client.ensureIssuerAccount.mock.invocationCallOrder[0]).toBeLessThan(
-      client.authorizeIssuer.mock.invocationCallOrder[0],
+    expect(vi.mocked(client.ensureIssuerAccount).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(client.authorizeIssuer).mock.invocationCallOrder[0],
     );
   });
 
-  it('treats a repeated issuer revocation as success', async () => {
+  it('maps an unknown issuer revocation error instead of treating it as success', async () => {
     const client = buildClient();
-    vi.mocked(client.revokeIssuer)
-      .mockResolvedValueOnce('hash-1')
-      .mockRejectedValueOnce(new ContractError(7));
+    vi.mocked(client.revokeIssuer).mockResolvedValue('hash-1');
     const registry = new StellarCertificateRegistry(
       buildPostgres(),
       client,
       buildRepository() as unknown as Repository<Certificate>,
     );
 
-    await expect(
-      registry.revokeIssuer(entry.issuerId),
-    ).resolves.toBeUndefined();
-    await expect(
-      registry.revokeIssuer(entry.issuerId),
-    ).resolves.toBeUndefined();
+    await expect(registry.revokeIssuer(entry.issuerId)).resolves.toBeUndefined();
+
+    vi.mocked(client.revokeIssuer).mockRejectedValue(new ContractError(7));
+    await expect(registry.revokeIssuer(entry.issuerId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('gets the verdict from Stellar and status from PostgreSQL', async () => {
