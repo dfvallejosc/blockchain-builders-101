@@ -23,7 +23,7 @@ export const issuerRoutes: RouteObject[] = [
           {
             element: <PanelLayout />,
             children: [
-              { index: true, element: <Navigate to="/emisor/emitir" replace /> },
+              { index: true, element: <Navigate to="/emisor/certificados" replace /> },
               { path: 'certificados', element: <CertificatesPage /> },
               { path: 'emitir', element: <IssueCertificatePage /> },
               { path: 'trabajadores', element: <WorkersPage /> },
