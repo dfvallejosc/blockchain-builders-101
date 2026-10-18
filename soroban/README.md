@@ -67,4 +67,28 @@ stellar contract deploy --wasm target/wasm32v1-none/release/certificate_registry
 
 ## Contrato en testnet
 
-Pendiente: se completa tras el despliegue (TA-28).
+Desplegado en testnet (red `Test SDF Network ; September 2015`).
+
+| Dato | Valor |
+| --- | --- |
+| ID del contrato | `CAPRNQ7LVZWH47D4ZBDKY2OUICZ5FULE223IRWTOJR3HLR6ZEBAD3GPD` |
+| Contrato en el explorador | [Stellar Expert](https://stellar.expert/explorer/testnet/contract/CAPRNQ7LVZWH47D4ZBDKY2OUICZ5FULE223IRWTOJR3HLR6ZEBAD3GPD) |
+| Administrador (cuenta de prueba) | `GDJGGBJNM6LSHTDAPCE73TBKAG6C4KSQ4WPP2JJMXYWMSX2SCHBSZWWP` |
+| Emisor de prueba | `GAOPBI753VBDVALF43O3KK2YWD3HR3ZEGBLGRLH6QIJSZRKBFH3L7RJM` |
+| Hash del WASM | `4b3c235e10422e4d096589ca2399f2b1f0c7ef96e754dc58fe96fa1b055506e6` |
+
+Las cuentas son solo de testnet y sus llaves viven en el almacén local del Stellar CLI, no en el repositorio. Testnet se reinicia de vez en cuando; si eso pasa, hay que volver a desplegar con el comando de la sección anterior y actualizar este ID.
+
+### Transacciones de prueba
+
+Flujo completo con un certificado de prueba (la huella es el SHA-256 de un texto inventado, no un dato real):
+
+| Paso | Transacción |
+| --- | --- |
+| Subir el código del contrato | [c7970c92…8772e](https://stellar.expert/explorer/testnet/tx/c7970c92732d2d4e4ba6c87422f98e331d4e55430441ca0ae5ab0f6332e8772e) |
+| Crear el contrato con su administrador | [24b8cdd1…e2dd](https://stellar.expert/explorer/testnet/tx/24b8cdd1c81eb792a12a8eaf39ae73d024635b5553b013954aef4b720d80e2dd) |
+| `authorize_issuer` (firma el administrador) | [e2c555c3…faf2](https://stellar.expert/explorer/testnet/tx/e2c555c3ade7cc918c24f85b23daae2a00e331357c33ea88855fc26f7b29faf2) |
+| `register` (firma el emisor) | [ff971746…cf78](https://stellar.expert/explorer/testnet/tx/ff9717464363be834322be9f2f21df1319c6abfaea2f5a1f981f72b3fa3dcf78) |
+| `annul` (firma el emisor) | [ace8a7c4…7d31](https://stellar.expert/explorer/testnet/tx/ace8a7c41227edd93e098646b41fde5ef9c9f81a3cde5f5645c0297d44fe7d31) |
+
+`get_status` es una lectura y no genera transacción. Antes de anular devolvió `Valid`, y después `Annulled`.
