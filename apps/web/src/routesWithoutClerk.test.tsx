@@ -31,10 +31,10 @@ describe('routes that do not need Clerk', () => {
     api.restore()
   })
 
-  it('shows the admin login without a Clerk key', async () => {
+  it('says the admin login is not configured without a Clerk key', async () => {
     renderAt('/admin/ingresar')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'El ingreso no está configurado' })).toBeInTheDocument()
   })
 
   it('shows the public verification page without a Clerk key', async () => {

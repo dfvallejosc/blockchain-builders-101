@@ -4,14 +4,34 @@ import { RouterProvider } from 'react-router/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '@/components/ui/toast'
 import { getMe, type IssuerProfile } from '@/api/me'
-import { resetState, signIn } from '@/data'
+import { resetState } from '@/data'
 import { appRoutes } from '@/routes'
-import { clerkSession } from '@/test/clerk'
+import { clerkSession, clerkUser } from '@/test/clerk'
 import { createQueryWrapper } from '@/test/query'
 import { installVerificationApi, VALID_ID, type VerificationApiStub } from '@/test/verification-api'
 
 vi.mock('@clerk/react', async () => (await import('@/test/clerk')).sessionClerkModule())
 vi.mock('@/api/me', () => ({ getMe: vi.fn() }))
+vi.mock('@/api/issuers', () => ({
+  listIssuers: vi.fn(async () => []),
+  getIssuer: vi.fn(async (id: string) => ({
+    id,
+    name: 'Salud Laboral Río Claro',
+    type: 'clinic',
+    city: 'Medellín',
+    registeredAt: '2026-09-01',
+    revokedAt: null,
+    certificateTypes: ['height-work'],
+    nit: '901.482.317-5',
+    contactName: 'Contacto de prueba',
+    email: 'contacto@example.co',
+    phone: '310 555 0142',
+    ministryRegistration: '',
+    issuedThisMonth: 0,
+  })),
+  registerIssuer: vi.fn(),
+  revokeIssuer: vi.fn(),
+}))
 vi.mock('@/api/workers', () => ({
   listWorkers: async () => [
     {
@@ -74,6 +94,7 @@ describe('routes', () => {
     window.localStorage.clear()
     resetState()
     clerkSession.signedIn = false
+    clerkUser.fullName = null
     vi.mocked(getMe).mockReset().mockResolvedValue({ role: 'issuer', issuer: PROFILE })
     api = installVerificationApi()
   })
@@ -242,6 +263,12 @@ describe('routes', () => {
   })
 
   describe('admin panel', () => {
+    const signInAdmin = () => {
+      clerkSession.signedIn = true
+      clerkUser.fullName = 'Daniela Rojas'
+      vi.mocked(getMe).mockResolvedValue({ role: 'admin', issuer: null })
+    }
+
     it('sends a visitor without session to the admin login', async () => {
       const router = renderAt('/admin/emisores')
 
@@ -249,8 +276,8 @@ describe('routes', () => {
       expect(router.state.location.pathname).toBe('/admin/ingresar')
     })
 
-    it('shows the pages with the panel layout when signed in', async () => {
-      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+    it('shows the pages with the panel layout when signed in, with the Clerk name in the top bar', async () => {
+      signInAdmin()
       renderAt('/admin/emisores')
 
       expect(await screen.findByRole('heading', { name: 'Emisores' })).toBeInTheDocument()
@@ -262,7 +289,7 @@ describe('routes', () => {
     })
 
     it('redirects /admin to the issuers list', async () => {
-      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+      signInAdmin()
       const router = renderAt('/admin')
 
       expect(await screen.findByRole('heading', { name: 'Emisores' })).toBeInTheDocument()
@@ -270,7 +297,7 @@ describe('routes', () => {
     })
 
     it('signs out from the top bar and goes back to the admin login', async () => {
-      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+      signInAdmin()
       const router = renderAt('/admin/emisores')
       await screen.findByRole('heading', { name: 'Emisores' })
 
@@ -286,18 +313,31 @@ describe('routes', () => {
       ['/admin/emisores/nuevo', 'Registrar emisor'],
       ['/admin/emisores/salud-laboral-rio-claro', 'Salud Laboral Río Claro'],
     ])('renders %s when signed in', async (path, title) => {
-      await signIn('admin', 'daniela.rojas@habilitapp.co', 'x')
+      signInAdmin()
       renderAt(path)
 
       expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument()
     })
 
-    it('does not let an issuer session in', async () => {
-      await signIn('issuer', 'coordinacion@cumbrefirme.co', 'x')
+    it('ends the session of an issuer who opens the admin area, with the not-admin reason', async () => {
+      signInIssuer()
+
       const router = renderAt('/admin/emisores')
 
-      expect(await screen.findByRole('heading', { level: 1, name: 'Panel de administración' })).toBeInTheDocument()
+      expect(await screen.findByText('Esta cuenta no es de administración')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Emisores' })).not.toBeInTheDocument()
       expect(router.state.location.pathname).toBe('/admin/ingresar')
+      expect(clerkSession.signedIn).toBe(false)
+    })
+
+    it('ends the session of an admin who opens the issuer area, with the not-issuer reason', async () => {
+      signInAdmin()
+
+      const router = renderAt('/emisor/emitir')
+
+      expect(await screen.findByText('Esta cuenta no es de una entidad emisora')).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/emisor/ingresar')
+      expect(clerkSession.signedIn).toBe(false)
     })
   })
 })
