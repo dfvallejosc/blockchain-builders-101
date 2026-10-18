@@ -69,6 +69,8 @@ export class StellarCertificateRegistry implements CertificateRegistry {
     try {
       await this.client.revokeIssuer(issuerId);
     } catch (error) {
+      // An issuer the contract never saw has nothing to revoke on the network, so the local revocation goes on.
+      if (error instanceof ContractError && error.code === 7) return;
       throw toHttpException(error);
     }
   }

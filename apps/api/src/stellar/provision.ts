@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../app.module.js';
 import { Issuer } from '../issuers/issuer.entity.js';
+import { provisionIssuer } from './provision-issuer.js';
 import { STELLAR_CLIENT, type StellarClient } from './stellar-client.js';
 
 const provisionIssuers = async (): Promise<void> => {
@@ -20,19 +21,19 @@ const provisionIssuers = async (): Promise<void> => {
         order: { id: 'ASC' },
       });
 
-    let revokedCount = 0;
+    const failed: string[] = [];
     for (const issuer of issuers) {
-      await client.ensureIssuerAccount(issuer.id);
-      await client.authorizeIssuer(issuer.id);
-      if (issuer.revokedAt) {
-        await client.revokeIssuer(issuer.id);
-        revokedCount += 1;
+      try {
+        await provisionIssuer(client, issuer);
+        console.log(`Emisor: ${issuer.id}`);
+      } catch {
+        failed.push(issuer.id);
       }
-      console.log(`Emisor: ${issuer.id}`);
     }
 
-    console.log(`Se aprovisionaron ${issuers.length} emisores.`);
-    console.log(`Se reaplicó la revocación a ${revokedCount} emisores.`);
+    console.log(`Se aprovisionaron ${issuers.length - failed.length} de ${issuers.length} emisores.`);
+    for (const issuerId of failed) console.error(`Falló el emisor: ${issuerId}`);
+    if (failed.length > 0) process.exitCode = 1;
   } finally {
     await app.close();
   }

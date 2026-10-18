@@ -1,4 +1,4 @@
-import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { Certificate } from '../certificates/certificate.entity.js';
 import {
@@ -167,9 +167,9 @@ describe('StellarCertificateRegistry', () => {
     );
   });
 
-  it('maps an unknown issuer revocation error instead of treating it as success', async () => {
+  it('treats revoking an issuer the contract never saw as success', async () => {
     const client = buildClient();
-    vi.mocked(client.revokeIssuer).mockResolvedValue('hash-1');
+    vi.mocked(client.revokeIssuer).mockRejectedValue(new ContractError(7));
     const registry = new StellarCertificateRegistry(
       buildPostgres(),
       client,
@@ -177,10 +177,19 @@ describe('StellarCertificateRegistry', () => {
     );
 
     await expect(registry.revokeIssuer(entry.issuerId)).resolves.toBeUndefined();
+  });
 
-    vi.mocked(client.revokeIssuer).mockRejectedValue(new ContractError(7));
+  it('still maps the other contract errors when revoking an issuer', async () => {
+    const client = buildClient();
+    vi.mocked(client.revokeIssuer).mockRejectedValue(new ContractError(1));
+    const registry = new StellarCertificateRegistry(
+      buildPostgres(),
+      client,
+      buildRepository() as unknown as Repository<Certificate>,
+    );
+
     await expect(registry.revokeIssuer(entry.issuerId)).rejects.toBeInstanceOf(
-      NotFoundException,
+      ForbiddenException,
     );
   });
 
