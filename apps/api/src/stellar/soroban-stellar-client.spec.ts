@@ -97,4 +97,76 @@ describe('SorobanStellarClient', () => {
     );
     expect(new ContractError(4).message).not.toContain(config.adminSecret);
   });
+
+  it('rejects a request that never confirms after the network timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const config = createConfig();
+      const server = createServer(config.sponsorSecret);
+      server.getAccount.mockImplementation(
+        async () => await new Promise<never>(() => undefined),
+      );
+      server.getTransaction.mockImplementation(
+        async () => await new Promise<never>(() => undefined),
+      );
+      const client = new SorobanStellarClient(server as never, config);
+      const request = client.ensureIssuerAccount('issuer-timeout');
+      const assertion = expect(request).rejects.toBeInstanceOf(
+        NetworkUnavailableError,
+      );
+      await vi.advanceTimersByTimeAsync(20_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('restores an archived simulation once and retries once', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const simulation = {
+      id: 'simulation',
+      latestLedger: 10,
+      events: [],
+      _parsed: true as const,
+      transactionData: {} as never,
+      minResourceFee: '0',
+      result: { auth: [], retval: nativeToScVal(null) },
+    };
+    server.simulateTransaction
+      .mockResolvedValueOnce({ error: 'archived footprint' } as never)
+      .mockResolvedValueOnce(simulation);
+    const restoreFootprint = vi.fn(async () => undefined);
+    const client = new SorobanStellarClient(
+      { ...server, restoreFootprint } as never,
+      config,
+    );
+    const internal = client as unknown as {
+      simulateTransaction: (
+        transaction: never,
+        restore: boolean,
+      ) => Promise<unknown>;
+    };
+
+    await internal.simulateTransaction({} as never, true);
+
+    expect(restoreFootprint).toHaveBeenCalledTimes(1);
+    expect(server.simulateTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  it('maps a simulated contract code to ContractError', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const client = new SorobanStellarClient(server as never, config);
+    const internal = client as unknown as {
+      contractOrNetworkError: (message: string) => Error;
+    };
+
+    const error = internal.contractOrNetworkError(
+      'HostError: contract error code 4',
+    );
+
+    expect(error).toBeInstanceOf(ContractError);
+    expect((error as ContractError).code).toBe(4);
+  });
 });
