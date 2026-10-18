@@ -40,6 +40,28 @@ type QueryServer = Server & {
   ) => Promise<{ result: T }>;
 };
 
+const VERDICTS: Record<string, RegistryVerdict | undefined> = {
+  Valid: 'valid',
+  Expired: 'expired',
+  Annulled: 'annulled',
+  IssuerRevoked: 'issuer-revoked',
+  NotFound: 'not-found',
+};
+
+// The SDK decodes a unit variant as a string, a one-element array or `{ tag }`, depending on the read path.
+const variantName = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : undefined;
+  if (value && typeof value === 'object' && 'tag' in value && typeof value.tag === 'string') return value.tag;
+  return undefined;
+};
+
+// Only the real contract error form carries a code; any other failure is a network problem.
+const CONTRACT_ERROR = /Error\(Contract,\s*#([1-7])\)/;
+
+type RestorePreamble = Api.SimulateTransactionRestoreResponse['restorePreamble'];
+type RestoreFootprint = (preamble: RestorePreamble) => Promise<void>;
+
 const SUCCESS = 'SUCCESS';
 const FAILED = 'FAILED';
 
@@ -146,7 +168,7 @@ export class SorobanStellarClient implements StellarClient {
       if (this.server.queryContract) {
         try {
           const response = await this.withTimeout(
-            this.server.queryContract<{ verdict: unknown }>(
+            this.server.queryContract<unknown>(
               this.config.contractId,
               'get_status',
               { fingerprint: Buffer.from(fingerprint, 'hex') },
@@ -154,7 +176,7 @@ export class SorobanStellarClient implements StellarClient {
             ),
             deadline,
           );
-          return this.mapVerdict(response.result.verdict);
+          return this.mapVerdict(response.result);
         } catch (error) {
           if (!/archiv|footprint/i.test(String(error))) throw error;
         }
@@ -163,6 +185,8 @@ export class SorobanStellarClient implements StellarClient {
         'get_status',
         [nativeToScVal(Buffer.from(fingerprint, 'hex'), { type: 'bytes' })],
         deadline,
+        // A read that finds archived data restores it through the same queue as every sponsor-paid transaction.
+        (preamble) => this.enqueueWrite((restoreDeadline) => this.restoreFootprint(preamble, restoreDeadline)),
       );
       if (!Api.isSimulationSuccess(simulation) || !simulation.result)
         throw new NetworkUnavailableError();
@@ -184,8 +208,9 @@ export class SorobanStellarClient implements StellarClient {
   }
 
   private enqueueWrite<T>(operation: (deadline: Deadline) => Promise<T>): Promise<T> {
-    const deadline = this.createDeadline();
-    const next = this.writeChain.then(() => operation(deadline), () => operation(deadline));
+    // The budget starts when the operation starts, not while it waits behind earlier writes.
+    const run = (): Promise<T> => operation(this.createDeadline());
+    const next = this.writeChain.then(run, run);
     this.writeChain = next.then(() => undefined, () => undefined);
     return next;
   }
@@ -197,7 +222,9 @@ export class SorobanStellarClient implements StellarClient {
         deadline,
       );
       const transaction = this.buildTransaction(account, method, args);
-      const simulation = await this.simulateTransaction(transaction, account, deadline);
+      const simulation = await this.simulateTransaction(transaction, deadline, (preamble) =>
+        this.restoreFootprint(preamble, deadline),
+      );
       const auth = await this.signAuth(simulation, authKeypair);
       const currentAccount = await this.withTimeout(
         this.server.getAccount(this.sponsorKeypair().publicKey()),
@@ -212,18 +239,27 @@ export class SorobanStellarClient implements StellarClient {
     }
   }
 
-  private async simulate(method: string, args: xdr.ScVal[], deadline: Deadline): Promise<Api.SimulateTransactionResponse> {
+  private async simulate(
+    method: string,
+    args: xdr.ScVal[],
+    deadline: Deadline,
+    restore: RestoreFootprint,
+  ): Promise<Api.SimulateTransactionResponse> {
     const account = await this.withTimeout(
       this.server.getAccount(this.sponsorKeypair().publicKey()),
       deadline,
     );
-    return this.simulateTransaction(this.buildTransaction(account, method, args), account, deadline);
+    return this.simulateTransaction(this.buildTransaction(account, method, args), deadline, restore);
   }
 
-  private async simulateTransaction(transaction: Transaction, account: Account, deadline: Deadline): Promise<Api.SimulateTransactionResponse> {
+  private async simulateTransaction(
+    transaction: Transaction,
+    deadline: Deadline,
+    restore: RestoreFootprint,
+  ): Promise<Api.SimulateTransactionResponse> {
     let simulation = await this.withTimeout(this.server.simulateTransaction(transaction), deadline);
     if (Api.isSimulationRestore(simulation)) {
-      await this.restoreFootprint(account, simulation.restorePreamble, deadline);
+      await restore(simulation.restorePreamble);
       simulation = await this.withTimeout(this.server.simulateTransaction(transaction), deadline);
     }
     if ('error' in simulation) throw this.contractOrNetworkError(simulation.error);
@@ -231,7 +267,9 @@ export class SorobanStellarClient implements StellarClient {
     return simulation;
   }
 
-  private async restoreFootprint(account: Account, preamble: Api.SimulateTransactionRestoreResponse['restorePreamble'], deadline: Deadline): Promise<void> {
+  private async restoreFootprint(preamble: RestorePreamble, deadline: Deadline): Promise<void> {
+    // A fresh account: building an earlier transaction already advanced the sequence of the one in hand.
+    const account = await this.withTimeout(this.server.getAccount(this.sponsorKeypair().publicKey()), deadline);
     const transaction = new TransactionBuilder(account, { fee: preamble.minResourceFee })
       .setNetworkPassphrase(this.config.networkPassphrase)
       .setSorobanData(preamble.transactionData.build())
@@ -293,8 +331,8 @@ export class SorobanStellarClient implements StellarClient {
 
   private contractOrNetworkError(value: unknown): Error {
     const message = this.errorText(value);
-    const match = message.match(/(?:error|code|contract)[^0-9]*([0-9]+)/i);
-    return match ? new ContractError(Number(match[1])) : new NetworkUnavailableError();
+    const match = CONTRACT_ERROR.exec(message);
+    return match?.[1] ? new ContractError(Number(match[1])) : new NetworkUnavailableError();
   }
 
   private errorText(value: unknown): string {
@@ -310,19 +348,20 @@ export class SorobanStellarClient implements StellarClient {
   }
 
   private isAccountNotFound(error: unknown): boolean {
+    // The SDK rethrows any failed account lookup as a plain Error with this message and no `response`.
+    if (error instanceof Error && error.message.startsWith('Account not found')) return true;
     if (!error || typeof error !== 'object') return false;
     const response = 'response' in error && error.response && typeof error.response === 'object' ? error.response : undefined;
     const status = response && 'status' in response ? response.status : undefined;
     return status === 404;
   }
 
-  private mapVerdict(value: unknown): RegistryVerdict {
-    const normalized = String(value).toLowerCase().replace(/[_-]/g, '');
-    if (normalized.includes('issuerrevoked')) return 'issuer-revoked';
-    if (normalized.includes('annulled')) return 'annulled';
-    if (normalized.includes('expired')) return 'expired';
-    if (normalized.includes('valid')) return 'valid';
-    return 'not-found';
+  // An unrecognised shape fails closed: it must never read as "not found".
+  private mapVerdict(status: unknown): RegistryVerdict {
+    const name = status && typeof status === 'object' && 'verdict' in status ? variantName(status.verdict) : undefined;
+    const verdict = name === undefined ? undefined : VERDICTS[name];
+    if (!verdict) throw new NetworkUnavailableError();
+    return verdict;
   }
 
   private sponsorKeypair(): Keypair { return Keypair.fromSecret(this.config.sponsorSecret); }

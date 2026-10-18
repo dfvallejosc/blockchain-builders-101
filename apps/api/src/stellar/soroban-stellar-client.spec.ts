@@ -4,6 +4,8 @@ import {
   Networks,
   SorobanDataBuilder,
   nativeToScVal,
+  scValToNative,
+  xdr,
 } from '@stellar/stellar-sdk';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +21,28 @@ const createConfig = () => ({
   adminSecret: Keypair.random().secret(),
   sponsorSecret: Keypair.random().secret(),
 });
+
+// The shape the contract really returns: a struct whose unit-variant `verdict` is a one-element vector.
+const statusScVal = (variant: string): xdr.ScVal =>
+  xdr.ScVal.scvMap([
+    new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('issuer'), val: xdr.ScVal.scvVoid() }),
+    new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('valid_until'), val: nativeToScVal(0n, { type: 'u64' }) }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol('verdict'),
+      val: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant)]),
+    }),
+  ]);
+
+const restoreSimulation = {
+  id: 'simulation',
+  latestLedger: 10,
+  events: [],
+  _parsed: true as const,
+  transactionData: new SorobanDataBuilder(),
+  minResourceFee: '0',
+  result: { auth: [], retval: nativeToScVal(null) },
+  restorePreamble: { minResourceFee: '100', transactionData: new SorobanDataBuilder() },
+};
 
 const createServer = (sponsorSecret: string) => {
   const sponsor = Keypair.fromSecret(sponsorSecret);
@@ -63,26 +87,47 @@ const createServer = (sponsorSecret: string) => {
 };
 
 describe('SorobanStellarClient', () => {
-  it('maps the decoded CertificateStatus struct returned by queryContract', async () => {
+  it.each([
+    ['Valid', 'valid'],
+    ['Expired', 'expired'],
+    ['Annulled', 'annulled'],
+    ['IssuerRevoked', 'issuer-revoked'],
+    ['NotFound', 'not-found'],
+  ])('maps the %s verdict of the decoded CertificateStatus struct', async (variant, expected) => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
-    const queryContract = vi.fn(async () => ({
-      result: { verdict: 'IssuerRevoked', issuer: 'G...', valid_until: 1n },
-    }));
-    const client = new SorobanStellarClient(
-      { ...server, queryContract } as never,
-      config,
-    );
+    const queryContract = vi.fn(async () => ({ result: scValToNative(statusScVal(variant)) }));
+    const client = new SorobanStellarClient({ ...server, queryContract } as never, config);
 
-    await expect(client.getVerdict('00'.repeat(32))).resolves.toBe(
-      'issuer-revoked',
-    );
+    await expect(client.getVerdict('00'.repeat(32))).resolves.toBe(expected);
     expect(queryContract).toHaveBeenCalledWith(
       contractId,
       'get_status',
       { fingerprint: Buffer.from('00'.repeat(32), 'hex') },
       Networks.TESTNET,
     );
+  });
+
+  it('accepts a verdict decoded as a plain tag object', async () => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const queryContract = vi.fn(async () => ({ result: { verdict: { tag: 'Annulled' } } }));
+    const client = new SorobanStellarClient({ ...server, queryContract } as never, config);
+
+    await expect(client.getVerdict('00'.repeat(32))).resolves.toBe('annulled');
+  });
+
+  it.each([
+    ['a bare string', 'Valid'],
+    ['an unknown variant', { verdict: ['Mystery'] }],
+    ['a number', { verdict: 42 }],
+  ])('fails closed instead of reading %s as not-found', async (_label, result) => {
+    const config = createConfig();
+    const server = createServer(config.sponsorSecret);
+    const queryContract = vi.fn(async () => ({ result }));
+    const client = new SorobanStellarClient({ ...server, queryContract } as never, config);
+
+    await expect(client.getVerdict('00'.repeat(32))).rejects.toBeInstanceOf(NetworkUnavailableError);
   });
 
   it('falls back to simulation when queryContract reports an archived footprint', async () => {
@@ -98,7 +143,7 @@ describe('SorobanStellarClient', () => {
       _parsed: true as const,
       transactionData: {} as never,
       minResourceFee: '0',
-      result: { auth: [], retval: nativeToScVal('Valid') },
+      result: { auth: [], retval: statusScVal('Valid') },
     });
     const client = new SorobanStellarClient(
       { ...server, queryContract } as never,
@@ -113,10 +158,7 @@ describe('SorobanStellarClient', () => {
   it('creates and sponsors a missing issuer account with the three Stellar operations', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
-    const notFound = Object.assign(new Error('missing account'), {
-      response: { status: 404 },
-    });
-    server.getAccount.mockRejectedValueOnce(notFound);
+    server.getAccount.mockRejectedValueOnce(new Error('Account not found: GISSUER'));
     const client = new SorobanStellarClient(server as never, config);
 
     await expect(client.ensureIssuerAccount('new-issuer')).resolves.toBeUndefined();
@@ -131,9 +173,7 @@ describe('SorobanStellarClient', () => {
   it('serializes concurrent missing-account provisioning through the sponsor queue', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
-    const notFound = Object.assign(new Error('missing account'), {
-      response: { status: 404 },
-    });
+    const notFound = new Error('Account not found: GISSUER');
     const sponsor = Keypair.fromSecret(config.sponsorSecret).publicKey();
     server.getAccount.mockImplementation(async (publicKey: string) => {
       if (publicKey === sponsor) return new Account(sponsor, '1');
@@ -166,7 +206,7 @@ describe('SorobanStellarClient', () => {
     server.sendTransaction.mockResolvedValueOnce({
       status: 'ERROR',
       hash: 'failed',
-      errorResult: 'contract error code 6',
+      errorResult: 'HostError: Error(Contract, #6)',
     } as never);
     const client = new SorobanStellarClient(server as never, config);
 
@@ -186,7 +226,7 @@ describe('SorobanStellarClient', () => {
     const server = createServer(config.sponsorSecret);
     server.getTransaction.mockResolvedValueOnce({
       status: 'FAILED',
-      resultXdr: 'contract error code 5',
+      resultXdr: 'HostError: Error(Contract, #5)',
       diagnosticEventsXdr: [],
     } as never);
     const client = new SorobanStellarClient(server as never, config);
@@ -263,59 +303,99 @@ describe('SorobanStellarClient', () => {
     }
   });
 
-  it('restores an archived simulation once and retries once', async () => {
+  it('restores an archived write once, with consecutive sequences, and retries once', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
-    const simulation = {
-      id: 'simulation',
-      latestLedger: 10,
-      events: [],
-      _parsed: true as const,
-      transactionData: {} as never,
-      minResourceFee: '0',
-      result: { auth: [], retval: nativeToScVal(null) },
-    };
-    server.simulateTransaction
-      .mockResolvedValueOnce({
-        ...simulation,
-        restorePreamble: {
-          minResourceFee: '100',
-          transactionData: new SorobanDataBuilder(),
-        },
-      } as never)
-      .mockResolvedValueOnce(simulation);
+    server.simulateTransaction.mockResolvedValueOnce(restoreSimulation as never);
     const client = new SorobanStellarClient(server as never, config);
-    const internal = client as unknown as {
-      simulateTransaction: (
-        transaction: never,
-        account: Account,
-        deadline: { expiresAt: number },
-      ) => Promise<unknown>;
-    };
 
-    await internal.simulateTransaction(
-      {} as never,
-      new Account(Keypair.random().publicKey(), '1'),
-      { expiresAt: Date.now() + 20_000 },
-    );
+    await client.extendTtl('00'.repeat(32));
 
-    expect(server.sendTransaction).toHaveBeenCalledTimes(1);
+    const sent = server.sendTransaction.mock.calls.map(([transaction]) => (transaction as { sequence: string }).sequence);
+    // Every lookup returns the account at sequence 1, so the restore and the write both use 2, never 3.
+    expect(sent).toEqual(['2', '2']);
     expect(server.simulateTransaction).toHaveBeenCalledTimes(2);
   });
 
-  it('maps a simulated contract code to ContractError', async () => {
+  it('queues the restore that a read needs behind the writes already waiting', async () => {
     const config = createConfig();
     const server = createServer(config.sponsorSecret);
+    server.simulateTransaction.mockResolvedValueOnce(restoreSimulation as never);
+    server.simulateTransaction.mockResolvedValue({ ...restoreSimulation, restorePreamble: undefined, result: { auth: [], retval: statusScVal('Valid') } } as never);
     const client = new SorobanStellarClient(server as never, config);
-    const internal = client as unknown as {
-      contractOrNetworkError: (message: string) => Error;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    (client as unknown as { invokeWrite: () => Promise<string> }).invokeWrite = async () => {
+      await gate;
+      return 'write';
     };
 
-    const error = internal.contractOrNetworkError(
-      'HostError: contract error code 4',
-    );
+    const write = client.extendTtl('00'.repeat(32));
+    const verdict = client.getVerdict('11'.repeat(32));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const sentWhileWriteIsRunning = server.sendTransaction.mock.calls.length;
+    release();
+
+    await Promise.all([write, verdict]);
+    expect(sentWhileWriteIsRunning).toBe(0);
+    expect(server.sendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives each queued write its own time budget from the moment it starts', async () => {
+    vi.useFakeTimers();
+    try {
+      const config = createConfig();
+      const server = createServer(config.sponsorSecret);
+      const client = new SorobanStellarClient(server as never, config);
+      const budgets: number[] = [];
+      (client as unknown as { invokeWrite: (...args: unknown[]) => Promise<string> }).invokeWrite = async (
+        _method,
+        _args,
+        _keypair,
+        deadline,
+      ) => {
+        budgets.push((deadline as { expiresAt: number }).expiresAt - Date.now());
+        await new Promise((resolve) => setTimeout(resolve, 15_000));
+        return 'done';
+      };
+
+      const writes = Promise.all([
+        client.extendTtl('00'.repeat(32)),
+        client.extendTtl('11'.repeat(32)),
+        client.extendTtl('22'.repeat(32)),
+      ]);
+      await vi.advanceTimersByTimeAsync(45_000);
+      await writes;
+
+      expect(budgets).toEqual([20_000, 20_000, 20_000]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('maps only the real contract error form to a ContractError', () => {
+    const config = createConfig();
+    const client = new SorobanStellarClient(createServer(config.sponsorSecret) as never, config);
+    const internal = client as unknown as { contractOrNetworkError: (message: string) => Error };
+
+    const error = internal.contractOrNetworkError('HostError: Error(Contract, #4)');
 
     expect(error).toBeInstanceOf(ContractError);
     expect((error as ContractError).code).toBe(4);
+  });
+
+  it.each([
+    'txBadSeq',
+    'insufficient fee, minimum 4500',
+    'budget exceeded after 4 retries',
+    'error code 4',
+    'contract 4 failed',
+    'HostError: Error(Contract, #9)',
+  ])('does not read a contract code out of "%s"', (message) => {
+    const config = createConfig();
+    const client = new SorobanStellarClient(createServer(config.sponsorSecret) as never, config);
+    const internal = client as unknown as { contractOrNetworkError: (message: string) => Error };
+
+    expect(internal.contractOrNetworkError(message)).toBeInstanceOf(NetworkUnavailableError);
   });
 });
