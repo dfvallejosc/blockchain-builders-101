@@ -98,6 +98,8 @@ Personas ajenas al rubro no viven el problema real. No comprobamos que los emiso
 | Video (máximo 3 minutos) | Pendiente: enlace público |
 | Transacciones del flujo final (emitir y anular por la API) | Pendiente: enlaces de Stellar Expert |
 
+**Acceso para probar el producto.** La consulta pública (`/c/:id`) no necesita cuenta. Para entrar como administrador o como emisor, podemos darles acceso: escríbannos por WhatsApp o por correo y les enviamos una cuenta de prueba. Los datos de contacto están en la página del proyecto en Apex.
+
 **Transacciones de prueba del contrato** (certificado de prueba, huella de un texto inventado):
 
 | Paso | Transacción |
